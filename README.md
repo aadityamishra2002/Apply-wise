@@ -9,10 +9,12 @@ Production-minded MVP for a web SaaS that helps job seekers discover roles, unde
 - FastAPI health, dashboard, job search, and resume-analysis endpoints
 - Database-backed registration, login, logout, protected profile, and refresh-token rotation
 - Argon2id password hashing and HTTP-only refresh-token cookies
+- Frontend session refresh, private workspace route gating, and logout
 - Alembic migration support for PostgreSQL with SQLite-compatible local verification
 - Configurable deterministic job matching with a mock provider
 - SQLAlchemy schema foundation for the core product entities
 - Docker Compose services for web, API, PostgreSQL, and Redis
+- Production Docker images, Railway config as code, Vercel config, and deployment readiness probes
 
 ## Local development
 
@@ -36,6 +38,10 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. API documentation is available at `http://localhost:8000/docs`.
+
+## Private beta deployment
+
+The repository is prepared for a Vercel frontend and Railway API deployment. Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the required monorepo settings, secrets, and smoke checks.
 
 ## Next implementation slice
 

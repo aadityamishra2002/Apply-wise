@@ -2,19 +2,21 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
   BriefcaseBusiness,
-  ChevronDown,
   FileText,
   LayoutDashboard,
+  LogOut,
   Search,
   Settings,
 } from "lucide-react";
 
+import { AuthGuard } from "@/components/auth-guard";
 import { Logo } from "@/components/logo";
+import { logout, type CurrentUser } from "@/lib/api";
 
 const items = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -24,18 +26,33 @@ const items = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-export function AppShell({
-  title,
-  eyebrow,
-  children,
-  actions,
-}: {
+type AppShellProps = {
   title: string;
   eyebrow: string;
   children: ReactNode;
   actions?: ReactNode;
-}) {
+};
+
+export function AppShell(props: AppShellProps) {
+  return <AuthGuard>{(user) => <AuthenticatedShell {...props} user={user} />}</AuthGuard>;
+}
+
+function AuthenticatedShell({
+  title,
+  eyebrow,
+  children,
+  actions,
+  user,
+}: AppShellProps & { user: CurrentUser }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const initials = user.email.slice(0, 2).toUpperCase();
+
+  async function signOut() {
+    await logout();
+    router.replace("/login");
+  }
+
   return (
     <div className="min-h-screen bg-[#f8f9f6]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[226px] border-r border-[#e4e8e3] bg-white px-3 py-5 lg:block">
@@ -69,12 +86,14 @@ export function AppShell({
             Settings
           </Link>
           <div className="flex items-center gap-3 border-t border-[#edf0ed] px-2 pt-4">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#dcefe9] text-[12px] font-bold text-[#176b5b]">AK</div>
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#dcefe9] text-[12px] font-bold text-[#176b5b]">{initials}</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold">Avery Kim</p>
-              <p className="truncate text-[11px] text-[#8b9895]">Product engineer</p>
+              <p className="truncate text-[12px] font-bold">{user.email}</p>
+              <p className="truncate text-[11px] text-[#8b9895]">Active workspace</p>
             </div>
-            <ChevronDown size={14} className="text-[#8b9895]" />
+            <button aria-label="Log out" className="text-[#8b9895] hover:text-[#176b5b]" onClick={signOut} title="Log out">
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </aside>
@@ -111,4 +130,3 @@ export function AppShell({
     </div>
   );
 }
-

@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 
-type Mode = "login" | "register";
+import { accessTokenKey, apiUrl } from "@/lib/api";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+type Mode = "login" | "register";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -33,7 +33,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         setError(typeof body.detail === "string" ? body.detail : "Please check your details and try again.");
         return;
       }
-      sessionStorage.setItem("jobcopilot_access_token", body.tokens.access_token);
+      sessionStorage.setItem(accessTokenKey, body.tokens.access_token);
       router.push("/dashboard");
     } catch {
       setError("The service is unavailable. Please try again in a moment.");

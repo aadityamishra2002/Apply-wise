@@ -26,3 +26,11 @@ The repository starts as a modular monolith. The web app is the first distributi
 - Refresh tokens are opaque, stored only as hashes, rotated after use, and delivered to the web client through HTTP-only cookies.
 - Reusing a rotated refresh token revokes its active token family.
 - Alembic manages schema upgrades before the container starts the API.
+
+## Deployment foundation
+
+- Vercel serves the Next.js frontend from `apps/web`.
+- Railway builds the API from `apps/api`, runs Alembic as a pre-deploy command, and checks PostgreSQL readiness before promoting a deployment.
+- Production refresh cookies use `Secure`, `HttpOnly`, and `SameSite=None` for the Vercel-to-Railway browser flow.
+- Railway's standard PostgreSQL URL is normalized to SQLAlchemy's async driver URL at the configuration boundary.
+- The private workspace shell refreshes an existing session and redirects anonymous visitors to login.

@@ -10,6 +10,13 @@ def test_health() -> None:
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.headers["x-request-id"]
+
+
+def test_readiness_checks_database() -> None:
+    response = client.get("/api/v1/health/ready")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready", "database": "ok"}
 
 
 def test_local_browser_origin_is_allowed() -> None:

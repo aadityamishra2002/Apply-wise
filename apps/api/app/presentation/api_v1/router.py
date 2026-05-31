@@ -1,10 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.core.config import get_settings
+from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
 from app.presentation.api_v1.auth import router as auth_router
 
@@ -51,6 +55,20 @@ class ResumeAnalyzeResponse(BaseModel):
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
+
+
+@router.get("/health/ready")
+async def readiness(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, str]:
+    try:
+        await session.execute(text("SELECT 1"))
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is unavailable.",
+        ) from error
+    return {"status": "ready", "database": "ok"}
 
 
 @router.get("/dashboard/summary")

@@ -158,7 +158,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         httponly=True,
         secure=settings.app_env == "production",
-        samesite="lax",
+        samesite=settings.effective_refresh_cookie_samesite,
         path="/api/v1/auth",
     )
 
@@ -170,5 +170,5 @@ def delete_refresh_cookie(response: Response) -> None:
         path="/api/v1/auth",
         httponly=True,
         secure=settings.app_env == "production",
-        samesite="lax",
+        samesite=settings.effective_refresh_cookie_samesite,
     )
