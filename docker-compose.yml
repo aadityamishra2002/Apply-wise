@@ -32,7 +32,7 @@ services:
       APP_SECRET_KEY: local-development-only
       DATABASE_URL: postgresql+asyncpg://jobcopilot:jobcopilot@postgres:5432/jobcopilot
       REDIS_URL: redis://redis:6379/0
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: sh -c "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./apps/api:/app
       - ./storage:/storage
@@ -60,4 +60,3 @@ services:
 volumes:
   postgres_data:
   web_node_modules:
-

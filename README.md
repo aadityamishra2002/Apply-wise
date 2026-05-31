@@ -7,6 +7,9 @@ Production-minded MVP for a web SaaS that helps job seekers discover roles, unde
 - Responsive Next.js marketing page and authenticated-app prototype
 - Dashboard, ranked job search, resume workspace, and application board
 - FastAPI health, dashboard, job search, and resume-analysis endpoints
+- Database-backed registration, login, logout, protected profile, and refresh-token rotation
+- Argon2id password hashing and HTTP-only refresh-token cookies
+- Alembic migration support for PostgreSQL with SQLite-compatible local verification
 - Configurable deterministic job matching with a mock provider
 - SQLAlchemy schema foundation for the core product entities
 - Docker Compose services for web, API, PostgreSQL, and Redis
@@ -22,6 +25,7 @@ Or run the apps directly:
 ```bash
 cd apps/api
 python -m pip install -r requirements.txt
+alembic -c alembic.ini upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -35,4 +39,4 @@ Open `http://localhost:3000`. API documentation is available at `http://localhos
 
 ## Next implementation slice
 
-Add JWT authentication, Alembic migrations, persistent PostgreSQL repositories, file uploads, and the resume parsing worker.
+Add resume file uploads, PDF/DOCX parsing, persistent job repositories, and the background worker foundation.

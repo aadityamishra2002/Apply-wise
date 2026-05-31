@@ -6,8 +6,10 @@ from pydantic import BaseModel, Field
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.core.config import get_settings
 from app.infrastructure.providers.mock_jobs import MockJobProvider
+from app.presentation.api_v1.auth import router as auth_router
 
 router = APIRouter()
+router.include_router(auth_router)
 provider = MockJobProvider()
 settings = get_settings()
 matching_service = JobMatchingService(
@@ -109,4 +111,3 @@ def analyze_resume(payload: ResumeAnalyzeRequest) -> ResumeAnalyzeResponse:
         skills=skills,
         status="review_required",
     )
-

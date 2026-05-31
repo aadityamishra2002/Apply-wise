@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 
+import { AuthForm } from "@/components/auth-form";
 import { Logo } from "@/components/logo";
 
 export default function LoginPage() {
@@ -12,16 +12,7 @@ export default function LoginPage() {
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#176b5b]">Welcome back</p>
           <h1 className="mt-2 text-[34px] font-bold tracking-[-0.065em]">Keep your search moving.</h1>
           <p className="mt-2 text-[14px] leading-6 text-[#71807c]">Log in to review matches, tailor applications, and see your progress.</p>
-          <form className="mt-7 space-y-4">
-            <label className="block"><span className="text-[12px] font-bold text-[#53645f]">Email address</span><input className="mt-2 w-full rounded-xl border border-[#dde5e1] px-3.5 py-3 text-[13px] outline-none focus:border-[#85b7aa]" placeholder="avery@example.com" type="email" /></label>
-            <label className="block"><span className="text-[12px] font-bold text-[#53645f]">Password</span><input className="mt-2 w-full rounded-xl border border-[#dde5e1] px-3.5 py-3 text-[13px] outline-none focus:border-[#85b7aa]" placeholder="Your password" type="password" /></label>
-            <div className="flex items-center justify-between text-[11px] font-bold">
-              <label className="flex items-center gap-2 text-[#71807c]"><input type="checkbox" /> Remember me</label>
-              <a className="text-[#176b5b]" href="#">Forgot password?</a>
-            </div>
-            <Link className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3.5 text-[13px] font-bold text-white" href="/dashboard">Log in <ArrowRight size={15} /></Link>
-          </form>
-          <p className="mt-6 text-center text-[12px] text-[#8b9895]">New to applywise? <Link className="font-bold text-[#176b5b]" href="/dashboard">Create a free account</Link></p>
+          <AuthForm mode="login" />
         </div>
       </section>
       <section className="marketing-grid relative hidden overflow-hidden bg-[#ecf6f2] lg:block">
@@ -40,4 +31,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

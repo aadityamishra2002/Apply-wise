@@ -1,0 +1,3 @@
+class DuplicateIdentityError(ValueError):
+    pass
+
