@@ -36,4 +36,3 @@ Open `http://localhost:3000`. API documentation is available at `http://localhos
 ## Next implementation slice
 
 Add JWT authentication, Alembic migrations, persistent PostgreSQL repositories, file uploads, and the resume parsing worker.
-
