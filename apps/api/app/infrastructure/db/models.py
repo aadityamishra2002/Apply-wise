@@ -157,6 +157,7 @@ class CoverLetter(Base):
 
 class Application(Base):
     __tablename__ = "applications"
+    __table_args__ = (UniqueConstraint("user_id", "job_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)

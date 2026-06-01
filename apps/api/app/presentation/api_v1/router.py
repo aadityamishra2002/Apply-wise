@@ -1,14 +1,16 @@
+from datetime import timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
+from app.infrastructure.db.models import Application, ApplicationStatus, Job
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -62,6 +64,22 @@ class ResumeProfileResponse(BaseModel):
     extracted_text: str
     detected_sections: list[str]
     skills: list[str]
+    experiences: list["ResumeExperienceResponse"]
+
+
+class ResumeExperienceResponse(BaseModel):
+    title: str
+    company: str
+    description: str
+
+
+class ApplicationResponse(BaseModel):
+    id: str
+    job_id: str
+    company: str
+    title: str
+    status: str
+    created_at: str
 
 
 @router.get("/health")
@@ -95,11 +113,16 @@ def dashboard_summary() -> dict[str, object]:
 
 
 @router.get("/jobs", response_model=list[JobResponse])
-def search_jobs(
+async def search_jobs(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
     query: Annotated[str, Query(max_length=100)] = "",
 ) -> list[JobResponse]:
-    profile_skills = {"react", "typescript", "python", "postgresql", "docker", "sql"}
-    profile_keywords = {"saas", "product", "platform", "analytics"}
+    profile = await ResumeService(session).get_active(user.id)
+    if not profile:
+        return []
+    profile_skills = {skill.lower() for skill in profile.skills}
+    profile_keywords = set(profile.extracted_text.lower().split())
     matches = matching_service.rank_jobs(
         provider.search_jobs(query),
         profile_skills,
@@ -124,6 +147,64 @@ def search_jobs(
         )
         for match in matches
     ]
+
+
+@router.post("/jobs/{job_id}/save", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
+async def save_job(
+    job_id: str,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ApplicationResponse:
+    matched_job = next((job for job in provider.search_jobs() if str(job.id) == job_id), None)
+    if not matched_job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+    stored_job = await session.scalar(select(Job).where(Job.source == matched_job.source, Job.external_id == matched_job.external_id))
+    if not stored_job:
+        stored_job = Job(
+            id=matched_job.id,
+            source=matched_job.source,
+            external_id=matched_job.external_id or str(matched_job.id),
+            title=matched_job.title,
+            company=matched_job.company,
+            location=matched_job.location,
+            salary=matched_job.salary,
+            url=matched_job.url,
+            description=matched_job.description,
+            description_hash=str(matched_job.id),
+        )
+        session.add(stored_job)
+        await session.flush()
+    application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.job_id == stored_job.id))
+    if not application:
+        application = Application(user_id=user.id, job_id=stored_job.id, status=ApplicationStatus.SAVED)
+        session.add(application)
+        await session.commit()
+    return application_response(application, stored_job)
+
+
+@router.get("/applications", response_model=list[ApplicationResponse])
+async def list_applications(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ApplicationResponse]:
+    rows = await session.execute(
+        select(Application, Job).join(Job, Application.job_id == Job.id).where(Application.user_id == user.id).order_by(Application.created_at.desc())
+    )
+    return [application_response(application, job) for application, job in rows.all()]
+
+
+def application_response(application: Application, job: Job) -> ApplicationResponse:
+    created_at = application.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return ApplicationResponse(
+        id=str(application.id),
+        job_id=str(job.id),
+        company=job.company,
+        title=job.title,
+        status=application.status.value,
+        created_at=created_at.isoformat(),
+    )
 
 
 @router.post("/resumes/analyze", response_model=ResumeAnalyzeResponse)
@@ -179,4 +260,8 @@ def resume_profile_response(profile: ResumeProfile) -> ResumeProfileResponse:
         extracted_text=profile.extracted_text,
         detected_sections=list(profile.detected_sections),
         skills=list(profile.skills),
+        experiences=[
+            ResumeExperienceResponse(title=experience.title, company=experience.company, description=experience.description)
+            for experience in profile.experiences
+        ],
     )

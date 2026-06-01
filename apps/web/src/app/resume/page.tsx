@@ -107,6 +107,18 @@ export default function ResumePage() {
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Extracted text preview</h3>
                 <pre className="mt-3 max-h-[300px] overflow-auto whitespace-pre-wrap rounded-xl bg-[#f6f8f5] p-4 text-[11px] leading-5 text-[#65736f] thin-scrollbar">{profile.extracted_text}</pre>
               </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Experience</h3>
+                <div className="mt-3 space-y-3">
+                  {profile.experiences.length ? profile.experiences.map((experience) => (
+                    <div className="rounded-xl bg-[#f6f8f5] p-4" key={`${experience.title}-${experience.company}`}>
+                      <p className="text-[13px] font-bold">{experience.title}</p>
+                      <p className="mt-1 text-[12px] font-bold text-[#176b5b]">{experience.company}</p>
+                      <p className="mt-2 text-[12px] leading-5 text-[#71807c]">{experience.description}</p>
+                    </div>
+                  )) : <p className="text-[12px] text-[#91a09c]">No structured experience blocks detected yet.</p>}
+                </div>
+              </div>
             </>
           ) : (
             <div className="mt-6 rounded-2xl border border-dashed border-[#d5dedb] bg-[#fbfcfa] p-10 text-center">

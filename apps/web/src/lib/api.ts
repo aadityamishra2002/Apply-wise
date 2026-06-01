@@ -16,7 +16,16 @@ export type ResumeProfile = {
   extracted_text: string;
   detected_sections: string[];
   skills: string[];
+  experiences: ResumeExperience[];
 };
+
+export type ResumeExperience = { title: string; company: string; description: string };
+export type JobRecommendation = {
+  id: string; title: string; company: string; location: string; work_mode: string; salary: string | null;
+  description: string; source: string; url: string; posted_at: string | null; match_score: number;
+  matching_skills: string[]; missing_skills: string[]; experience_match: number;
+};
+export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; created_at: string };
 
 type TokenResponse = {
   access_token: string;
@@ -79,6 +88,31 @@ export async function uploadResume(file: File, accessToken: string): Promise<Res
     throw new Error(body?.detail ?? "Resume upload failed.");
   }
   return (await response.json()) as ResumeProfile;
+}
+
+export async function loadJobRecommendations(accessToken: string, query = ""): Promise<JobRecommendation[]> {
+  const response = await fetch(`${apiUrl}/jobs?query=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load job recommendations.");
+  return (await response.json()) as JobRecommendation[];
+}
+
+export async function saveJob(jobId: string, accessToken: string): Promise<ApplicationRecord> {
+  const response = await fetch(`${apiUrl}/jobs/${jobId}/save`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not save this job.");
+  return (await response.json()) as ApplicationRecord;
+}
+
+export async function loadApplications(accessToken: string): Promise<ApplicationRecord[]> {
+  const response = await fetch(`${apiUrl}/applications`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load your applications.");
+  return (await response.json()) as ApplicationRecord[];
 }
 
 export async function logout(): Promise<void> {

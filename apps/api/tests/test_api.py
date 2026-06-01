@@ -38,7 +38,9 @@ def test_local_browser_origin_is_allowed() -> None:
 
 
 def test_jobs_are_ranked() -> None:
-    response = client.get("/api/v1/jobs")
+    token = register_user()["tokens"]["access_token"]
+    upload_resume(token)
+    response = client.get("/api/v1/jobs", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     scores = [job["match_score"] for job in response.json()]
     assert scores == sorted(scores, reverse=True)
@@ -57,8 +59,11 @@ def test_dashboard_summary_starts_empty() -> None:
 
 
 def test_mock_job_ids_are_stable() -> None:
-    first_response = client.get("/api/v1/jobs")
-    second_response = client.get("/api/v1/jobs")
+    token = register_user()["tokens"]["access_token"]
+    upload_resume(token)
+    headers = {"Authorization": f"Bearer {token}"}
+    first_response = client.get("/api/v1/jobs", headers=headers)
+    second_response = client.get("/api/v1/jobs", headers=headers)
     first_ids = [job["id"] for job in first_response.json()]
     second_ids = [job["id"] for job in second_response.json()]
     assert first_ids == second_ids
@@ -93,6 +98,13 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
     assert upload.json()["parse_status"] == "review_required"
     assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills"]
     assert upload.json()["skills"] == ["Docker", "FastAPI", "PostgreSQL", "Python", "React", "TypeScript"]
+    assert upload.json()["experiences"] == [
+        {
+            "title": "Senior Product Engineer",
+            "company": "Northstar Labs",
+            "description": "Built React and TypeScript applications with Python, FastAPI, PostgreSQL, and Docker.",
+        }
+    ]
 
     profile = client.get(
         "/api/v1/resumes/me",
@@ -123,6 +135,21 @@ def test_resume_upload_rejects_unsupported_file() -> None:
     )
     assert upload.status_code == 422
     assert upload.json()["detail"] == "Upload a PDF or DOCX resume."
+
+
+def test_jobs_require_resume_and_saved_job_appears_in_tracker() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.get("/api/v1/jobs", headers=headers).json() == []
+    upload_resume(token)
+    jobs = client.get("/api/v1/jobs", headers=headers).json()
+    assert jobs
+    saved = client.post(f"/api/v1/jobs/{jobs[0]['id']}/save", headers=headers)
+    assert saved.status_code == 201
+    assert saved.json()["status"] == "saved"
+    applications = client.get("/api/v1/applications", headers=headers)
+    assert applications.status_code == 200
+    assert applications.json() == [saved.json()]
 
 
 def test_register_and_read_current_user() -> None:
@@ -243,6 +270,8 @@ def make_resume_docx() -> bytes:
     document.add_heading("Summary", level=1)
     document.add_paragraph("Product engineer building reliable user-facing software.")
     document.add_heading("Experience", level=1)
+    document.add_paragraph("Senior Product Engineer")
+    document.add_paragraph("Northstar Labs")
     document.add_paragraph("Built React and TypeScript applications with Python, FastAPI, PostgreSQL, and Docker.")
     document.add_heading("Education", level=1)
     document.add_paragraph("Bachelor of Engineering")
@@ -251,6 +280,15 @@ def make_resume_docx() -> bytes:
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()
+
+
+def upload_resume(token: str) -> None:
+    response = client.post(
+        "/api/v1/resumes/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("resume.docx", make_resume_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert response.status_code == 201
 
 
 def make_resume_pdf() -> bytes:

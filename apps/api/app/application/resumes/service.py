@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.infrastructure.db.models import MasterResume, Skill
+from app.infrastructure.db.models import Experience, MasterResume, Skill
 
 
 MAX_RESUME_BYTES = 10 * 1024 * 1024
@@ -57,6 +57,14 @@ class ResumeProfile:
     extracted_text: str
     detected_sections: tuple[str, ...]
     skills: tuple[str, ...]
+    experiences: tuple["ResumeExperience", ...]
+
+
+@dataclass(frozen=True)
+class ResumeExperience:
+    title: str
+    company: str
+    description: str
 
 
 class ResumeService:
@@ -96,6 +104,17 @@ class ResumeService:
                     evidence={"source": "resume_text"},
                 )
             )
+        for index, experience in enumerate(detect_experiences(extracted_text)):
+            self._session.add(
+                Experience(
+                    resume_id=resume.id,
+                    user_id=user_id,
+                    company=experience.company,
+                    title=experience.title,
+                    description=experience.description,
+                    sort_order=index,
+                )
+            )
         await self._session.commit()
         profile = await self.get_active(user_id)
         if not profile:
@@ -105,7 +124,7 @@ class ResumeService:
     async def get_active(self, user_id: UUID) -> ResumeProfile | None:
         resume = await self._session.scalar(
             select(MasterResume)
-            .options(selectinload(MasterResume.skills))
+            .options(selectinload(MasterResume.skills), selectinload(MasterResume.experiences))
             .where(MasterResume.user_id == user_id, MasterResume.is_active.is_(True))
             .order_by(MasterResume.created_at.desc())
         )
@@ -156,6 +175,25 @@ def detect_skills(text: str) -> tuple[tuple[str, str], ...]:
     return tuple(sorted(unique.values()))
 
 
+def detect_experiences(text: str) -> tuple[ResumeExperience, ...]:
+    lines = text.splitlines()
+    section_start = next((index for index, line in enumerate(lines) if line.lower() == "experience"), None)
+    if section_start is None:
+        return ()
+    section_end = next(
+        (index for index in range(section_start + 1, len(lines)) if lines[index].lower() in SECTION_NAMES),
+        len(lines),
+    )
+    content = lines[section_start + 1 : section_end]
+    experiences = []
+    for index in range(0, len(content) - 1, 3):
+        title, company = content[index : index + 2]
+        description = content[index + 2] if index + 2 < len(content) else ""
+        if title and company:
+            experiences.append(ResumeExperience(title=title, company=company, description=description))
+    return tuple(experiences)
+
+
 def to_profile(resume: MasterResume) -> ResumeProfile:
     extracted_text = resume.extracted_text or ""
     return ResumeProfile(
@@ -166,4 +204,8 @@ def to_profile(resume: MasterResume) -> ResumeProfile:
         extracted_text=extracted_text,
         detected_sections=detect_sections(extracted_text),
         skills=tuple(sorted(skill.skill_name for skill in resume.skills)),
+        experiences=tuple(
+            ResumeExperience(title=experience.title, company=experience.company, description=experience.description)
+            for experience in sorted(resume.experiences, key=lambda item: item.sort_order)
+        ),
     )
