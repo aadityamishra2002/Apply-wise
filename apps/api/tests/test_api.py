@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from app.main import app
 
 
@@ -64,6 +65,7 @@ def test_register_and_read_current_user() -> None:
     assert registration.status_code == 201
     body = registration.json()
     assert body["user"]["email"] == "avery@example.com"
+    assert body["user"]["role"] == "member"
     assert body["tokens"]["token_type"] == "bearer"
     assert registration.cookies.get("jobcopilot_refresh")
 
@@ -73,6 +75,26 @@ def test_register_and_read_current_user() -> None:
     )
     assert current_user.status_code == 200
     assert current_user.json()["email"] == "avery@example.com"
+    assert current_user.json()["role"] == "member"
+
+
+def test_allowlisted_owner_registers_as_admin() -> None:
+    registration = client.post(
+        "/api/v1/auth/register",
+        json={"email": "OWNER@example.com", "password": "correct-horse-battery-staple"},
+    )
+    assert registration.status_code == 201
+    assert registration.json()["user"]["role"] == "admin"
+
+
+def test_existing_allowlisted_owner_becomes_admin_on_login(monkeypatch) -> None:
+    payload = {"email": "avery@example.com", "password": "correct-horse-battery-staple"}
+    assert client.post("/api/v1/auth/register", json=payload).json()["user"]["role"] == "member"
+
+    monkeypatch.setattr(get_settings(), "admin_emails", payload["email"])
+    login = client.post("/api/v1/auth/login", json=payload)
+    assert login.status_code == 200
+    assert login.json()["user"]["role"] == "admin"
 
 
 def test_current_user_requires_access_token() -> None:

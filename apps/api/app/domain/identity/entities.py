@@ -9,6 +9,7 @@ class UserRecord:
     email: str
     password_hash: str
     status: str
+    role: str
     created_at: datetime
 
 
@@ -20,4 +21,3 @@ class RefreshTokenRecord:
     token_family_id: UUID
     expires_at: datetime
     revoked_at: datetime | None
-

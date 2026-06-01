@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
     id: str
     email: EmailStr
     status: str
+    role: str
 
 
 class AuthenticationResponse(BaseModel):
@@ -139,7 +140,7 @@ def auth_response(
 
 
 def user_response(user: UserRecord) -> UserResponse:
-    return UserResponse(id=str(user.id), email=user.email, status=user.status)
+    return UserResponse(id=str(user.id), email=user.email, status=user.status, role=user.role)
 
 
 def unauthorized(detail: str) -> HTTPException:

@@ -7,6 +7,7 @@ import pytest
 os.environ["APP_ENV"] = "test"
 os.environ["APP_SECRET_KEY"] = "test-secret-key-that-is-long-enough-for-jwt-signing"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_jobcopilot.db"
+os.environ["ADMIN_EMAILS"] = "owner@example.com"
 
 from app.infrastructure.db.models import Base  # noqa: E402
 from app.infrastructure.db.session import engine  # noqa: E402
@@ -22,4 +23,3 @@ async def reset_database() -> None:
 def database() -> Iterator[None]:
     asyncio.run(reset_database())
     yield
-

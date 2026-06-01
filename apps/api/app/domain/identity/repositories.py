@@ -6,13 +6,16 @@ from app.domain.identity.entities import RefreshTokenRecord, UserRecord
 
 
 class UserRepository(Protocol):
-    async def create(self, email: str, password_hash: str) -> UserRecord:
+    async def create(self, email: str, password_hash: str, role: str) -> UserRecord:
         ...
 
     async def get_by_email(self, email: str) -> UserRecord | None:
         ...
 
     async def get_by_id(self, user_id: UUID) -> UserRecord | None:
+        ...
+
+    async def update_role(self, user_id: UUID, role: str) -> None:
         ...
 
 
@@ -45,4 +48,3 @@ class IdentityUnitOfWork(Protocol):
 
     async def rollback(self) -> None:
         ...
-

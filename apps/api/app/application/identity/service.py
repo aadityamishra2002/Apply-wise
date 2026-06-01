@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
@@ -46,6 +46,7 @@ class IdentityService:
             user = await self._uow.users.create(
                 normalized_email,
                 await asyncio.to_thread(hash_password, password),
+                self._role_for_email(normalized_email),
             )
         except DuplicateIdentityError as error:
             raise EmailAlreadyRegisteredError(str(error)) from error
@@ -59,6 +60,7 @@ class IdentityService:
             raise AuthenticationError("Invalid email or password.")
         if user.status != "active":
             raise AuthenticationError("User account is not active.")
+        user = await self._ensure_allowlisted_admin(user)
         tokens = await self._issue_tokens(user.id, uuid4())
         await self._uow.commit()
         return user, tokens
@@ -99,7 +101,18 @@ class IdentityService:
         user = await self._uow.users.get_by_id(user_id)
         if not user or user.status != "active":
             raise AuthenticationError("User account is unavailable.")
+        user = await self._ensure_allowlisted_admin(user)
+        await self._uow.commit()
         return user
+
+    async def _ensure_allowlisted_admin(self, user: UserRecord) -> UserRecord:
+        if self._role_for_email(user.email) == "admin" and user.role != "admin":
+            await self._uow.users.update_role(user.id, "admin")
+            return replace(user, role="admin")
+        return user
+
+    def _role_for_email(self, email: str) -> str:
+        return "admin" if email.strip().lower() in self._settings.admin_email_list else "member"
 
     async def _issue_tokens(self, user_id: UUID, token_family_id: UUID) -> AuthTokens:
         refresh_token = create_refresh_token()

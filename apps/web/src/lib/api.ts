@@ -5,6 +5,7 @@ export type CurrentUser = {
   id: string;
   email: string;
   status: string;
+  role: "member" | "admin";
 };
 
 type TokenResponse = {

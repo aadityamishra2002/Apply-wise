@@ -40,6 +40,7 @@ JWT_ISSUER=job-application-copilot
 ENABLE_API_DOCS=false
 LOG_LEVEL=INFO
 LOG_FORMAT=json
+ADMIN_EMAILS=<comma-separated-owner-emails>
 ```
 
 When you add a custom API domain, append its hostname to `ALLOWED_HOSTS`.
@@ -78,6 +79,7 @@ Then open the Vercel URL and verify:
 ## 4. Production Notes
 
 - Store secrets only in Railway or Vercel variables. Do not commit `.env` files.
+- Add owner email addresses to Railway's `ADMIN_EMAILS` variable. Allowlisted accounts receive the persisted `admin` role when they register or next authenticate.
 - Railway PostgreSQL backups should be enabled before storing real user resumes.
 - The current product is suitable for a controlled private beta. Resume uploads, persistent job workflows, and billing still need implementation before a public launch.
 - The API accepts Railway's standard `postgresql://` URL and normalizes it to the async SQLAlchemy driver internally.

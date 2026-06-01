@@ -16,6 +16,7 @@ def to_user_record(user: User) -> UserRecord:
         email=user.email,
         password_hash=user.password_hash,
         status=user.status,
+        role=user.role,
         created_at=user.created_at,
     )
 
@@ -35,8 +36,8 @@ class SqlAlchemyUserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, email: str, password_hash: str) -> UserRecord:
-        user = User(email=email, password_hash=password_hash)
+    async def create(self, email: str, password_hash: str, role: str) -> UserRecord:
+        user = User(email=email, password_hash=password_hash, role=role)
         self._session.add(user)
         try:
             await self._session.flush()
@@ -52,6 +53,9 @@ class SqlAlchemyUserRepository:
     async def get_by_id(self, user_id: UUID) -> UserRecord | None:
         user = await self._session.get(User, user_id)
         return to_user_record(user) if user else None
+
+    async def update_role(self, user_id: UUID, role: str) -> None:
+        await self._session.execute(update(User).where(User.id == user_id).values(role=role))
 
 
 class SqlAlchemyRefreshTokenRepository:

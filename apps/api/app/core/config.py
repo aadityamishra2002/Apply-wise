@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     enable_api_docs: bool = True
     log_level: str = "INFO"
     log_format: Literal["text", "json"] = "text"
+    admin_emails: str = ""
     matching_skills_weight: float = 0.6
     matching_keywords_weight: float = 0.25
     matching_experience_weight: float = 0.15
@@ -60,6 +61,10 @@ class Settings(BaseSettings):
     @property
     def allowed_host_list(self) -> list[str]:
         return parse_csv(self.allowed_hosts)
+
+    @property
+    def admin_email_list(self) -> list[str]:
+        return [email.lower() for email in parse_csv(self.admin_emails)]
 
     @property
     def effective_refresh_cookie_samesite(self) -> Literal["lax", "strict", "none"]:

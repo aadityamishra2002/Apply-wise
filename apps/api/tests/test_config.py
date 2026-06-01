@@ -33,3 +33,8 @@ def test_production_rejects_wildcard_hosts() -> None:
             allowed_hosts="*",
             cors_origins="https://applywise.example.com",
         )
+
+
+def test_admin_email_list_is_normalized() -> None:
+    settings = Settings(_env_file=None, admin_emails=" Owner@Example.com,admin@example.com ")
+    assert settings.admin_email_list == ["owner@example.com", "admin@example.com"]
