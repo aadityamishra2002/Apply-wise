@@ -38,3 +38,8 @@ def test_production_rejects_wildcard_hosts() -> None:
 def test_admin_email_list_is_normalized() -> None:
     settings = Settings(_env_file=None, admin_emails=" Owner@Example.com,admin@example.com ")
     assert settings.admin_email_list == ["owner@example.com", "admin@example.com"]
+
+
+def test_adzuna_is_enabled_only_when_both_credentials_exist() -> None:
+    assert not Settings(_env_file=None, adzuna_app_id="id-only").adzuna_enabled
+    assert Settings(_env_file=None, adzuna_app_id="id", adzuna_app_key="key").adzuna_enabled

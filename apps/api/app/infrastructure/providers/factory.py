@@ -1,0 +1,15 @@
+from app.core.config import Settings
+from app.infrastructure.providers.adzuna_jobs import AdzunaJobProvider
+from app.infrastructure.providers.mock_jobs import MockJobProvider
+
+
+def create_job_provider(settings: Settings) -> AdzunaJobProvider | MockJobProvider:
+    if settings.adzuna_enabled:
+        return AdzunaJobProvider(
+            app_id=settings.adzuna_app_id,
+            app_key=settings.adzuna_app_key,
+            country=settings.adzuna_country,
+            results_per_page=settings.adzuna_results_per_page,
+            timeout_seconds=settings.adzuna_timeout_seconds,
+        )
+    return MockJobProvider()

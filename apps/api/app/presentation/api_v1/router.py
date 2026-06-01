@@ -14,14 +14,14 @@ from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
 from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, ResumeVersion
 from app.infrastructure.db.session import get_session
-from app.infrastructure.providers.mock_jobs import MockJobProvider
+from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
 from app.domain.identity.entities import UserRecord
 
 router = APIRouter()
 router.include_router(auth_router)
-provider = MockJobProvider()
 settings = get_settings()
+provider = create_job_provider(settings)
 matching_service = JobMatchingService(
     MatchingWeights(
         skills=settings.matching_skills_weight,
@@ -260,14 +260,13 @@ async def search_jobs(
 
 @router.post("/jobs/{job_id}/save", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 async def save_job(
-    job_id: str,
+    job_id: UUID,
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ApplicationResponse:
-    matched_job = next((job for job in provider.search_jobs() if str(job.id) == job_id), None)
-    if not matched_job:
+    stored_job = await session.scalar(select(Job).where(Job.id == job_id))
+    if not stored_job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
-    stored_job = await ensure_stored_job(session, matched_job)
     application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.job_id == stored_job.id))
     if not application:
         application = Application(user_id=user.id, job_id=stored_job.id, status=ApplicationStatus.SAVED)

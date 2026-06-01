@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: Literal["text", "json"] = "text"
     admin_emails: str = ""
+    adzuna_app_id: str = ""
+    adzuna_app_key: str = ""
+    adzuna_country: str = "in"
+    adzuna_results_per_page: int = 20
+    adzuna_timeout_seconds: float = 10
     matching_skills_weight: float = 0.6
     matching_keywords_weight: float = 0.25
     matching_experience_weight: float = 0.15
@@ -71,6 +76,10 @@ class Settings(BaseSettings):
         if self.app_env == "production":
             return "none"
         return self.refresh_cookie_samesite
+
+    @property
+    def adzuna_enabled(self) -> bool:
+        return bool(self.adzuna_app_id and self.adzuna_app_key)
 
 
 @lru_cache
