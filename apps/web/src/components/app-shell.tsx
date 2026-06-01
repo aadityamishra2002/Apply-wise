@@ -89,7 +89,7 @@ function AuthenticatedShell({
             <div className="grid h-9 w-9 place-items-center rounded-full bg-[#dcefe9] text-[12px] font-bold text-[#176b5b]">{initials}</div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12px] font-bold">{user.email}</p>
-              <p className="truncate text-[11px] text-[#8b9895]">Active workspace</p>
+              <p className="truncate text-[11px] text-[#8b9895]">{user.role === "admin" ? "Owner workspace" : "Active workspace"}</p>
             </div>
             <button aria-label="Log out" className="text-[#8b9895] hover:text-[#176b5b]" onClick={signOut} title="Log out">
               <LogOut size={14} />

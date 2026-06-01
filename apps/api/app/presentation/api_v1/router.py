@@ -74,11 +74,11 @@ async def readiness(
 @router.get("/dashboard/summary")
 def dashboard_summary() -> dict[str, object]:
     return {
-        "applications": 24,
-        "interviews": 6,
-        "saved_jobs": 18,
-        "average_match_score": 82,
-        "weekly_activity": [4, 7, 3, 8, 5, 11, 6],
+        "applications": 0,
+        "interviews": 0,
+        "saved_jobs": 0,
+        "average_match_score": None,
+        "weekly_activity": [0, 0, 0, 0, 0, 0, 0],
     }
 
 

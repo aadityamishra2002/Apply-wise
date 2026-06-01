@@ -40,6 +40,18 @@ def test_jobs_are_ranked() -> None:
     assert scores == sorted(scores, reverse=True)
 
 
+def test_dashboard_summary_starts_empty() -> None:
+    response = client.get("/api/v1/dashboard/summary")
+    assert response.status_code == 200
+    assert response.json() == {
+        "applications": 0,
+        "interviews": 0,
+        "saved_jobs": 0,
+        "average_match_score": None,
+        "weekly_activity": [0, 0, 0, 0, 0, 0, 0],
+    }
+
+
 def test_mock_job_ids_are_stable() -> None:
     first_response = client.get("/api/v1/jobs")
     second_response = client.get("/api/v1/jobs")
