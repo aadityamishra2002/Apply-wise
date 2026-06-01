@@ -13,12 +13,22 @@ export default function JobsPage() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
     void loadJobRecommendations(token).then((items) => { setJobs(items); setSelected(items[0] ?? null); }).catch((loadError: Error) => setError(loadError.message)).finally(() => setLoading(false));
   }, []);
+
+  async function searchJobs() {
+    const token = getAccessToken();
+    if (!token) return;
+    setLoading(true); setError(null);
+    try { const items = await loadJobRecommendations(token, query); setJobs(items); setSelected(items[0] ?? null); }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load job recommendations."); }
+    finally { setLoading(false); }
+  }
 
   async function persistSavedJob(jobId: string) {
     const token = getAccessToken();
@@ -28,6 +38,10 @@ export default function JobsPage() {
   }
 
   return <AppShell eyebrow="Job discovery" title="Resume-aware recommendations" actions={<Link className="rounded-lg border border-[#dfe6e2] bg-white px-3 py-2 text-[12px] font-bold text-[#65736f]" href="/applications">Saved jobs ({saved.size})</Link>}>
+    <form className="mb-5 flex gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-3 small-shadow" onSubmit={(event) => { event.preventDefault(); void searchJobs(); }}>
+      <input aria-label="Search jobs" className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-[#a0aba8]" onChange={(event) => setQuery(event.target.value)} placeholder="Search roles or keywords, such as Python developer" value={query}/>
+      <button className="flex items-center gap-1.5 rounded-xl bg-[#176b5b] px-4 py-2.5 text-[12px] font-bold text-white" type="submit"><Search size={14}/>Search</button>
+    </form>
     {error ? <p className="mb-4 rounded-xl bg-[#fff4ef] p-3 text-[12px] font-bold text-[#a34f3f]">{error}</p> : null}
     {loading ? <div className="grid min-h-[360px] place-items-center text-[#176b5b]"><LoaderCircle className="animate-spin" /></div> : jobs.length ? (
       <section className="grid gap-5 xl:grid-cols-[.92fr_1.08fr]">

@@ -106,7 +106,10 @@ export async function loadJobRecommendations(accessToken: string, query = ""): P
   const response = await fetch(`${apiUrl}/jobs?query=${encodeURIComponent(query)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok) throw new Error("Could not load job recommendations.");
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not load job recommendations.");
+  }
   return (await response.json()) as JobRecommendation[];
 }
 

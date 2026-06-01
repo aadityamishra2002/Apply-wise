@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
@@ -214,11 +215,14 @@ async def search_jobs(
         return []
     profile_skills = {skill.lower() for skill in profile.skills}
     profile_keywords = set(profile.extracted_text.lower().split())
-    matches = matching_service.rank_jobs(
-        provider.search_jobs(query),
-        profile_skills,
-        profile_keywords,
-    )
+    try:
+        jobs = provider.search_jobs(query)
+    except httpx.HTTPError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The job provider is temporarily unavailable. Please try again shortly.",
+        ) from error
+    matches = matching_service.rank_jobs(jobs, profile_skills, profile_keywords)
     for match in matches:
         stored_job = await ensure_stored_job(session, match.job)
         stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
