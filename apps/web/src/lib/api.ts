@@ -29,6 +29,7 @@ export type ApplicationRecord = { id: string; job_id: string; company: string; t
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
+export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 
 type TokenResponse = {
   access_token: string;
@@ -151,6 +152,14 @@ export async function loadDashboardSummary(accessToken: string): Promise<Dashboa
   });
   if (!response.ok) throw new Error("Could not load dashboard metrics.");
   return (await response.json()) as DashboardSummary;
+}
+
+export async function loadAnalyticsSummary(accessToken: string): Promise<AnalyticsSummary> {
+  const response = await fetch(`${apiUrl}/analytics/summary`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load analytics.");
+  return (await response.json()) as AnalyticsSummary;
 }
 
 export async function logout(): Promise<void> {

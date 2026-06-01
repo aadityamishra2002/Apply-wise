@@ -61,6 +61,15 @@ def test_dashboard_summary_starts_empty() -> None:
     }
 
 
+def test_analytics_summary_starts_empty() -> None:
+    token = register_user()["tokens"]["access_token"]
+    response = client.get("/api/v1/analytics/summary", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert response.json()["total_applications"] == 0
+    assert response.json()["interview_rate"] == 0
+    assert response.json()["offer_rate"] == 0
+
+
 def test_mock_job_ids_are_stable() -> None:
     token = register_user()["tokens"]["access_token"]
     upload_resume(token)
@@ -171,6 +180,9 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     assert summary["interviews"] == 1
     assert summary["saved_jobs"] == 0
     assert sum(summary["weekly_activity"]) == 1
+    analytics = client.get("/api/v1/analytics/summary", headers=headers).json()
+    assert analytics["total_applications"] == 1
+    assert analytics["interview_rate"] == 100
 
 
 def test_application_update_is_owner_scoped() -> None:

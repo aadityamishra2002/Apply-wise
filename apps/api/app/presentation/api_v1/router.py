@@ -114,6 +114,13 @@ class ResumeVersionResponse(BaseModel):
     created_at: str
 
 
+class AnalyticsSummaryResponse(BaseModel):
+    total_applications: int
+    interview_rate: float
+    offer_rate: float
+    status_counts: dict[str, int]
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
@@ -171,6 +178,28 @@ async def dashboard_summary(
         saved_jobs=saved_jobs or 0,
         average_match_score=round(float(average_match_score), 1) if average_match_score is not None else None,
         weekly_activity=weekly_activity,
+    )
+
+
+@router.get("/analytics/summary", response_model=AnalyticsSummaryResponse)
+async def analytics_summary(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AnalyticsSummaryResponse:
+    rows = await session.execute(
+        select(Application.status, func.count())
+        .where(Application.user_id == user.id)
+        .group_by(Application.status)
+    )
+    status_counts = {status.value: count for status, count in rows.all()}
+    total = sum(status_counts.values())
+    interviews = status_counts.get(ApplicationStatus.INTERVIEW.value, 0)
+    offers = status_counts.get(ApplicationStatus.OFFER.value, 0)
+    return AnalyticsSummaryResponse(
+        total_applications=total,
+        interview_rate=round((interviews / total) * 100, 1) if total else 0,
+        offer_rate=round((offers / total) * 100, 1) if total else 0,
+        status_counts={status.value: status_counts.get(status.value, 0) for status in ApplicationStatus},
     )
 
 
