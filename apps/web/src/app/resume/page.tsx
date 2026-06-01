@@ -1,44 +1,124 @@
-import { CloudUpload, FileText, ShieldCheck, Sparkles } from "lucide-react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Check, CloudUpload, FileText, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { Pill } from "@/components/ui";
+import { getAccessToken, loadResumeProfile, uploadResume, type ResumeProfile } from "@/lib/api";
 
 export default function ResumePage() {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [profile, setProfile] = useState<ResumeProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return;
+    void loadResumeProfile(token)
+      .then(setProfile)
+      .catch((loadError: Error) => setError(loadError.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleFile(file: File | undefined) {
+    const token = getAccessToken();
+    if (!file || !token) return;
+    setUploading(true);
+    setError(null);
+    try {
+      setProfile(await uploadResume(file, token));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Resume upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <AppShell eyebrow="Profile foundation" title="My resume">
       <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <div className="space-y-5">
           <div className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Master resume</p>
-            <div className="mt-4 rounded-2xl border border-dashed border-[#b8d4cc] bg-[#f6fbf9] p-6 text-center">
-              <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-[#e2f2ec] text-[#176b5b]"><CloudUpload size={20} /></div>
-              <p className="mt-4 text-[13px] font-bold">Resume upload is being connected</p>
-              <p className="mt-1 text-[11px] leading-5 text-[#91a09c]">PDF and DOCX parsing will be available in the next product slice.</p>
-              <button className="mt-4 rounded-lg bg-[#b7c9c4] px-4 py-2.5 text-[11px] font-bold text-white" disabled>Upload coming next</button>
-            </div>
+            <input
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(event) => void handleFile(event.target.files?.[0])}
+              ref={fileInput}
+              type="file"
+            />
+            <button
+              className="mt-4 w-full rounded-2xl border border-dashed border-[#b8d4cc] bg-[#f6fbf9] p-6 text-center disabled:cursor-wait disabled:opacity-70"
+              disabled={uploading}
+              onClick={() => fileInput.current?.click()}
+              type="button"
+            >
+              <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-[#e2f2ec] text-[#176b5b]">
+                {uploading ? <LoaderCircle className="animate-spin" size={20} /> : <CloudUpload size={20} />}
+              </div>
+              <p className="mt-4 text-[13px] font-bold">{uploading ? "Extracting your resume..." : profile ? "Replace your master resume" : "Upload your master resume"}</p>
+              <p className="mt-1 text-[11px] leading-5 text-[#91a09c]">PDF or DOCX, up to 10 MB. Text is extracted and stored securely in your profile.</p>
+            </button>
+            {error ? <p className="mt-3 rounded-xl bg-[#fff4ef] p-3 text-[12px] font-bold text-[#a34f3f]">{error}</p> : null}
           </div>
+
+          {profile ? (
+            <div className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
+              <div className="flex gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e8f4ef] text-[#176b5b]"><FileText size={18} /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold">{profile.original_filename}</p>
+                  <p className="mt-1 text-[11px] text-[#91a09c]">Active master resume</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#f3f8e6] p-3 text-[11px] font-bold text-[#66801f]"><Check size={14} /> Extracted and ready for review</div>
+            </div>
+          ) : null}
 
           <div className="rounded-2xl border border-[#dce7e2] bg-gradient-to-br from-[#e8f4ef] to-[#f5f9e7] p-5">
             <ShieldCheck className="text-[#176b5b]" size={21} />
             <p className="mt-3 text-[14px] font-bold">Truthful tailoring, always.</p>
-            <p className="mt-2 text-[12px] leading-5 text-[#65736f]">applywise will only rephrase and reorganize verified experience. It will never invent skills, projects, or impact.</p>
+            <p className="mt-2 text-[12px] leading-5 text-[#65736f]">applywise only uses evidence extracted from your resume. It never invents skills, projects, or impact.</p>
           </div>
         </div>
 
         <div className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
-          <div>
-            <h2 className="text-[17px] font-bold tracking-[-0.04em]">Extracted profile</h2>
-            <p className="mt-1 text-[12px] text-[#91a09c]">Your parsed resume evidence will appear here after uploads are connected.</p>
-          </div>
+          <h2 className="text-[17px] font-bold tracking-[-0.04em]">Extracted profile</h2>
+          <p className="mt-1 text-[12px] text-[#91a09c]">Review the evidence your copilot will use for matching and tailoring.</p>
 
-          <div className="mt-6 rounded-2xl border border-dashed border-[#d5dedb] bg-[#fbfcfa] p-10 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#e8f4ef] text-[#176b5b]"><FileText size={21} /></div>
-            <h3 className="mt-4 text-[15px] font-bold">No resume profile yet</h3>
-            <p className="mx-auto mt-2 max-w-lg text-[12px] leading-5 text-[#71807c]">Skills, experience, education, and certifications will only appear after they are extracted from your uploaded resume.</p>
-          </div>
+          {loading ? (
+            <div className="grid min-h-[260px] place-items-center text-[#176b5b]"><LoaderCircle className="animate-spin" size={22} /></div>
+          ) : profile ? (
+            <>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Detected sections</h3>
+                <div className="mt-3 flex flex-wrap gap-2">{profile.detected_sections.map((section) => <Pill key={section} tone="lime">{section}</Pill>)}</div>
+              </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Skills</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {profile.skills.length ? profile.skills.map((skill) => <Pill key={skill} tone="green">{skill}</Pill>) : <p className="text-[12px] text-[#91a09c]">No known skills detected yet.</p>}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Extracted text preview</h3>
+                <pre className="mt-3 max-h-[300px] overflow-auto whitespace-pre-wrap rounded-xl bg-[#f6f8f5] p-4 text-[11px] leading-5 text-[#65736f] thin-scrollbar">{profile.extracted_text}</pre>
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-[#d5dedb] bg-[#fbfcfa] p-10 text-center">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#e8f4ef] text-[#176b5b]"><FileText size={21} /></div>
+              <h3 className="mt-4 text-[15px] font-bold">No resume profile yet</h3>
+              <p className="mx-auto mt-2 max-w-lg text-[12px] leading-5 text-[#71807c]">Upload your resume to extract its sections and recognized skills.</p>
+            </div>
+          )}
 
           <div className="mt-6 flex items-start gap-3 rounded-xl bg-[#f6f8f5] p-4">
             <Sparkles size={17} className="mt-0.5 shrink-0 text-[#176b5b]" />
-            <p className="text-[12px] leading-5 text-[#65736f]">Once your real profile is available, matching and tailoring can be grounded in evidence that belongs to you.</p>
+            <p className="text-[12px] leading-5 text-[#65736f]">This first parser extracts resume text and known skills. Structured experience extraction and editing are the next refinement.</p>
           </div>
         </div>
       </section>

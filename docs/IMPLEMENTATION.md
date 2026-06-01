@@ -34,3 +34,12 @@ The repository starts as a modular monolith. The web app is the first distributi
 - Production refresh cookies use `Secure`, `HttpOnly`, and `SameSite=None` for the Vercel-to-Railway browser flow.
 - Railway's standard PostgreSQL URL is normalized to SQLAlchemy's async driver URL at the configuration boundary.
 - The private workspace shell refreshes an existing session and redirects anonymous visitors to login.
+
+## Resume foundation
+
+- Authenticated users can upload a PDF or DOCX master resume up to 10 MB.
+- PyMuPDF and python-docx extract text synchronously for the first usable slice.
+- The active extracted resume, detected sections, and recognized skills are persisted in PostgreSQL.
+- Uploading a replacement deactivates the previous master resume without deleting its historical evidence.
+- Raw file bytes are intentionally not retained by the API container. S3-compatible object storage is required before raw-file download and broader rollout.
+- Structured experience extraction, profile editing, and background parsing remain the next resume refinements.

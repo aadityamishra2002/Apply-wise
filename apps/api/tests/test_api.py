@@ -1,3 +1,7 @@
+from io import BytesIO
+
+import fitz
+from docx import Document
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
@@ -67,6 +71,58 @@ def test_resume_analysis_detects_skills() -> None:
     )
     assert response.status_code == 200
     assert response.json()["skills"] == ["python", "react", "docker"]
+
+
+def test_resume_upload_requires_authentication() -> None:
+    response = client.post(
+        "/api/v1/resumes/upload",
+        files={"file": ("resume.docx", make_resume_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert response.status_code == 401
+
+
+def test_docx_resume_upload_extracts_and_persists_profile() -> None:
+    token = register_user()["tokens"]["access_token"]
+    upload = client.post(
+        "/api/v1/resumes/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("resume.docx", make_resume_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert upload.status_code == 201
+    assert upload.json()["original_filename"] == "resume.docx"
+    assert upload.json()["parse_status"] == "review_required"
+    assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills"]
+    assert upload.json()["skills"] == ["Docker", "FastAPI", "PostgreSQL", "Python", "React", "TypeScript"]
+
+    profile = client.get(
+        "/api/v1/resumes/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert profile.status_code == 200
+    assert profile.json() == upload.json()
+
+
+def test_pdf_resume_upload_extracts_profile() -> None:
+    token = register_user()["tokens"]["access_token"]
+    upload = client.post(
+        "/api/v1/resumes/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("resume.pdf", make_resume_pdf(), "application/pdf")},
+    )
+    assert upload.status_code == 201
+    assert upload.json()["original_filename"] == "resume.pdf"
+    assert upload.json()["skills"] == ["Docker", "Python", "React"]
+
+
+def test_resume_upload_rejects_unsupported_file() -> None:
+    token = register_user()["tokens"]["access_token"]
+    upload = client.post(
+        "/api/v1/resumes/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("resume.txt", b"Summary Skills Python React Docker", "text/plain")},
+    )
+    assert upload.status_code == 422
+    assert upload.json()["detail"] == "Upload a PDF or DOCX resume."
 
 
 def test_register_and_read_current_user() -> None:
@@ -171,3 +227,36 @@ def test_logout_revokes_refresh_token() -> None:
     client.cookies.set("jobcopilot_refresh", refresh_token, path="/api/v1/auth")
     refresh = client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 401
+
+
+def register_user() -> dict:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "resume-owner@example.com", "password": "correct-horse-battery-staple"},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def make_resume_docx() -> bytes:
+    document = Document()
+    document.add_heading("Summary", level=1)
+    document.add_paragraph("Product engineer building reliable user-facing software.")
+    document.add_heading("Experience", level=1)
+    document.add_paragraph("Built React and TypeScript applications with Python, FastAPI, PostgreSQL, and Docker.")
+    document.add_heading("Education", level=1)
+    document.add_paragraph("Bachelor of Engineering")
+    document.add_heading("Skills", level=1)
+    document.add_paragraph("React TypeScript Python FastAPI PostgreSQL Docker")
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def make_resume_pdf() -> bytes:
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Summary\nExperience\nSkills\nPython React Docker\nEducation")
+    content = document.tobytes()
+    document.close()
+    return content

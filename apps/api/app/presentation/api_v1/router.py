@@ -1,16 +1,18 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
+from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
-from app.presentation.api_v1.auth import router as auth_router
+from app.presentation.api_v1.auth import get_current_user, router as auth_router
+from app.domain.identity.entities import UserRecord
 
 router = APIRouter()
 router.include_router(auth_router)
@@ -50,6 +52,16 @@ class ResumeAnalyzeResponse(BaseModel):
     detected_sections: list[str]
     skills: list[str]
     status: str
+
+
+class ResumeProfileResponse(BaseModel):
+    id: str
+    original_filename: str
+    mime_type: str
+    parse_status: str
+    extracted_text: str
+    detected_sections: list[str]
+    skills: list[str]
 
 
 @router.get("/health")
@@ -128,4 +140,43 @@ def analyze_resume(payload: ResumeAnalyzeRequest) -> ResumeAnalyzeResponse:
         detected_sections=sections,
         skills=skills,
         status="review_required",
+    )
+
+
+@router.get("/resumes/me", response_model=ResumeProfileResponse | None)
+async def get_my_resume(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeProfileResponse | None:
+    profile = await ResumeService(session).get_active(user.id)
+    return resume_profile_response(profile) if profile else None
+
+
+@router.post("/resumes/upload", response_model=ResumeProfileResponse, status_code=status.HTTP_201_CREATED)
+async def upload_resume(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    file: Annotated[UploadFile, File(...)],
+) -> ResumeProfileResponse:
+    try:
+        profile = await ResumeService(session).upload(
+            user.id,
+            file.filename or "resume",
+            file.content_type or "",
+            await file.read(MAX_RESUME_BYTES + 1),
+        )
+    except ResumeValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    return resume_profile_response(profile)
+
+
+def resume_profile_response(profile: ResumeProfile) -> ResumeProfileResponse:
+    return ResumeProfileResponse(
+        id=str(profile.id),
+        original_filename=profile.original_filename,
+        mime_type=profile.mime_type,
+        parse_status=profile.parse_status,
+        extracted_text=profile.extracted_text,
+        detected_sections=list(profile.detected_sections),
+        skills=list(profile.skills),
     )
