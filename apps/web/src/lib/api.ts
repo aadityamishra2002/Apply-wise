@@ -28,6 +28,7 @@ export type JobRecommendation = {
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; created_at: string };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
+export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 
 type TokenResponse = {
   access_token: string;
@@ -75,6 +76,14 @@ export async function loadResumeProfile(accessToken: string): Promise<ResumeProf
   });
   if (!response.ok) throw new Error("Could not load your resume profile.");
   return (await response.json()) as ResumeProfile | null;
+}
+
+export async function loadResumeVersions(accessToken: string): Promise<ResumeVersionRecord[]> {
+  const response = await fetch(`${apiUrl}/resume-versions`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load resume versions.");
+  return (await response.json()) as ResumeVersionRecord[];
 }
 
 export async function uploadResume(file: File, accessToken: string): Promise<ResumeProfile> {

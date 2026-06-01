@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
+from app.domain.jobs.entities import Job as ProviderJob
 from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, ResumeVersion
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
@@ -104,6 +105,15 @@ class ApplicationMaterialsResponse(BaseModel):
     cover_letter: str
 
 
+class ResumeVersionResponse(BaseModel):
+    id: str
+    job_id: str
+    job_title: str
+    company: str
+    ats_score: float
+    created_at: str
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
@@ -180,6 +190,24 @@ async def search_jobs(
         profile_skills,
         profile_keywords,
     )
+    for match in matches:
+        stored_job = await ensure_stored_job(session, match.job)
+        stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
+        if stored_match:
+            stored_match.match_score = match.match_score
+            stored_match.matching_skills = list(match.matching_skills)
+            stored_match.missing_skills = list(match.missing_skills)
+        else:
+            session.add(
+                JobMatch(
+                    user_id=user.id,
+                    job_id=stored_job.id,
+                    match_score=match.match_score,
+                    matching_skills=list(match.matching_skills),
+                    missing_skills=list(match.missing_skills),
+                )
+            )
+    await session.commit()
     return [
         JobResponse(
             id=str(match.job.id),
@@ -210,28 +238,37 @@ async def save_job(
     matched_job = next((job for job in provider.search_jobs() if str(job.id) == job_id), None)
     if not matched_job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
-    stored_job = await session.scalar(select(Job).where(Job.source == matched_job.source, Job.external_id == matched_job.external_id))
-    if not stored_job:
-        stored_job = Job(
-            id=matched_job.id,
-            source=matched_job.source,
-            external_id=matched_job.external_id or str(matched_job.id),
-            title=matched_job.title,
-            company=matched_job.company,
-            location=matched_job.location,
-            salary=matched_job.salary,
-            url=matched_job.url,
-            description=matched_job.description,
-            description_hash=str(matched_job.id),
-        )
-        session.add(stored_job)
-        await session.flush()
+    stored_job = await ensure_stored_job(session, matched_job)
     application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.job_id == stored_job.id))
     if not application:
         application = Application(user_id=user.id, job_id=stored_job.id, status=ApplicationStatus.SAVED)
         session.add(application)
         await session.commit()
     return application_response(application, stored_job)
+
+
+@router.get("/resume-versions", response_model=list[ResumeVersionResponse])
+async def list_resume_versions(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ResumeVersionResponse]:
+    rows = await session.execute(
+        select(ResumeVersion, Job)
+        .join(Job, ResumeVersion.job_id == Job.id)
+        .where(ResumeVersion.user_id == user.id)
+        .order_by(ResumeVersion.created_at.desc())
+    )
+    return [
+        ResumeVersionResponse(
+            id=str(version.id),
+            job_id=str(job.id),
+            job_title=job.title,
+            company=job.company,
+            ats_score=version.ats_score,
+            created_at=version.created_at.isoformat(),
+        )
+        for version, job in rows.all()
+    ]
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])
@@ -360,6 +397,27 @@ def build_cover_letter(job: Job, profile: ResumeProfile) -> str:
         "I would welcome the opportunity to discuss how my experience could support your team.\n\n"
         "Sincerely"
     )
+
+
+async def ensure_stored_job(session: AsyncSession, matched_job: ProviderJob) -> Job:
+    stored_job = await session.scalar(select(Job).where(Job.source == matched_job.source, Job.external_id == matched_job.external_id))
+    if stored_job:
+        return stored_job
+    stored_job = Job(
+        id=matched_job.id,
+        source=matched_job.source,
+        external_id=matched_job.external_id or str(matched_job.id),
+        title=matched_job.title,
+        company=matched_job.company,
+        location=matched_job.location,
+        salary=matched_job.salary,
+        url=matched_job.url,
+        description=matched_job.description,
+        description_hash=str(matched_job.id),
+    )
+    session.add(stored_job)
+    await session.flush()
+    return stored_job
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:

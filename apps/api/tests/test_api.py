@@ -44,6 +44,8 @@ def test_jobs_are_ranked() -> None:
     assert response.status_code == 200
     scores = [job["match_score"] for job in response.json()]
     assert scores == sorted(scores, reverse=True)
+    summary = client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"}).json()
+    assert summary["average_match_score"] is not None
 
 
 def test_dashboard_summary_starts_empty() -> None:
@@ -206,6 +208,10 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert "Northstar Labs" in body["cover_letter"]
     assert body["resume_version_id"]
     assert body["cover_letter_id"]
+    versions = client.get("/api/v1/resume-versions", headers=headers)
+    assert versions.status_code == 200
+    assert versions.json()[0]["id"] == body["resume_version_id"]
+    assert versions.json()[0]["job_title"] == job["title"]
 
 
 def test_register_and_read_current_user() -> None:

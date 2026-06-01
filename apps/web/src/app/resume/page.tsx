@@ -5,7 +5,7 @@ import { Check, CloudUpload, FileText, LoaderCircle, ShieldCheck, Sparkles } fro
 
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/ui";
-import { getAccessToken, loadResumeProfile, uploadResume, type ResumeProfile } from "@/lib/api";
+import { getAccessToken, loadResumeProfile, loadResumeVersions, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
 
 export default function ResumePage() {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -13,6 +13,7 @@ export default function ResumePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [versions, setVersions] = useState<ResumeVersionRecord[]>([]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -21,6 +22,7 @@ export default function ResumePage() {
       .then(setProfile)
       .catch((loadError: Error) => setError(loadError.message))
       .finally(() => setLoading(false));
+    void loadResumeVersions(token).then(setVersions).catch((loadError: Error) => setError(loadError.message));
   }, []);
 
   async function handleFile(file: File | undefined) {
@@ -130,9 +132,14 @@ export default function ResumePage() {
 
           <div className="mt-6 flex items-start gap-3 rounded-xl bg-[#f6f8f5] p-4">
             <Sparkles size={17} className="mt-0.5 shrink-0 text-[#176b5b]" />
-            <p className="text-[12px] leading-5 text-[#65736f]">This first parser extracts resume text and known skills. Structured experience extraction and editing are the next refinement.</p>
+            <p className="text-[12px] leading-5 text-[#65736f]">Your extracted evidence powers explainable matching and truthful application drafts. Review it whenever you replace your master resume.</p>
           </div>
         </div>
+      </section>
+      <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
+        <h2 className="text-[17px] font-bold tracking-[-0.04em]">Tailored resume versions</h2>
+        <p className="mt-1 text-[12px] text-[#91a09c]">Every prepared application creates an auditable draft tied to its source resume.</p>
+        {versions.length ? <div className="mt-4 space-y-3">{versions.map((version) => <div className="flex items-center justify-between rounded-xl border border-[#edf0ed] p-4" key={version.id}><div><p className="text-[13px] font-bold">{version.job_title}</p><p className="mt-1 text-[12px] text-[#71807c]">{version.company}</p></div><Pill tone="green">Draft saved</Pill></div>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-[#d5dedb] p-5 text-center text-[12px] text-[#91a09c]">No tailored versions yet. Prepare a saved application to create one.</p>}
       </section>
       <div className="h-16 lg:hidden" />
     </AppShell>
