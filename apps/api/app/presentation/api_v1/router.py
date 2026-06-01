@@ -1,16 +1,17 @@
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
-from app.infrastructure.db.models import Application, ApplicationStatus, Job
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, Job, JobMatch
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -82,6 +83,18 @@ class ApplicationResponse(BaseModel):
     created_at: str
 
 
+class ApplicationUpdateRequest(BaseModel):
+    status: ApplicationStatus
+
+
+class DashboardSummaryResponse(BaseModel):
+    applications: int
+    interviews: int
+    saved_jobs: int
+    average_match_score: float | None
+    weekly_activity: list[int]
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
@@ -101,15 +114,45 @@ async def readiness(
     return {"status": "ready", "database": "ok"}
 
 
-@router.get("/dashboard/summary")
-def dashboard_summary() -> dict[str, object]:
-    return {
-        "applications": 0,
-        "interviews": 0,
-        "saved_jobs": 0,
-        "average_match_score": None,
-        "weekly_activity": [0, 0, 0, 0, 0, 0, 0],
-    }
+@router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
+async def dashboard_summary(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DashboardSummaryResponse:
+    applications = await session.scalar(select(func.count()).select_from(Application).where(Application.user_id == user.id))
+    interviews = await session.scalar(
+        select(func.count()).select_from(Application).where(
+            Application.user_id == user.id,
+            Application.status == ApplicationStatus.INTERVIEW,
+        )
+    )
+    saved_jobs = await session.scalar(
+        select(func.count()).select_from(Application).where(
+            Application.user_id == user.id,
+            Application.status == ApplicationStatus.SAVED,
+        )
+    )
+    average_match_score = await session.scalar(select(func.avg(JobMatch.match_score)).where(JobMatch.user_id == user.id))
+    today = datetime.now(timezone.utc).date()
+    week_start = today - timedelta(days=6)
+    created_dates = (
+        await session.scalars(
+            select(Application.created_at).where(
+                Application.user_id == user.id,
+                Application.created_at >= datetime.combine(week_start, datetime.min.time(), tzinfo=timezone.utc),
+            )
+        )
+    ).all()
+    weekly_activity = [0] * 7
+    for created_at in created_dates:
+        weekly_activity[(created_at.date() - week_start).days] += 1
+    return DashboardSummaryResponse(
+        applications=applications or 0,
+        interviews=interviews or 0,
+        saved_jobs=saved_jobs or 0,
+        average_match_score=round(float(average_match_score), 1) if average_match_score is not None else None,
+        weekly_activity=weekly_activity,
+    )
 
 
 @router.get("/jobs", response_model=list[JobResponse])
@@ -191,6 +234,39 @@ async def list_applications(
         select(Application, Job).join(Job, Application.job_id == Job.id).where(Application.user_id == user.id).order_by(Application.created_at.desc())
     )
     return [application_response(application, job) for application, job in rows.all()]
+
+
+@router.patch("/applications/{application_id}", response_model=ApplicationResponse)
+async def update_application(
+    application_id: UUID,
+    payload: ApplicationUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ApplicationResponse:
+    row = await session.execute(
+        select(Application, Job)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job = result
+    if application.status != payload.status:
+        previous_status = application.status
+        application.status = payload.status
+        if payload.status == ApplicationStatus.APPLIED and application.applied_at is None:
+            application.applied_at = datetime.now(timezone.utc)
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="status_changed",
+                from_status=previous_status.value,
+                to_status=payload.status.value,
+            )
+        )
+        await session.commit()
+    return application_response(application, job)
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:

@@ -47,7 +47,8 @@ def test_jobs_are_ranked() -> None:
 
 
 def test_dashboard_summary_starts_empty() -> None:
-    response = client.get("/api/v1/dashboard/summary")
+    token = register_user()["tokens"]["access_token"]
+    response = client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     assert response.json() == {
         "applications": 0,
@@ -150,6 +151,42 @@ def test_jobs_require_resume_and_saved_job_appears_in_tracker() -> None:
     applications = client.get("/api/v1/applications", headers=headers)
     assert applications.status_code == 200
     assert applications.json() == [saved.json()]
+
+
+def test_application_status_update_changes_dashboard_summary() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+    assert client.get("/api/v1/dashboard/summary", headers=headers).json()["saved_jobs"] == 1
+
+    updated = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "interview"})
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "interview"
+    summary = client.get("/api/v1/dashboard/summary", headers=headers).json()
+    assert summary["applications"] == 1
+    assert summary["interviews"] == 1
+    assert summary["saved_jobs"] == 0
+    assert sum(summary["weekly_activity"]) == 1
+
+
+def test_application_update_is_owner_scoped() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+    outsider = client.post(
+        "/api/v1/auth/register",
+        json={"email": "outsider@example.com", "password": "correct-horse-battery-staple"},
+    ).json()["tokens"]["access_token"]
+    response = client.patch(
+        f"/api/v1/applications/{application['id']}",
+        headers={"Authorization": f"Bearer {outsider}"},
+        json={"status": "offer"},
+    )
+    assert response.status_code == 404
 
 
 def test_register_and_read_current_user() -> None:

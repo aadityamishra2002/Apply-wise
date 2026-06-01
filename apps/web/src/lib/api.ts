@@ -26,6 +26,7 @@ export type JobRecommendation = {
   matching_skills: string[]; missing_skills: string[]; experience_match: number;
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; created_at: string };
+export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 
 type TokenResponse = {
   access_token: string;
@@ -113,6 +114,24 @@ export async function loadApplications(accessToken: string): Promise<Application
   });
   if (!response.ok) throw new Error("Could not load your applications.");
   return (await response.json()) as ApplicationRecord[];
+}
+
+export async function updateApplicationStatus(applicationId: string, status: string, accessToken: string): Promise<ApplicationRecord> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!response.ok) throw new Error("Could not update this application.");
+  return (await response.json()) as ApplicationRecord;
+}
+
+export async function loadDashboardSummary(accessToken: string): Promise<DashboardSummary> {
+  const response = await fetch(`${apiUrl}/dashboard/summary`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load dashboard metrics.");
+  return (await response.json()) as DashboardSummary;
 }
 
 export async function logout(): Promise<void> {
