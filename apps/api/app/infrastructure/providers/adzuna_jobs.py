@@ -22,7 +22,7 @@ class AdzunaJobProvider:
         self._results_per_page = results_per_page
         self._timeout_seconds = timeout_seconds
 
-    def search_jobs(self, query: str = "") -> list[Job]:
+    def search_jobs(self, query: str = "", location: str = "") -> list[Job]:
         response = httpx.get(
             f"https://api.adzuna.com/v1/api/jobs/{self._country}/search/1",
             params={
@@ -30,6 +30,7 @@ class AdzunaJobProvider:
                 "app_key": self._app_key,
                 "results_per_page": self._results_per_page,
                 "what": query.strip(),
+                "where": location.strip(),
                 "content-type": "application/json",
             },
             headers={"Accept": "application/json"},

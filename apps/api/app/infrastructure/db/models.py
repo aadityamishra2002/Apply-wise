@@ -42,6 +42,7 @@ class User(Base):
     resumes: Mapped[list["MasterResume"]] = relationship(back_populates="user")
     applications: Mapped[list["Application"]] = relationship(back_populates="user")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
+    job_preferences: Mapped["JobPreference | None"] = relationship(back_populates="user", uselist=False)
 
 
 class RefreshToken(Base):
@@ -55,6 +56,19 @@ class RefreshToken(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     user: Mapped[User] = relationship(back_populates="refresh_tokens")
+
+
+class JobPreference(Base):
+    __tablename__ = "job_preferences"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    role_keywords: Mapped[str] = mapped_column(String(255), default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    remote_only: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    user: Mapped[User] = relationship(back_populates="job_preferences")
 
 
 class MasterResume(Base):

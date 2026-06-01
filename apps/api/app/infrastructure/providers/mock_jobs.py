@@ -5,7 +5,7 @@ from app.domain.jobs.entities import Job
 
 
 class MockJobProvider:
-    def search_jobs(self, query: str = "") -> list[Job]:
+    def search_jobs(self, query: str = "", location: str = "") -> list[Job]:
         jobs = [
             Job(
                 id=uuid5(NAMESPACE_URL, "jobcopilot:mock-001"),
@@ -61,10 +61,12 @@ class MockJobProvider:
             ),
         ]
         normalized_query = query.strip().lower()
-        if not normalized_query:
-            return jobs
-        return [
+        filtered_jobs = jobs if not normalized_query else [
             job
             for job in jobs
             if normalized_query in f"{job.title} {job.company} {job.description}".lower()
         ]
+        normalized_location = location.strip().lower()
+        if not normalized_location:
+            return filtered_jobs
+        return [job for job in filtered_jobs if normalized_location in job.location.lower()]

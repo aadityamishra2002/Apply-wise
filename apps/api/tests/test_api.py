@@ -70,6 +70,26 @@ def test_analytics_summary_starts_empty() -> None:
     assert response.json()["offer_rate"] == 0
 
 
+def test_job_preferences_are_persisted_and_used_for_default_discovery() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    empty = client.get("/api/v1/settings/job-preferences", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json() == {"role_keywords": "", "location": "", "remote_only": False}
+
+    saved = client.put(
+        "/api/v1/settings/job-preferences",
+        headers=headers,
+        json={"role_keywords": "backend engineer", "location": "remote", "remote_only": True},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["role_keywords"] == "backend engineer"
+    jobs = client.get("/api/v1/jobs", headers=headers)
+    assert jobs.status_code == 200
+    assert [job["title"] for job in jobs.json()] == ["Backend Engineer"]
+
+
 def test_mock_job_ids_are_stable() -> None:
     token = register_user()["tokens"]["access_token"]
     upload_resume(token)

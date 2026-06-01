@@ -30,6 +30,7 @@ export type DashboardSummary = { applications: number; interviews: number; saved
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
+export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
 
 type TokenResponse = {
   access_token: string;
@@ -163,6 +164,24 @@ export async function loadAnalyticsSummary(accessToken: string): Promise<Analyti
   });
   if (!response.ok) throw new Error("Could not load analytics.");
   return (await response.json()) as AnalyticsSummary;
+}
+
+export async function loadJobPreferences(accessToken: string): Promise<JobPreferences> {
+  const response = await fetch(`${apiUrl}/settings/job-preferences`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load job preferences.");
+  return (await response.json()) as JobPreferences;
+}
+
+export async function saveJobPreferences(preferences: JobPreferences, accessToken: string): Promise<JobPreferences> {
+  const response = await fetch(`${apiUrl}/settings/job-preferences`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(preferences),
+  });
+  if (!response.ok) throw new Error("Could not save job preferences.");
+  return (await response.json()) as JobPreferences;
 }
 
 export async function logout(): Promise<void> {

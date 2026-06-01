@@ -13,7 +13,7 @@ from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, ResumeVersion
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, JobPreference, ResumeVersion
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -122,6 +122,16 @@ class AnalyticsSummaryResponse(BaseModel):
     status_counts: dict[str, int]
 
 
+class JobPreferenceRequest(BaseModel):
+    role_keywords: str = Field(default="", max_length=255)
+    location: str = Field(default="", max_length=255)
+    remote_only: bool = False
+
+
+class JobPreferenceResponse(JobPreferenceRequest):
+    pass
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
@@ -215,13 +225,17 @@ async def search_jobs(
         return []
     profile_skills = {skill.lower() for skill in profile.skills}
     profile_keywords = set(profile.extracted_text.lower().split())
+    preferences = await get_or_create_job_preferences(session, user.id)
+    effective_query = query.strip() or preferences.role_keywords
     try:
-        jobs = provider.search_jobs(query)
+        jobs = provider.search_jobs(effective_query, preferences.location)
     except httpx.HTTPError as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The job provider is temporarily unavailable. Please try again shortly.",
         ) from error
+    if preferences.remote_only:
+        jobs = [job for job in jobs if "remote" in f"{job.location} {job.description}".lower()]
     matches = matching_service.rank_jobs(jobs, profile_skills, profile_keywords)
     for match in matches:
         stored_job = await ensure_stored_job(session, match.job)
@@ -260,6 +274,29 @@ async def search_jobs(
         )
         for match in matches
     ]
+
+
+@router.get("/settings/job-preferences", response_model=JobPreferenceResponse)
+async def get_job_preferences(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> JobPreferenceResponse:
+    preferences = await get_or_create_job_preferences(session, user.id)
+    return job_preference_response(preferences)
+
+
+@router.put("/settings/job-preferences", response_model=JobPreferenceResponse)
+async def update_job_preferences(
+    payload: JobPreferenceRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> JobPreferenceResponse:
+    preferences = await get_or_create_job_preferences(session, user.id)
+    preferences.role_keywords = payload.role_keywords.strip()
+    preferences.location = payload.location.strip()
+    preferences.remote_only = payload.remote_only
+    await session.commit()
+    return job_preference_response(preferences)
 
 
 @router.post("/jobs/{job_id}/save", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
@@ -450,6 +487,24 @@ async def ensure_stored_job(session: AsyncSession, matched_job: ProviderJob) -> 
     session.add(stored_job)
     await session.flush()
     return stored_job
+
+
+async def get_or_create_job_preferences(session: AsyncSession, user_id: UUID) -> JobPreference:
+    preferences = await session.scalar(select(JobPreference).where(JobPreference.user_id == user_id))
+    if preferences:
+        return preferences
+    preferences = JobPreference(user_id=user_id)
+    session.add(preferences)
+    await session.flush()
+    return preferences
+
+
+def job_preference_response(preferences: JobPreference) -> JobPreferenceResponse:
+    return JobPreferenceResponse(
+        role_keywords=preferences.role_keywords,
+        location=preferences.location,
+        remote_only=preferences.remote_only,
+    )
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:

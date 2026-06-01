@@ -7,6 +7,7 @@ def test_adzuna_provider_maps_search_results(monkeypatch) -> None:
     def fake_get(url, params, headers, timeout):
         assert url == "https://api.adzuna.com/v1/api/jobs/in/search/1"
         assert params["what"] == "python"
+        assert params["where"] == "bengaluru"
         return httpx.Response(
             200,
             json={
@@ -28,7 +29,7 @@ def test_adzuna_provider_maps_search_results(monkeypatch) -> None:
         )
 
     monkeypatch.setattr(httpx, "get", fake_get)
-    jobs = AdzunaJobProvider("app-id", "app-key").search_jobs(" python ")
+    jobs = AdzunaJobProvider("app-id", "app-key").search_jobs(" python ", " bengaluru ")
     assert len(jobs) == 1
     assert jobs[0].source == "adzuna"
     assert jobs[0].company == "Example Co"
