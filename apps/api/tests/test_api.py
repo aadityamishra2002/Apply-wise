@@ -189,6 +189,25 @@ def test_application_update_is_owner_scoped() -> None:
     assert response.status_code == 404
 
 
+def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+
+    prepared = client.post(f"/api/v1/applications/{application['id']}/prepare", headers=headers)
+    assert prepared.status_code == 201
+    body = prepared.json()
+    assert body["application"]["status"] == "preparing"
+    assert body["resume_content"]["draft_type"] == "evidence_grounded"
+    assert body["resume_content"]["source_resume_id"]
+    assert body["resume_content"]["experience"][0]["company"] == "Northstar Labs"
+    assert "Northstar Labs" in body["cover_letter"]
+    assert body["resume_version_id"]
+    assert body["cover_letter_id"]
+
+
 def test_register_and_read_current_user() -> None:
     registration = client.post(
         "/api/v1/auth/register",

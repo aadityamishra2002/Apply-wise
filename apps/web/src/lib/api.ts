@@ -27,6 +27,7 @@ export type JobRecommendation = {
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; created_at: string };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
+export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
 
 type TokenResponse = {
   access_token: string;
@@ -124,6 +125,15 @@ export async function updateApplicationStatus(applicationId: string, status: str
   });
   if (!response.ok) throw new Error("Could not update this application.");
   return (await response.json()) as ApplicationRecord;
+}
+
+export async function prepareApplication(applicationId: string, accessToken: string): Promise<ApplicationMaterials> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/prepare`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not prepare application materials.");
+  return (await response.json()) as ApplicationMaterials;
 }
 
 export async function loadDashboardSummary(accessToken: string): Promise<DashboardSummary> {

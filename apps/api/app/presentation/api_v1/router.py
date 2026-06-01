@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, Job, JobMatch
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, ResumeVersion
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.mock_jobs import MockJobProvider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -93,6 +93,15 @@ class DashboardSummaryResponse(BaseModel):
     saved_jobs: int
     average_match_score: float | None
     weekly_activity: list[int]
+
+
+class ApplicationMaterialsResponse(BaseModel):
+    application: ApplicationResponse
+    resume_version_id: str
+    ats_score: float
+    resume_content: dict
+    cover_letter_id: str
+    cover_letter: str
 
 
 @router.get("/health")
@@ -267,6 +276,90 @@ async def update_application(
         )
         await session.commit()
     return application_response(application, job)
+
+
+@router.post("/applications/{application_id}/prepare", response_model=ApplicationMaterialsResponse, status_code=status.HTTP_201_CREATED)
+async def prepare_application(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ApplicationMaterialsResponse:
+    row = await session.execute(
+        select(Application, Job)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job = result
+    profile = await ResumeService(session).get_active(user.id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before preparing an application.")
+    resume_content = {
+        "draft_type": "evidence_grounded",
+        "target_role": job.title,
+        "target_company": job.company,
+        "skills": list(profile.skills),
+        "experience": [
+            {"title": experience.title, "company": experience.company, "description": experience.description}
+            for experience in profile.experiences
+        ],
+        "source_resume_id": str(profile.id),
+    }
+    resume_version = ResumeVersion(
+        user_id=user.id,
+        job_id=job.id,
+        master_resume_id=profile.id,
+        ats_score=0,
+        resume_content=resume_content,
+    )
+    cover_letter = CoverLetter(
+        user_id=user.id,
+        job_id=job.id,
+        content=build_cover_letter(job, profile),
+    )
+    previous_status = application.status
+    application.status = ApplicationStatus.PREPARING
+    session.add_all([resume_version, cover_letter])
+    await session.flush()
+    application.resume_version_id = resume_version.id
+    application.cover_letter_id = cover_letter.id
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="materials_prepared",
+            from_status=previous_status.value,
+            to_status=ApplicationStatus.PREPARING.value,
+            metadata_={"resume_version_id": str(resume_version.id), "cover_letter_id": str(cover_letter.id)},
+        )
+    )
+    await session.commit()
+    return ApplicationMaterialsResponse(
+        application=application_response(application, job),
+        resume_version_id=str(resume_version.id),
+        ats_score=resume_version.ats_score,
+        resume_content=resume_content,
+        cover_letter_id=str(cover_letter.id),
+        cover_letter=cover_letter.content,
+    )
+
+
+def build_cover_letter(job: Job, profile: ResumeProfile) -> str:
+    skills = ", ".join(profile.skills[:5]) or "my relevant experience"
+    experience = profile.experiences[0] if profile.experiences else None
+    evidence = (
+        f"In my role as {experience.title} at {experience.company}, {experience.description}"
+        if experience
+        else "My attached resume outlines the experience I would bring to the role."
+    )
+    return (
+        f"Dear {job.company} hiring team,\n\n"
+        f"I am interested in the {job.title} opportunity. My background includes {skills}. "
+        f"{evidence}\n\n"
+        "I would welcome the opportunity to discuss how my experience could support your team.\n\n"
+        "Sincerely"
+    )
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:
