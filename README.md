@@ -22,6 +22,8 @@ The maintained product guide is available in two formats:
 - Live Adzuna job discovery for India with keyword search and attribution
 - Persisted job-discovery preferences for role keywords, location, and remote-only filtering
 - Explainable resume-aware ranking with configurable scoring weights
+- Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
+- Persisted `80+` ATS review queue with explicit approve or dismiss controls
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Application notes and visible activity timeline
 - Interview-round scheduling inside the application workspace

@@ -101,6 +101,7 @@ for item in [
     "Reschedule interviews, edit preparation notes, or remove obsolete rounds.",
     "Paste a career-page role, score it, and save it into the tracker.",
     "Pair an unpacked Chrome extension and review job pages before scoring.",
+    "Review ATS-readiness breakdowns and approve or dismiss roles in the 80+ queue.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

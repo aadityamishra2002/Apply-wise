@@ -58,6 +58,8 @@ def test_jobs_are_ranked() -> None:
     assert response.status_code == 200
     scores = [job["match_score"] for job in response.json()]
     assert scores == sorted(scores, reverse=True)
+    assert response.json()[0]["ats_breakdown"]["keywords"] >= 0
+    assert isinstance(response.json()[0]["high_fit"], bool)
     summary = client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"}).json()
     assert summary["average_match_score"] is not None
 
@@ -219,6 +221,9 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     assert "python" in captured.json()["matching_skills"]
     saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers)
     assert saved.status_code == 201
+    approval = client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"})
+    assert approval.status_code == 200
+    assert approval.json()["approval_status"] == "approved"
 
 
 def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> None:

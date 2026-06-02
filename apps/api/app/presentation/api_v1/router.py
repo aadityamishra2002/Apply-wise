@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
+from app.application.jobs.ats import AtsAnalysisService, AtsWeights
 from app.application.exports.service import ResumeExportService, download_filename
 from app.application.identity.service import is_expired
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
@@ -36,6 +37,14 @@ matching_service = JobMatchingService(
         skills=settings.matching_skills_weight,
         keywords=settings.matching_keywords_weight,
         experience=settings.matching_experience_weight,
+    )
+)
+ats_service = AtsAnalysisService(
+    AtsWeights(
+        keywords=settings.ats_keywords_weight,
+        sections=settings.ats_sections_weight,
+        formatting=settings.ats_formatting_weight,
+        parse_readiness=settings.ats_parse_readiness_weight,
     )
 )
 tailoring_service = GeminiTailoringService(
@@ -61,6 +70,15 @@ class JobResponse(BaseModel):
     matching_skills: list[str]
     missing_skills: list[str]
     experience_match: int
+    ats_score: int
+    ats_breakdown: dict[str, int]
+    ats_recommendations: list[str]
+    high_fit: bool
+    approval_status: str
+
+
+class JobApprovalRequest(BaseModel):
+    approval_status: str = Field(pattern="^(review_required|approved|dismissed)$")
 
 
 class ResumeAnalyzeRequest(BaseModel):
@@ -349,13 +367,20 @@ async def search_jobs(
     if preferences.remote_only:
         jobs = [job for job in jobs if "remote" in f"{job.location} {job.description}".lower()]
     matches = matching_service.rank_jobs(jobs, profile_skills, profile_keywords)
+    ats_results = {match.job.id: ats_service.analyze(match.job, profile) for match in matches}
+    approvals: dict[UUID, str] = {}
     for match in matches:
+        ats = ats_results[match.job.id]
         stored_job = await ensure_stored_job(session, match.job)
         stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
         if stored_match:
             stored_match.match_score = match.match_score
             stored_match.matching_skills = list(match.matching_skills)
             stored_match.missing_skills = list(match.missing_skills)
+            stored_match.ats_score = ats.score
+            stored_match.ats_breakdown = ats.breakdown
+            stored_match.ats_recommendations = list(ats.recommendations)
+            approvals[match.job.id] = stored_match.approval_status
         else:
             session.add(
                 JobMatch(
@@ -364,28 +389,32 @@ async def search_jobs(
                     match_score=match.match_score,
                     matching_skills=list(match.matching_skills),
                     missing_skills=list(match.missing_skills),
+                    ats_score=ats.score,
+                    ats_breakdown=ats.breakdown,
+                    ats_recommendations=list(ats.recommendations),
                 )
             )
+            approvals[match.job.id] = "review_required"
     await session.commit()
     return [
-        JobResponse(
-            id=str(match.job.id),
-            title=match.job.title,
-            company=match.job.company,
-            location=match.job.location,
-            work_mode=match.job.work_mode,
-            salary=match.job.salary,
-            description=match.job.description,
-            source=match.job.source,
-            url=match.job.url,
-            posted_at=match.job.posted_at.isoformat() if match.job.posted_at else None,
-            match_score=match.match_score,
-            matching_skills=list(match.matching_skills),
-            missing_skills=list(match.missing_skills),
-            experience_match=match.experience_match,
-        )
+        job_response(match, ats_results[match.job.id], approvals[match.job.id])
         for match in matches
     ]
+
+
+@router.patch("/jobs/{job_id}/approval", response_model=dict[str, str])
+async def update_job_approval(
+    job_id: UUID,
+    payload: JobApprovalRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, str]:
+    match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job_id))
+    if not match:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scored job not found.")
+    match.approval_status = payload.approval_status
+    await session.commit()
+    return {"approval_status": match.approval_status}
 
 
 @router.post("/jobs/manual", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -712,12 +741,13 @@ async def prepare_application(
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before preparing an application.")
     materials = tailoring_service.prepare(job, profile)
+    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
     resume_content = materials.resume_content
     resume_version = ResumeVersion(
         user_id=user.id,
         job_id=job.id,
         master_resume_id=profile.id,
-        ats_score=0,
+        ats_score=stored_match.ats_score if stored_match else 0,
         resume_content=resume_content,
     )
     cover_letter = CoverLetter(
@@ -838,19 +868,23 @@ async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, paylo
         work_mode="Not specified",
     )
     match = matching_service.rank_jobs([job], {skill.lower() for skill in profile.skills}, set(profile.extracted_text.lower().split()))[0]
+    ats = ats_service.analyze(job, profile)
     stored_job = await ensure_stored_job(session, job)
     stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user_id, JobMatch.job_id == stored_job.id))
     if stored_match:
         stored_match.match_score = match.match_score
         stored_match.matching_skills = list(match.matching_skills)
         stored_match.missing_skills = list(match.missing_skills)
+        stored_match.ats_score = ats.score
+        stored_match.ats_breakdown = ats.breakdown
+        stored_match.ats_recommendations = list(ats.recommendations)
     else:
-        session.add(JobMatch(user_id=user_id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills)))
+        session.add(JobMatch(user_id=user_id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills), ats_score=ats.score, ats_breakdown=ats.breakdown, ats_recommendations=list(ats.recommendations)))
     await session.commit()
-    return job_response(match)
+    return job_response(match, ats, stored_match.approval_status if stored_match else "review_required")
 
 
-def job_response(match) -> JobResponse:
+def job_response(match, ats, approval_status: str = "review_required") -> JobResponse:
     return JobResponse(
         id=str(match.job.id),
         title=match.job.title,
@@ -866,6 +900,11 @@ def job_response(match) -> JobResponse:
         matching_skills=list(match.matching_skills),
         missing_skills=list(match.missing_skills),
         experience_match=match.experience_match,
+        ats_score=ats.score,
+        ats_breakdown=ats.breakdown,
+        ats_recommendations=list(ats.recommendations),
+        high_fit=ats.score >= settings.ats_high_fit_threshold,
+        approval_status=approval_status,
     )
 
 

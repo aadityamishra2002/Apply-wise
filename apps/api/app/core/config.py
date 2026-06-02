@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     matching_skills_weight: float = 0.6
     matching_keywords_weight: float = 0.25
     matching_experience_weight: float = 0.15
+    ats_keywords_weight: float = 0.5
+    ats_sections_weight: float = 0.2
+    ats_formatting_weight: float = 0.15
+    ats_parse_readiness_weight: float = 0.15
+    ats_high_fit_threshold: int = 80
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

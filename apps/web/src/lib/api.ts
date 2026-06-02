@@ -24,6 +24,7 @@ export type JobRecommendation = {
   id: string; title: string; company: string; location: string; work_mode: string; salary: string | null;
   description: string; source: string; url: string; posted_at: string | null; match_score: number;
   matching_skills: string[]; missing_skills: string[]; experience_match: number;
+  ats_score: number; ats_breakdown: Record<string, number>; ats_recommendations: string[]; high_fit: boolean; approval_status: string;
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string };
 export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
@@ -142,6 +143,13 @@ export async function saveJob(jobId: string, accessToken: string): Promise<Appli
   });
   if (!response.ok) throw new Error("Could not save this job.");
   return (await response.json()) as ApplicationRecord;
+}
+
+export async function updateJobApproval(jobId: string, approvalStatus: "review_required" | "approved" | "dismissed", accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/jobs/${jobId}/approval`, {
+    method: "PATCH", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ approval_status: approvalStatus }),
+  });
+  if (!response.ok) throw new Error("Could not update review decision.");
 }
 
 export async function captureManualJob(job: ManualJob, accessToken: string): Promise<JobRecommendation> {
