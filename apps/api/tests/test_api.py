@@ -223,6 +223,24 @@ def test_application_update_is_owner_scoped() -> None:
     assert response.status_code == 404
 
 
+def test_application_notes_create_visible_timeline_event() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+    updated = client.patch(
+        f"/api/v1/applications/{application['id']}",
+        headers=headers,
+        json={"notes": "Follow up with the recruiter on Friday."},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["notes"] == "Follow up with the recruiter on Friday."
+    events = client.get(f"/api/v1/applications/{application['id']}/events", headers=headers)
+    assert events.status_code == 200
+    assert events.json()[0]["event_type"] == "notes_updated"
+
+
 def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() -> None:
     token = register_user()["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

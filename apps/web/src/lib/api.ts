@@ -25,7 +25,8 @@ export type JobRecommendation = {
   description: string; source: string; url: string; posted_at: string | null; match_score: number;
   matching_skills: string[]; missing_skills: string[]; experience_match: number;
 };
-export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; created_at: string };
+export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string };
+export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
@@ -131,14 +132,22 @@ export async function loadApplications(accessToken: string): Promise<Application
   return (await response.json()) as ApplicationRecord[];
 }
 
-export async function updateApplicationStatus(applicationId: string, status: string, accessToken: string): Promise<ApplicationRecord> {
+export async function updateApplication(applicationId: string, payload: { status?: string; notes?: string }, accessToken: string): Promise<ApplicationRecord> {
   const response = await fetch(`${apiUrl}/applications/${applicationId}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error("Could not update this application.");
   return (await response.json()) as ApplicationRecord;
+}
+
+export async function loadApplicationEvents(applicationId: string, accessToken: string): Promise<ApplicationEvent[]> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/events`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load application activity.");
+  return (await response.json()) as ApplicationEvent[];
 }
 
 export async function prepareApplication(applicationId: string, accessToken: string): Promise<ApplicationMaterials> {

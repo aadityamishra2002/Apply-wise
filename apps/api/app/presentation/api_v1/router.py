@@ -82,11 +82,21 @@ class ApplicationResponse(BaseModel):
     company: str
     title: str
     status: str
+    notes: str | None
     created_at: str
 
 
 class ApplicationUpdateRequest(BaseModel):
-    status: ApplicationStatus
+    status: ApplicationStatus | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+
+
+class ApplicationEventResponse(BaseModel):
+    id: str
+    event_type: str
+    from_status: str | None
+    to_status: str | None
+    occurred_at: str
 
 
 class DashboardSummaryResponse(BaseModel):
@@ -367,7 +377,7 @@ async def update_application(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job = result
-    if application.status != payload.status:
+    if payload.status is not None and application.status != payload.status:
         previous_status = application.status
         application.status = payload.status
         if payload.status == ApplicationStatus.APPLIED and application.applied_at is None:
@@ -380,8 +390,39 @@ async def update_application(
                 to_status=payload.status.value,
             )
         )
-        await session.commit()
+    if payload.notes is not None:
+        application.notes = payload.notes.strip() or None
+        session.add(ApplicationEvent(application_id=application.id, event_type="notes_updated"))
+    await session.commit()
     return application_response(application, job)
+
+
+@router.get("/applications/{application_id}/events", response_model=list[ApplicationEventResponse])
+async def list_application_events(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ApplicationEventResponse]:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    events = (
+        await session.scalars(
+            select(ApplicationEvent)
+            .where(ApplicationEvent.application_id == application.id)
+            .order_by(ApplicationEvent.occurred_at.desc())
+        )
+    ).all()
+    return [
+        ApplicationEventResponse(
+            id=str(event.id),
+            event_type=event.event_type,
+            from_status=event.from_status,
+            to_status=event.to_status,
+            occurred_at=event.occurred_at.isoformat(),
+        )
+        for event in events
+    ]
 
 
 @router.post("/applications/{application_id}/prepare", response_model=ApplicationMaterialsResponse, status_code=status.HTTP_201_CREATED)
@@ -517,6 +558,7 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
         company=job.company,
         title=job.title,
         status=application.status.value,
+        notes=application.notes,
         created_at=created_at.isoformat(),
     )
 
