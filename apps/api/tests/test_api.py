@@ -373,6 +373,36 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert pdf.content.startswith(b"%PDF")
 
 
+def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+
+    checklist_url = f"/api/v1/applications/{application['id']}/assisted-checklist"
+    checklist = client.get(checklist_url, headers=headers)
+    assert checklist.status_code == 200
+    assert checklist.json() == {
+        "application_id": application["id"],
+        "duplicate_prevention": True,
+        "ats_approved": False,
+        "resume_prepared": False,
+        "cover_letter_prepared": False,
+        "target_url": job["url"],
+        "manual_final_submission_required": True,
+    }
+
+    approval = client.patch(f"/api/v1/jobs/{job['id']}/approval", headers=headers, json={"approval_status": "approved"})
+    assert approval.status_code == 200
+    assert client.post(f"/api/v1/applications/{application['id']}/prepare", headers=headers).status_code == 201
+    prepared = client.get(checklist_url, headers=headers).json()
+    assert prepared["ats_approved"] is True
+    assert prepared["resume_prepared"] is True
+    assert prepared["cover_letter_prepared"] is True
+    assert prepared["manual_final_submission_required"] is True
+
+
 def test_resume_download_is_scoped_to_its_owner() -> None:
     owner_token = register_user("owner-download@example.com")["tokens"]["access_token"]
     owner_headers = {"Authorization": f"Bearer {owner_token}"}

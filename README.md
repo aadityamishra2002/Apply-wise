@@ -24,6 +24,7 @@ The maintained product guide is available in two formats:
 - Explainable resume-aware ranking with configurable scoring weights
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
+- Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Application notes and visible activity timeline
 - Interview-round scheduling inside the application workspace
@@ -41,7 +42,7 @@ The maintained product guide is available in two formats:
 - Adzuna remains the first live provider; additional compliant provider adapters are not connected yet.
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
-- Automated job applications and browser autofill remain intentionally deferred.
+- Automatic submission and browser autofill remain intentionally deferred.
 - Razorpay checkout and webhook processing are not connected yet.
 
 ## Architecture

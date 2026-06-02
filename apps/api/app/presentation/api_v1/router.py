@@ -165,6 +165,16 @@ class ApplicationMaterialsResponse(BaseModel):
     provenance: str
 
 
+class AssistedApplicationChecklistResponse(BaseModel):
+    application_id: str
+    duplicate_prevention: bool
+    ats_approved: bool
+    resume_prepared: bool
+    cover_letter_prepared: bool
+    target_url: str
+    manual_final_submission_required: bool = True
+
+
 class ResumeVersionResponse(BaseModel):
     id: str
     job_id: str
@@ -649,6 +659,32 @@ async def list_application_events(
         )
         for event in events
     ]
+
+
+@router.get("/applications/{application_id}/assisted-checklist", response_model=AssistedApplicationChecklistResponse)
+async def assisted_application_checklist(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistedApplicationChecklistResponse:
+    row = await session.execute(
+        select(Application, Job, JobMatch)
+        .join(Job, Application.job_id == Job.id)
+        .outerjoin(JobMatch, (JobMatch.job_id == Job.id) & (JobMatch.user_id == user.id))
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job, match = result
+    return AssistedApplicationChecklistResponse(
+        application_id=str(application.id),
+        duplicate_prevention=True,
+        ats_approved=bool(match and match.approval_status == "approved"),
+        resume_prepared=application.resume_version_id is not None,
+        cover_letter_prepared=application.cover_letter_id is not None,
+        target_url=job.url,
+    )
 
 
 @router.get("/applications/{application_id}/interviews", response_model=list[InterviewResponse])

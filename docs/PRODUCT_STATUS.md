@@ -39,6 +39,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 17. Paste a role from any career page, score it, and save it into the tracker.
 18. Pair an unpacked Chrome extension with a one-time code and review captured job pages before scoring.
 19. Review a distinct ATS-readiness breakdown and approve or dismiss roles in the `80+` queue.
+20. Review duplicate protection, draft readiness, and the employer-page handoff before manually submitting an application.
 
 ## Truthfulness Rules
 

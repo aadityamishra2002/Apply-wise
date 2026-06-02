@@ -29,6 +29,7 @@ export type JobRecommendation = {
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string };
 export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
 export type InterviewRecord = { id: string; interview_round: string; scheduled_at: string; notes: string | null };
+export type AssistedApplicationChecklist = { application_id: string; duplicate_prevention: boolean; ats_approved: boolean; resume_prepared: boolean; cover_letter_prepared: boolean; target_url: string; manual_final_submission_required: boolean };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
@@ -187,6 +188,12 @@ export async function loadApplicationEvents(applicationId: string, accessToken: 
   });
   if (!response.ok) throw new Error("Could not load application activity.");
   return (await response.json()) as ApplicationEvent[];
+}
+
+export async function loadAssistedApplicationChecklist(applicationId: string, accessToken: string): Promise<AssistedApplicationChecklist> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/assisted-checklist`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load application readiness.");
+  return (await response.json()) as AssistedApplicationChecklist;
 }
 
 export async function loadInterviews(applicationId: string, accessToken: string): Promise<InterviewRecord[]> {
