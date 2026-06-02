@@ -35,6 +35,7 @@ async function extract() {
   if (!tab?.id) return;
   const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractPage });
   for (const field of fields) document.getElementById(field).value = result[field] ?? "";
+  message(`Extracted with the ${result.extractor} page adapter. Review every field before sending.`);
 }
 
 async function send() {
@@ -75,10 +76,36 @@ function message(value) { document.getElementById("message").textContent = value
 function extractPage() {
   const text = document.body.innerText;
   const meta = (name) => document.querySelector(`meta[property="${name}"],meta[name="${name}"]`)?.content ?? "";
+  const firstText = (...selectors) => selectors.map((selector) => document.querySelector(selector)?.innerText?.trim()).find(Boolean) ?? "";
   const heading = document.querySelector("h1")?.innerText?.trim() ?? document.title.split("|")[0].trim();
   const jobLocation = [...document.querySelectorAll("[class*='location'],[data-testid*='location']")].map((node) => node.innerText).find(Boolean) ?? "";
   const company = meta("og:site_name") || document.querySelector("[class*='company']")?.innerText?.trim() || window.location.hostname;
-  return { title: heading, company, location: jobLocation, url: window.location.href, description: text.slice(0, 45000) };
+  const base = { extractor: "generic", title: heading, company, location: jobLocation, url: window.location.href, description: text.slice(0, 45000) };
+  if (window.location.hostname.includes("greenhouse.io")) return {
+    ...base,
+    extractor: "Greenhouse",
+    title: firstText("h1.app-title", "h1"),
+    company: firstText(".company-name", "#logo") || company,
+    location: firstText(".location", "[class*='location']"),
+    description: firstText("#content", ".job__description", ".content") || base.description,
+  };
+  if (window.location.hostname.includes("lever.co")) return {
+    ...base,
+    extractor: "Lever",
+    title: firstText(".posting-headline h2", "h1"),
+    company: firstText(".main-header-logo img", ".posting-categories") || company,
+    location: firstText(".posting-categories .location", ".location"),
+    description: firstText(".posting-page", ".content") || base.description,
+  };
+  if (window.location.hostname.includes("linkedin.com")) return {
+    ...base,
+    extractor: "LinkedIn",
+    title: firstText(".job-details-jobs-unified-top-card__job-title", ".top-card-layout__title", "h1"),
+    company: firstText(".job-details-jobs-unified-top-card__company-name", ".topcard__org-name-link") || company,
+    location: firstText(".job-details-jobs-unified-top-card__primary-description-container", ".topcard__flavor--bullet") || jobLocation,
+    description: firstText(".jobs-description__content", ".show-more-less-html__markup") || base.description,
+  };
+  return base;
 }
 
 function detectApplicationFields() {

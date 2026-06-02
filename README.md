@@ -37,6 +37,7 @@ The maintained product guide is available in two formats:
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
 - Local extension form inspector for common employer application fields, without autofill or submission
+- Greenhouse, Lever, and LinkedIn extension extractors with a generic career-page fallback
 
 ## Current Limitations
 

@@ -23,4 +23,4 @@ Pairing codes expire after 10 minutes and can only be used once. The extension r
 
 On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, and work authorization. Detection stays in the browser and does not fill or submit anything.
 
-The extraction logic intentionally uses general page heuristics. Site-specific extractors can be added after testing the MVP on common job boards and company career pages.
+The extraction logic uses adapters for Greenhouse, Lever, and LinkedIn pages with a general heuristic fallback. Review every extracted field because job-page markup can change over time.

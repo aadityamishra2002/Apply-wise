@@ -41,6 +41,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 19. Review a distinct ATS-readiness breakdown and approve or dismiss roles in the `80+` queue.
 20. Review duplicate protection, draft readiness, and the employer-page handoff before manually submitting an application.
 21. Inspect common employer application fields locally from the extension before future assisted autofill.
+22. Capture cleaner Greenhouse, Lever, and LinkedIn job-page details through site-aware extension adapters with a generic fallback.
 
 ## Truthfulness Rules
 
@@ -62,13 +63,13 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Razorpay checkout, webhook processing, and paid-plan activation are not connected.
-- Site-specific extension extractors, assisted autofill, and Playwright application automation remain future work.
+- Additional site-specific extension extractors, assisted autofill, and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
 1. Add Razorpay checkout, verified webhooks, and paid-plan activation.
 2. Add additional compliant job provider adapters.
-3. Add site-specific extension extractors and assisted autofill design.
+3. Add more site-specific extension extractors and assisted autofill design.
 
 ## Deployment Note
 

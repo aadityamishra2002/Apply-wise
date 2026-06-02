@@ -22,7 +22,7 @@ small = ParagraphStyle("Small", parent=body, fontSize=8.4, leading=10.5, textCol
 title = ParagraphStyle("Title", parent=body, fontName="Helvetica-Bold", fontSize=24, leading=27, textColor=GREEN, spaceAfter=0)
 subtitle = ParagraphStyle("Subtitle", parent=body, fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=INK, spaceAfter=2)
 heading = ParagraphStyle("Heading", parent=body, fontName="Helvetica-Bold", fontSize=14, leading=17, textColor=GREEN, spaceBefore=7, spaceAfter=4)
-bullet = ParagraphStyle("Bullet", parent=body, leftIndent=12, firstLineIndent=-7, bulletIndent=0, spaceAfter=2, fontSize=8.9, leading=11)
+bullet = ParagraphStyle("Bullet", parent=body, leftIndent=12, firstLineIndent=-7, bulletIndent=0, spaceAfter=1, fontSize=8.5, leading=10)
 callout = ParagraphStyle("Callout", parent=body, fontName="Helvetica-Bold", fontSize=8.9, leading=11.5, textColor=INK)
 cell = ParagraphStyle("Cell", parent=body, fontSize=8.1, leading=9.5, spaceAfter=0)
 cell_header = ParagraphStyle("CellHeader", parent=cell, fontName="Helvetica-Bold", textColor=colors.white)
@@ -104,6 +104,7 @@ for item in [
     "Review ATS-readiness breakdowns and approve or dismiss roles in the 80+ queue.",
     "Review duplicate protection and draft readiness before opening the employer page for manual submission.",
     "Inspect common employer application fields locally from the extension without filling or submitting them.",
+    "Capture cleaner Greenhouse, Lever, and LinkedIn job pages through site-aware extension adapters.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -132,7 +133,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
-    "Site-specific extension extractors, assisted autofill, and Playwright automation remain future work.",
+    "Additional site-specific extractors, assisted autofill, and Playwright automation remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
