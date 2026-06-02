@@ -192,6 +192,10 @@ def test_jobs_require_resume_and_saved_job_appears_in_tracker() -> None:
     assert jobs
     saved = client.post(f"/api/v1/jobs/{jobs[0]['id']}/save", headers=headers)
     assert saved.status_code == 201
+    assert saved.json()["status"] == "saved"
+    applications = client.get("/api/v1/applications", headers=headers)
+    assert applications.status_code == 200
+    assert applications.json() == [saved.json()]
 
 
 def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
@@ -215,10 +219,34 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     assert "python" in captured.json()["matching_skills"]
     saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers)
     assert saved.status_code == 201
-    assert saved.json()["status"] == "saved"
-    applications = client.get("/api/v1/applications", headers=headers)
-    assert applications.status_code == 200
-    assert applications.json() == [saved.json()]
+
+
+def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> None:
+    token = register_user("extension-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
+    assert pairing.status_code == 201
+    code = pairing.json()["code"]
+
+    exchanged = client.post("/api/v1/extension/pair", json={"code": code})
+    assert exchanged.status_code == 200
+    extension_headers = {"Authorization": f"Bearer {exchanged.json()['extension_token']}"}
+    captured = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers=extension_headers,
+        json={
+            "title": "Extension Captured Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://example.com/careers/extension-captured-engineer",
+            "description": "Build Python and FastAPI services with PostgreSQL and Docker for a customer-facing platform.",
+        },
+    )
+    assert captured.status_code == 201
+    assert captured.json()["source"] == "manual"
+    assert client.get("/api/v1/applications", headers=extension_headers).status_code == 401
+    assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
 
 
 def test_application_status_update_changes_dashboard_summary() -> None:

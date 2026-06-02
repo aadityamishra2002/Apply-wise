@@ -100,6 +100,7 @@ for item in [
     "Review non-secret health for the configured job-source aggregator.",
     "Reschedule interviews, edit preparation notes, or remove obsolete rounds.",
     "Paste a career-page role, score it, and save it into the tracker.",
+    "Pair an unpacked Chrome extension and review job pages before scoring.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -128,7 +129,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
-    "Extension capture and Playwright autofill remain future work.",
+    "Site-specific extension extractors and Playwright autofill remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -138,7 +139,7 @@ story += [
         [
             ("1", "Razorpay billing", "Checkout, webhooks, and paid activation"),
             ("2", "Provider adapters", "More compliant listing sources"),
-            ("3", "Extension design", "Capture and assisted autofill plan"),
+            ("3", "Extension extractors", "Site-specific capture and autofill plan"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),

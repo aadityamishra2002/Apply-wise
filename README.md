@@ -32,13 +32,14 @@ The maintained product guide is available in two formats:
 - Persisted subscription foundation with free-tier status and owner bypass
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
+- Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
 
 ## Current Limitations
 
 - Adzuna remains the first live provider; additional compliant provider adapters are not connected yet.
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
-- Automated job applications and browser autofill are intentionally deferred.
+- Automated job applications and browser autofill remain intentionally deferred.
 - Razorpay checkout and webhook processing are not connected yet.
 
 ## Architecture
@@ -89,4 +90,8 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 1. Razorpay checkout, webhook verification, and paid-plan activation
 2. Additional compliant job provider adapters
-3. Browser-extension capture and assisted autofill design
+3. Site-specific extension extractors and assisted autofill design
+
+## Chrome Extension MVP
+
+Load the unpacked extension from [`apps/extension`](apps/extension) and follow its [local installation guide](apps/extension/README.md). The extension uses one-time pairing codes from Apply Wise Settings and receives a capture-only token.

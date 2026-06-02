@@ -37,6 +37,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 15. Review non-secret provider health for the configured job-source aggregator.
 16. Reschedule interviews, edit preparation notes, or remove obsolete rounds.
 17. Paste a role from any career page, score it, and save it into the tracker.
+18. Pair an unpacked Chrome extension with a one-time code and review captured job pages before scoring.
 
 ## Truthfulness Rules
 
@@ -58,13 +59,13 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Razorpay checkout, webhook processing, and paid-plan activation are not connected.
-- Chrome-extension autofill and Playwright application automation remain future work.
+- Site-specific extension extractors, autofill, and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
 1. Add Razorpay checkout, verified webhooks, and paid-plan activation.
 2. Add additional compliant job provider adapters.
-3. Design browser-extension capture and assisted autofill.
+3. Add site-specific extension extractors and assisted autofill design.
 
 ## Deployment Note
 

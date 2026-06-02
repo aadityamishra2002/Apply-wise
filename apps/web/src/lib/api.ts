@@ -36,6 +36,7 @@ export type JobPreferences = { role_keywords: string; location: string; remote_o
 export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
 export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null };
 export type ManualJob = { title: string; company: string; location: string; url: string; description: string };
+export type ExtensionPairingCode = { code: string; expires_at: string };
 
 type TokenResponse = {
   access_token: string;
@@ -264,6 +265,14 @@ export async function loadProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiUrl}/health/providers`);
   if (!response.ok) throw new Error("Could not load provider health.");
   return (await response.json()) as ProviderHealth[];
+}
+
+export async function createExtensionPairingCode(accessToken: string): Promise<ExtensionPairingCode> {
+  const response = await fetch(`${apiUrl}/extension/pairing-codes`, {
+    method: "POST", headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not create extension pairing code.");
+  return (await response.json()) as ExtensionPairingCode;
 }
 
 export async function logout(): Promise<void> {

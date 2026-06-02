@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from secrets import token_urlsafe
 from typing import Annotated
 from uuid import UUID
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,14 +15,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.exports.service import ResumeExportService, download_filename
+from app.application.identity.service import is_expired
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
+from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.factory import create_job_provider
-from app.presentation.api_v1.auth import get_current_user, router as auth_router
+from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
 from app.domain.identity.entities import UserRecord
 
 router = APIRouter()
@@ -177,6 +181,21 @@ class ManualJobRequest(BaseModel):
     description: str = Field(min_length=40, max_length=50000)
 
 
+class ExtensionPairingCodeResponse(BaseModel):
+    code: str
+    expires_at: str
+
+
+class ExtensionPairingExchangeRequest(BaseModel):
+    code: str = Field(min_length=8, max_length=200)
+
+
+class ExtensionTokenResponse(BaseModel):
+    extension_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
 class SubscriptionResponse(BaseModel):
     plan: str
     status: str
@@ -189,6 +208,22 @@ class ProviderHealthResponse(BaseModel):
     status: str
     last_checked_at: str | None
     last_result_count: int | None
+
+
+async def get_extension_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UUID:
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing extension token.")
+    try:
+        user_id = decode_extension_token(credentials.credentials, settings)
+    except AccessTokenError as error:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(error)) from error
+    user = await session.get(User, user_id)
+    if not user or user.status != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
+    return user.id
 
 
 @router.get("/health")
@@ -359,33 +394,45 @@ async def capture_manual_job(
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> JobResponse:
-    profile = await ResumeService(session).get_active(user.id)
-    if not profile:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before capturing a job.")
-    external_id = sha256(payload.url.strip().encode()).hexdigest()
-    job = ProviderJob(
-        id=uuid5(NAMESPACE_URL, f"jobcopilot:manual:{external_id}"),
-        external_id=external_id,
-        source="manual",
-        title=payload.title.strip(),
-        company=payload.company.strip(),
-        location=payload.location.strip() or "Not specified",
-        description=payload.description.strip(),
-        required_skills=frozenset(skill for skill, _ in detect_skills(payload.description)),
-        url=payload.url.strip(),
-        work_mode="Not specified",
-    )
-    match = matching_service.rank_jobs([job], {skill.lower() for skill in profile.skills}, set(profile.extracted_text.lower().split()))[0]
-    stored_job = await ensure_stored_job(session, job)
-    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
-    if stored_match:
-        stored_match.match_score = match.match_score
-        stored_match.matching_skills = list(match.matching_skills)
-        stored_match.missing_skills = list(match.missing_skills)
-    else:
-        session.add(JobMatch(user_id=user.id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills)))
+    return await score_and_store_manual_job(session, user.id, payload)
+
+
+@router.post("/extension/pairing-codes", response_model=ExtensionPairingCodeResponse, status_code=status.HTTP_201_CREATED)
+async def create_extension_pairing_code(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ExtensionPairingCodeResponse:
+    code = token_urlsafe(12)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.extension_pairing_expire_minutes)
+    session.add(ExtensionPairingCode(user_id=user.id, code_hash=sha256(code.encode()).hexdigest(), expires_at=expires_at))
     await session.commit()
-    return job_response(match)
+    return ExtensionPairingCodeResponse(code=code, expires_at=expires_at.isoformat())
+
+
+@router.post("/extension/pair", response_model=ExtensionTokenResponse)
+async def pair_extension(
+    payload: ExtensionPairingExchangeRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ExtensionTokenResponse:
+    now = datetime.now(timezone.utc)
+    pairing = await session.scalar(select(ExtensionPairingCode).where(ExtensionPairingCode.code_hash == sha256(payload.code.strip().encode()).hexdigest()))
+    if not pairing or pairing.used_at or is_expired(pairing.expires_at, now):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired pairing code.")
+    pairing.used_at = now
+    await session.commit()
+    return ExtensionTokenResponse(
+        extension_token=create_extension_token(pairing.user_id, settings),
+        expires_in=settings.extension_token_expire_days * 24 * 60 * 60,
+    )
+
+
+@router.post("/extension/jobs/capture", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def capture_extension_job(
+    payload: ManualJobRequest,
+    user_id: Annotated[UUID, Depends(get_extension_user_id)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> JobResponse:
+    return await score_and_store_manual_job(session, user_id, payload)
 
 
 @router.get("/settings/job-preferences", response_model=JobPreferenceResponse)
@@ -771,6 +818,36 @@ def subscription_features(plan: str) -> list[str]:
     if plan in {"owner", "pro"}:
         return ["unlimited_job_discovery", "gemini_tailoring", "resume_exports", "application_tracking", "analytics"]
     return ["job_discovery", "safe_tailoring", "resume_exports", "application_tracking"]
+
+
+async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest) -> JobResponse:
+    profile = await ResumeService(session).get_active(user_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before capturing a job.")
+    external_id = sha256(payload.url.strip().encode()).hexdigest()
+    job = ProviderJob(
+        id=uuid5(NAMESPACE_URL, f"jobcopilot:manual:{external_id}"),
+        external_id=external_id,
+        source="manual",
+        title=payload.title.strip(),
+        company=payload.company.strip(),
+        location=payload.location.strip() or "Not specified",
+        description=payload.description.strip(),
+        required_skills=frozenset(skill for skill, _ in detect_skills(payload.description)),
+        url=payload.url.strip(),
+        work_mode="Not specified",
+    )
+    match = matching_service.rank_jobs([job], {skill.lower() for skill in profile.skills}, set(profile.extracted_text.lower().split()))[0]
+    stored_job = await ensure_stored_job(session, job)
+    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user_id, JobMatch.job_id == stored_job.id))
+    if stored_match:
+        stored_match.match_score = match.match_score
+        stored_match.matching_skills = list(match.matching_skills)
+        stored_match.missing_skills = list(match.missing_skills)
+    else:
+        session.add(JobMatch(user_id=user_id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills)))
+    await session.commit()
+    return job_response(match)
 
 
 def job_response(match) -> JobResponse:

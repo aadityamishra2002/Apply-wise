@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <h1>Apply Wise</h1>
+      <p class="muted">Review a job page before sending it for scoring.</p>
+      <section id="pairing">
+        <label>Pairing code<input id="code" placeholder="Code from Apply Wise Settings"></label>
+        <button id="pair">Pair extension</button>
+      </section>
+      <section id="capture" hidden>
+        <label>Job title<input id="title"></label>
+        <label>Company<input id="company"></label>
+        <label>Location<input id="location"></label>
+        <label>Job URL<input id="url"></label>
+        <label>Description<textarea id="description"></textarea></label>
+        <button id="send">Send to Apply Wise</button>
+        <button class="secondary" id="unpair">Unpair extension</button>
+      </section>
+      <p id="message"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

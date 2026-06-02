@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 20
+    extension_pairing_expire_minutes: int = 10
+    extension_token_expire_days: int = 30
     matching_skills_weight: float = 0.6
     matching_keywords_weight: float = 0.25
     matching_experience_weight: float = 0.15
