@@ -95,6 +95,7 @@ for item in [
     "Set role keywords, location, and remote-only discovery preferences.",
     "Add application notes and review visible tracker timeline events.",
     "Schedule interview rounds inside the application workspace.",
+    "Download authenticated DOCX or PDF exports for prepared resume versions.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -122,7 +123,6 @@ for item in [
     "Adzuna is the first and only live job provider.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
-    "Generated DOCX and PDF resume exports are not implemented.",
     "Interview rescheduling and editing need a fuller interface.",
     "Subscription billing and feature entitlements are not connected.",
     "Extension capture and Playwright autofill remain future work.",
@@ -133,9 +133,9 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Document exports", "Downloadable DOCX and PDF resumes"),
-            ("2", "Subscriptions", "Plans, entitlements, and owner bypass"),
-            ("3", "Provider expansion", "More compliant listing sources"),
+            ("1", "Subscriptions", "Plans, entitlements, and owner bypass"),
+            ("2", "Provider expansion", "More compliant listing sources"),
+            ("3", "Extension design", "Capture and assisted autofill plan"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),

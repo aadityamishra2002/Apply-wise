@@ -27,6 +27,7 @@ The maintained product guide is available in two formats:
 - Interview-round scheduling inside the application workspace
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
+- Authenticated DOCX and PDF downloads for tailored resume versions
 
 ## Current Limitations
 
@@ -82,7 +83,6 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Next Changes
 
-1. DOCX and PDF export for generated resume versions
-2. Subscription plans and feature entitlements
-3. Additional compliant job providers and provider health monitoring
-4. Browser-extension capture and assisted autofill design
+1. Subscription plans and feature entitlements
+2. Additional compliant job providers and provider health monitoring
+3. Browser-extension capture and assisted autofill design

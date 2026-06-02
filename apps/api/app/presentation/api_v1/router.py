@@ -3,13 +3,14 @@ from typing import Annotated
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
+from app.application.exports.service import ResumeExportService, download_filename
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
@@ -36,6 +37,7 @@ tailoring_service = GeminiTailoringService(
     model=settings.gemini_model,
     timeout_seconds=settings.gemini_timeout_seconds,
 )
+resume_export_service = ResumeExportService()
 
 
 class JobResponse(BaseModel):
@@ -370,6 +372,35 @@ async def list_resume_versions(
         )
         for version, job in rows.all()
     ]
+
+
+@router.get("/resume-versions/{version_id}/download")
+async def download_resume_version(
+    version_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    format: Annotated[str, Query(pattern="^(docx|pdf)$")] = "docx",
+) -> Response:
+    row = await session.execute(
+        select(ResumeVersion, Job)
+        .join(Job, ResumeVersion.job_id == Job.id)
+        .where(ResumeVersion.id == version_id, ResumeVersion.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume version not found.")
+    version, job = result
+    if format == "pdf":
+        body = resume_export_service.build_pdf(version, job)
+        media_type = "application/pdf"
+    else:
+        body = resume_export_service.build_docx(version, job)
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return Response(
+        body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{download_filename(job, format)}"'},
+    )
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CloudUpload, FileText, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, CloudUpload, Download, FileText, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/ui";
-import { getAccessToken, loadResumeProfile, loadResumeVersions, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
+import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
 
 export default function ResumePage() {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -37,6 +37,11 @@ export default function ResumePage() {
     } finally {
       setUploading(false);
     }
+  }
+
+  function download(versionId: string, format: "docx" | "pdf") {
+    const token = getAccessToken();
+    if (token) void downloadResumeVersion(versionId, format, token).catch((downloadError: Error) => setError(downloadError.message));
   }
 
   return (
@@ -139,7 +144,7 @@ export default function ResumePage() {
       <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
         <h2 className="text-[17px] font-bold tracking-[-0.04em]">Tailored resume versions</h2>
         <p className="mt-1 text-[12px] text-[#91a09c]">Every prepared application creates an auditable draft tied to its source resume.</p>
-        {versions.length ? <div className="mt-4 space-y-3">{versions.map((version) => <div className="flex items-center justify-between rounded-xl border border-[#edf0ed] p-4" key={version.id}><div><p className="text-[13px] font-bold">{version.job_title}</p><p className="mt-1 text-[12px] text-[#71807c]">{version.company}</p></div><Pill tone="green">Draft saved</Pill></div>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-[#d5dedb] p-5 text-center text-[12px] text-[#91a09c]">No tailored versions yet. Prepare a saved application to create one.</p>}
+        {versions.length ? <div className="mt-4 space-y-3">{versions.map((version) => <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#edf0ed] p-4" key={version.id}><div><p className="text-[13px] font-bold">{version.job_title}</p><p className="mt-1 text-[12px] text-[#71807c]">{version.company}</p></div><div className="flex items-center gap-2"><button className="flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => download(version.id, "docx")}><Download size={13}/>DOCX</button><button className="flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => download(version.id, "pdf")}><Download size={13}/>PDF</button><Pill tone="green">Draft saved</Pill></div></div>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-[#d5dedb] p-5 text-center text-[12px] text-[#91a09c]">No tailored versions yet. Prepare a saved application to create one.</p>}
       </section>
       <div className="h-16 lg:hidden" />
     </AppShell>

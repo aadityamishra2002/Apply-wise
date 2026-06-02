@@ -32,6 +32,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 10. Save role, location, and remote-only job-discovery preferences.
 11. Add application notes and review visible timeline events.
 12. Schedule interview rounds within an application workspace.
+13. Download authenticated DOCX or PDF exports for prepared resume versions.
 
 ## Truthfulness Rules
 
@@ -52,17 +53,15 @@ Generated application drafts use stored resume evidence only. The current implem
 - Adzuna is the only live job provider currently connected.
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
-- Resume DOCX and PDF export is not implemented yet.
 - Interview rescheduling and editing need a fuller interface.
 - Subscription billing and feature entitlements are not connected.
 - Chrome-extension autofill and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
-1. Add generated resume DOCX and PDF exports.
-2. Add subscription plans, owner bypass, and usage entitlements.
-3. Add additional compliant job providers and provider health monitoring.
-4. Design browser-extension capture and assisted autofill.
+1. Add subscription plans, owner bypass, and usage entitlements.
+2. Add additional compliant job providers and provider health monitoring.
+3. Design browser-extension capture and assisted autofill.
 
 ## Deployment Note
 

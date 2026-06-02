@@ -90,6 +90,21 @@ export async function loadResumeVersions(accessToken: string): Promise<ResumeVer
   return (await response.json()) as ResumeVersionRecord[];
 }
 
+export async function downloadResumeVersion(versionId: string, format: "docx" | "pdf", accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/resume-versions/${versionId}/download?format=${format}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not download this resume version.");
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `tailored-resume.${format}`;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function uploadResume(file: File, accessToken: string): Promise<ResumeProfile> {
   const formData = new FormData();
   formData.append("file", file);

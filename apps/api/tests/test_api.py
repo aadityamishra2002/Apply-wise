@@ -287,6 +287,30 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert versions.status_code == 200
     assert versions.json()[0]["id"] == body["resume_version_id"]
     assert versions.json()[0]["job_title"] == job["title"]
+    docx = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}/download?format=docx", headers=headers)
+    assert docx.status_code == 200
+    assert docx.headers["content-type"].startswith("application/vnd.openxmlformats-officedocument")
+    assert docx.content.startswith(b"PK")
+    pdf = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}/download?format=pdf", headers=headers)
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"].startswith("application/pdf")
+    assert pdf.content.startswith(b"%PDF")
+
+
+def test_resume_download_is_scoped_to_its_owner() -> None:
+    owner_token = register_user("owner-download@example.com")["tokens"]["access_token"]
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    upload_resume(owner_token)
+    job = client.get("/api/v1/jobs", headers=owner_headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=owner_headers).json()
+    version_id = client.post(f"/api/v1/applications/{application['id']}/prepare", headers=owner_headers).json()["resume_version_id"]
+
+    other_token = register_user("other-download@example.com")["tokens"]["access_token"]
+    response = client.get(
+        f"/api/v1/resume-versions/{version_id}/download?format=pdf",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert response.status_code == 404
 
 
 def test_register_and_read_current_user() -> None:
@@ -393,10 +417,10 @@ def test_logout_revokes_refresh_token() -> None:
     assert refresh.status_code == 401
 
 
-def register_user() -> dict:
+def register_user(email: str = "resume-owner@example.com") -> dict:
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "resume-owner@example.com", "password": "correct-horse-battery-staple"},
+        json={"email": email, "password": "correct-horse-battery-staple"},
     )
     assert response.status_code == 201
     return response.json()
