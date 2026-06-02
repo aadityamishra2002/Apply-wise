@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, LoaderCircle, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { getAccessToken, loadJobPreferences, loadSubscription, saveJobPreferences, type JobPreferences, type Subscription } from "@/lib/api";
+import { getAccessToken, loadJobPreferences, loadProviderHealth, loadSubscription, saveJobPreferences, type JobPreferences, type ProviderHealth, type Subscription } from "@/lib/api";
 
 const emptyPreferences: JobPreferences = { role_keywords: "", location: "", remote_only: false };
 
@@ -14,8 +14,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [providers, setProviders] = useState<ProviderHealth[]>([]);
   useEffect(() => { const token = getAccessToken(); if (token) void loadJobPreferences(token).then(setPreferences).catch((loadError: Error) => setError(loadError.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { const token = getAccessToken(); if (token) void loadSubscription(token).then(setSubscription).catch((loadError: Error) => setError(loadError.message)); }, []);
+  useEffect(() => { void loadProviderHealth().then(setProviders).catch((loadError: Error) => setError(loadError.message)); }, []);
   async function persist() {
     const token = getAccessToken(); if (!token) return;
     setSaving(true); setSaved(false); setError(null);
@@ -35,5 +37,6 @@ export default function SettingsPage() {
       </div>}
     </section>
     {subscription ? <section className="mt-5 max-w-2xl rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Subscription</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-[18px] font-bold capitalize">{subscription.plan} plan</h2><p className="mt-1 text-[12px] text-[#71807c]">{subscription.owner_bypass ? "Owner access is enabled. All product features are available without billing." : "Your workspace starts on the free tier. Paid checkout will be added next."}</p></div><span className="rounded-full bg-[#e8f4ef] px-3 py-1 text-[11px] font-bold capitalize text-[#176b5b]">{subscription.status}</span></div><div className="mt-4 flex flex-wrap gap-2">{subscription.features.map((feature) => <span className="rounded-full border border-[#dce7e2] px-3 py-1 text-[11px] font-bold text-[#65736f]" key={feature}>{feature.replaceAll("_"," ")}</span>)}</div></section> : null}
+    {providers.length ? <section className="mt-5 max-w-2xl rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Job sources</p><h2 className="mt-3 text-[18px] font-bold">Provider health</h2><div className="mt-4 space-y-2">{providers.map((provider) => <div className="flex items-center justify-between rounded-xl bg-[#f6f8f5] p-3" key={provider.name}><div><p className="text-[13px] font-bold capitalize">{provider.name}</p><p className="mt-1 text-[11px] text-[#71807c]">{provider.last_result_count === null ? "Ready for the next search" : `${provider.last_result_count} roles returned in the latest search`}</p></div><span className="rounded-full bg-[#e8f4ef] px-3 py-1 text-[11px] font-bold capitalize text-[#176b5b]">{provider.status}</span></div>)}</div></section> : null}
   </AppShell>;
 }

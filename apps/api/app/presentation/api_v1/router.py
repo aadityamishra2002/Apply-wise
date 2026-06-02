@@ -168,6 +168,13 @@ class SubscriptionResponse(BaseModel):
     features: list[str]
 
 
+class ProviderHealthResponse(BaseModel):
+    name: str
+    status: str
+    last_checked_at: str | None
+    last_result_count: int | None
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
@@ -190,6 +197,19 @@ async def readiness(
 @router.get("/health/features")
 def feature_health() -> dict[str, bool]:
     return {"adzuna_enabled": settings.adzuna_enabled, "gemini_enabled": settings.gemini_enabled}
+
+
+@router.get("/health/providers", response_model=list[ProviderHealthResponse])
+def provider_health() -> list[ProviderHealthResponse]:
+    return [
+        ProviderHealthResponse(
+            name=item.name,
+            status=item.status,
+            last_checked_at=item.last_checked_at.isoformat() if item.last_checked_at else None,
+            last_result_count=item.last_result_count,
+        )
+        for item in provider.health()
+    ]
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)

@@ -34,6 +34,7 @@ export type ResumeVersionRecord = { id: string; job_id: string; job_title: strin
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
 export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
+export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null };
 
 type TokenResponse = {
   access_token: string;
@@ -230,6 +231,12 @@ export async function loadSubscription(accessToken: string): Promise<Subscriptio
   });
   if (!response.ok) throw new Error("Could not load subscription details.");
   return (await response.json()) as Subscription;
+}
+
+export async function loadProviderHealth(): Promise<ProviderHealth[]> {
+  const response = await fetch(`${apiUrl}/health/providers`);
+  if (!response.ok) throw new Error("Could not load provider health.");
+  return (await response.json()) as ProviderHealth[];
 }
 
 export async function logout(): Promise<void> {

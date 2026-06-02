@@ -29,10 +29,11 @@ The maintained product guide is available in two formats:
 - Tailored-resume version history
 - Authenticated DOCX and PDF downloads for tailored resume versions
 - Persisted subscription foundation with free-tier status and owner bypass
+- Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 
 ## Current Limitations
 
-- Job discovery currently uses Adzuna as the first live provider.
+- Adzuna remains the first live provider; additional compliant provider adapters are not connected yet.
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
 - Automated job applications and browser autofill are intentionally deferred.
@@ -85,5 +86,5 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 ## Next Changes
 
 1. Razorpay checkout, webhook verification, and paid-plan activation
-2. Additional compliant job providers and provider health monitoring
+2. Additional compliant job provider adapters
 3. Browser-extension capture and assisted autofill design

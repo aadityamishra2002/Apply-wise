@@ -5,6 +5,8 @@ from app.domain.jobs.entities import Job
 
 
 class MockJobProvider:
+    name = "mock"
+
     def search_jobs(self, query: str = "", location: str = "") -> list[Job]:
         jobs = [
             Job(

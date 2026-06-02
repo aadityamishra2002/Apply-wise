@@ -30,6 +30,14 @@ def test_feature_health_does_not_expose_credentials() -> None:
     assert response.json() == {"adzuna_enabled": False, "gemini_enabled": False}
 
 
+def test_provider_health_is_public_and_non_secret() -> None:
+    response = client.get("/api/v1/health/providers")
+    assert response.status_code == 200
+    assert response.json()[0]["name"] == "mock"
+    assert response.json()[0]["status"] in {"configured", "available"}
+    assert "app_key" not in response.text
+
+
 def test_local_browser_origin_is_allowed() -> None:
     response = client.options(
         "/api/v1/auth/register",

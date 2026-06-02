@@ -8,6 +8,8 @@ from app.domain.jobs.entities import Job
 
 
 class AdzunaJobProvider:
+    name = "adzuna"
+
     def __init__(
         self,
         app_id: str,
