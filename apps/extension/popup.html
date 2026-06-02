@@ -19,6 +19,12 @@
         <label>Job URL<input id="url"></label>
         <label>Description<textarea id="description"></textarea></label>
         <button id="send">Send to Apply Wise</button>
+        <button class="secondary" id="inspect-form">Inspect application form</button>
+        <section id="form-preview" hidden>
+          <h2>Detected application fields</h2>
+          <p class="muted">Preview only. Apply Wise does not fill or submit these fields yet.</p>
+          <ul id="detected-fields"></ul>
+        </section>
         <button class="secondary" id="unpair">Unpair extension</button>
       </section>
       <p id="message"></p>

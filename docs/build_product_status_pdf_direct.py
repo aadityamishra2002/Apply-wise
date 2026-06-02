@@ -103,6 +103,7 @@ for item in [
     "Pair an unpacked Chrome extension and review job pages before scoring.",
     "Review ATS-readiness breakdowns and approve or dismiss roles in the 80+ queue.",
     "Review duplicate protection and draft readiness before opening the employer page for manual submission.",
+    "Inspect common employer application fields locally from the extension without filling or submitting them.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -131,7 +132,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
-    "Site-specific extension extractors and Playwright autofill remain future work.",
+    "Site-specific extension extractors, assisted autofill, and Playwright automation remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

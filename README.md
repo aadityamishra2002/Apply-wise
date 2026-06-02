@@ -36,6 +36,7 @@ The maintained product guide is available in two formats:
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
+- Local extension form inspector for common employer application fields, without autofill or submission
 
 ## Current Limitations
 

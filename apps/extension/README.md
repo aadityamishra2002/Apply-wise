@@ -1,6 +1,6 @@
 # Apply Wise Chrome Extension MVP
 
-This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It does not autofill forms or submit applications.
+This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It can also inspect common application-form fields locally. It does not autofill forms or submit applications.
 
 ## Install Locally
 
@@ -20,5 +20,7 @@ Pairing codes expire after 10 minutes and can only be used once. The extension r
 3. Review the extracted title, company, location, URL, and description.
 4. Click **Send to Apply Wise**.
 5. Open Apply Wise job discovery to continue reviewing the role.
+
+On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, and work authorization. Detection stays in the browser and does not fill or submit anything.
 
 The extraction logic intentionally uses general page heuristics. Site-specific extractors can be added after testing the MVP on common job boards and company career pages.
