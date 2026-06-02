@@ -43,3 +43,8 @@ def test_admin_email_list_is_normalized() -> None:
 def test_adzuna_is_enabled_only_when_both_credentials_exist() -> None:
     assert not Settings(_env_file=None, adzuna_app_id="id-only").adzuna_enabled
     assert Settings(_env_file=None, adzuna_app_id="id", adzuna_app_key="key").adzuna_enabled
+
+
+def test_gemini_is_enabled_only_when_api_key_exists() -> None:
+    assert not Settings(_env_file=None).gemini_enabled
+    assert Settings(_env_file=None, gemini_api_key="key").gemini_enabled

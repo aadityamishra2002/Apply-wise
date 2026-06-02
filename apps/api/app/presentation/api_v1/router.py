@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
+from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
 from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Interview, Job, JobMatch, JobPreference, ResumeVersion
@@ -29,6 +30,11 @@ matching_service = JobMatchingService(
         keywords=settings.matching_keywords_weight,
         experience=settings.matching_experience_weight,
     )
+)
+tailoring_service = GeminiTailoringService(
+    api_key=settings.gemini_api_key,
+    model=settings.gemini_model,
+    timeout_seconds=settings.gemini_timeout_seconds,
 )
 
 
@@ -124,6 +130,7 @@ class ApplicationMaterialsResponse(BaseModel):
     resume_content: dict
     cover_letter_id: str
     cover_letter: str
+    provenance: str
 
 
 class ResumeVersionResponse(BaseModel):
@@ -169,6 +176,11 @@ async def readiness(
             detail="Database is unavailable.",
         ) from error
     return {"status": "ready", "database": "ok"}
+
+
+@router.get("/health/features")
+def feature_health() -> dict[str, bool]:
+    return {"adzuna_enabled": settings.adzuna_enabled, "gemini_enabled": settings.gemini_enabled}
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
@@ -488,17 +500,8 @@ async def prepare_application(
     profile = await ResumeService(session).get_active(user.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before preparing an application.")
-    resume_content = {
-        "draft_type": "evidence_grounded",
-        "target_role": job.title,
-        "target_company": job.company,
-        "skills": list(profile.skills),
-        "experience": [
-            {"title": experience.title, "company": experience.company, "description": experience.description}
-            for experience in profile.experiences
-        ],
-        "source_resume_id": str(profile.id),
-    }
+    materials = tailoring_service.prepare(job, profile)
+    resume_content = materials.resume_content
     resume_version = ResumeVersion(
         user_id=user.id,
         job_id=job.id,
@@ -509,7 +512,7 @@ async def prepare_application(
     cover_letter = CoverLetter(
         user_id=user.id,
         job_id=job.id,
-        content=build_cover_letter(job, profile),
+        content=materials.cover_letter,
     )
     previous_status = application.status
     application.status = ApplicationStatus.PREPARING
@@ -534,23 +537,7 @@ async def prepare_application(
         resume_content=resume_content,
         cover_letter_id=str(cover_letter.id),
         cover_letter=cover_letter.content,
-    )
-
-
-def build_cover_letter(job: Job, profile: ResumeProfile) -> str:
-    skills = ", ".join(profile.skills[:5]) or "my relevant experience"
-    experience = profile.experiences[0] if profile.experiences else None
-    evidence = (
-        f"In my role as {experience.title} at {experience.company}, {experience.description}"
-        if experience
-        else "My attached resume outlines the experience I would bring to the role."
-    )
-    return (
-        f"Dear {job.company} hiring team,\n\n"
-        f"I am interested in the {job.title} opportunity. My background includes {skills}. "
-        f"{evidence}\n\n"
-        "I would welcome the opportunity to discuss how my experience could support your team.\n\n"
-        "Sincerely"
+        provenance=materials.provenance,
     )
 
 

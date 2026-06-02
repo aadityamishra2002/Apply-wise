@@ -26,7 +26,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 4. Search live Adzuna listings by role or keyword.
 5. Review explainable profile-match scores and missing skills.
 6. Save a role into the application tracker.
-7. Prepare an evidence-grounded resume version and cover-letter draft.
+7. Prepare a Gemini-enhanced evidence-grounded resume version and cover-letter draft with deterministic fallback.
 8. Update application status and monitor dashboard metrics.
 9. Review pipeline analytics and generated resume-version history.
 10. Save role, location, and remote-only job-discovery preferences.
@@ -51,7 +51,7 @@ Generated application drafts use stored resume evidence only. The current implem
 
 - Adzuna is the only live job provider currently connected.
 - Resume parsing uses deterministic heuristics and still needs user review.
-- Tailored materials are stored evidence-grounded drafts, not LLM-enhanced documents yet.
+- Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Resume DOCX and PDF export is not implemented yet.
 - Interview rescheduling and editing need a fuller interface.
 - Subscription billing and feature entitlements are not connected.
@@ -59,11 +59,10 @@ Generated application drafts use stored resume evidence only. The current implem
 
 ## Next Delivery Slices
 
-1. Integrate an AI provider with strict evidence grounding and prompt guardrails.
-2. Add generated resume DOCX and PDF exports.
-3. Add subscription plans, owner bypass, and usage entitlements.
-4. Add additional compliant job providers and provider health monitoring.
-5. Design browser-extension capture and assisted autofill.
+1. Add generated resume DOCX and PDF exports.
+2. Add subscription plans, owner bypass, and usage entitlements.
+3. Add additional compliant job providers and provider health monitoring.
+4. Design browser-extension capture and assisted autofill.
 
 ## Deployment Note
 

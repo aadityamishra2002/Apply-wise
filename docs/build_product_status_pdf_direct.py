@@ -91,7 +91,7 @@ for item in [
     "Upload a PDF or DOCX master resume and review extracted evidence.",
     "Search live Adzuna listings and rank jobs against stored resume skills.",
     "Save roles, update statuses, and monitor dashboard and analytics metrics.",
-    "Prepare evidence-grounded cover-letter drafts and resume versions.",
+    "Prepare Gemini-enhanced grounded drafts with deterministic fallback.",
     "Set role keywords, location, and remote-only discovery preferences.",
     "Add application notes and review visible tracker timeline events.",
     "Schedule interview rounds inside the application workspace.",
@@ -121,7 +121,7 @@ story.append(para("Current limitations", heading))
 for item in [
     "Adzuna is the first and only live job provider.",
     "Resume parsing is deterministic and requires user review.",
-    "Drafts are evidence-grounded templates; LLM enhancement is not enabled yet.",
+    "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Generated DOCX and PDF resume exports are not implemented.",
     "Interview rescheduling and editing need a fuller interface.",
     "Subscription billing and feature entitlements are not connected.",
@@ -133,10 +133,9 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "AI-provider enhancement", "Stronger grounded resume tailoring"),
-            ("2", "Document exports", "Downloadable DOCX and PDF resumes"),
-            ("3", "Subscriptions", "Plans, entitlements, and owner bypass"),
-            ("4", "Provider expansion", "More compliant listing sources"),
+            ("1", "Document exports", "Downloadable DOCX and PDF resumes"),
+            ("2", "Subscriptions", "Plans, entitlements, and owner bypass"),
+            ("3", "Provider expansion", "More compliant listing sources"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),

@@ -25,13 +25,14 @@ The maintained product guide is available in two formats:
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Application notes and visible activity timeline
 - Interview-round scheduling inside the application workspace
-- Evidence-grounded cover-letter drafts and tailored-resume version history
+- Gemini-enhanced evidence-grounded drafts with a deterministic fallback
+- Tailored-resume version history
 
 ## Current Limitations
 
 - Job discovery currently uses Adzuna as the first live provider.
 - Resume parsing is deterministic and requires user review.
-- Application drafts are evidence-grounded templates; external AI-provider enhancement is not enabled yet.
+- Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
 - Automated job applications and browser autofill are intentionally deferred.
 - Subscription billing is not connected yet.
 
@@ -81,8 +82,7 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Next Changes
 
-1. AI-provider integration for stronger truthful tailoring
-2. DOCX and PDF export for generated resume versions
-3. Subscription plans and feature entitlements
-4. Additional compliant job providers and provider health monitoring
-5. Browser-extension capture and assisted autofill design
+1. DOCX and PDF export for generated resume versions
+2. Subscription plans and feature entitlements
+3. Additional compliant job providers and provider health monitoring
+4. Browser-extension capture and assisted autofill design

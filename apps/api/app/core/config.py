@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     adzuna_country: str = "in"
     adzuna_results_per_page: int = 20
     adzuna_timeout_seconds: float = 10
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout_seconds: float = 20
     matching_skills_weight: float = 0.6
     matching_keywords_weight: float = 0.25
     matching_experience_weight: float = 0.15
@@ -80,6 +83,10 @@ class Settings(BaseSettings):
     @property
     def adzuna_enabled(self) -> bool:
         return bool(self.adzuna_app_id and self.adzuna_app_key)
+
+    @property
+    def gemini_enabled(self) -> bool:
+        return bool(self.gemini_api_key)
 
 
 @lru_cache

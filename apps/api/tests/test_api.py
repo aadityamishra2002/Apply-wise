@@ -24,6 +24,12 @@ def test_readiness_checks_database() -> None:
     assert response.json() == {"status": "ready", "database": "ok"}
 
 
+def test_feature_health_does_not_expose_credentials() -> None:
+    response = client.get("/api/v1/health/features")
+    assert response.status_code == 200
+    assert response.json() == {"adzuna_enabled": False, "gemini_enabled": False}
+
+
 def test_local_browser_origin_is_allowed() -> None:
     response = client.options(
         "/api/v1/auth/register",
@@ -270,12 +276,13 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert prepared.status_code == 201
     body = prepared.json()
     assert body["application"]["status"] == "preparing"
-    assert body["resume_content"]["draft_type"] == "evidence_grounded"
+    assert body["resume_content"]["draft_type"] == "deterministic_evidence_grounded"
     assert body["resume_content"]["source_resume_id"]
     assert body["resume_content"]["experience"][0]["company"] == "Northstar Labs"
     assert "Northstar Labs" in body["cover_letter"]
     assert body["resume_version_id"]
     assert body["cover_letter_id"]
+    assert body["provenance"] == "deterministic_evidence_grounded"
     versions = client.get("/api/v1/resume-versions", headers=headers)
     assert versions.status_code == 200
     assert versions.json()[0]["id"] == body["resume_version_id"]
