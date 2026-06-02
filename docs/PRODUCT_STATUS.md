@@ -33,6 +33,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 11. Add application notes and review visible timeline events.
 12. Schedule interview rounds within an application workspace.
 13. Download authenticated DOCX or PDF exports for prepared resume versions.
+14. Review persisted free-tier or owner-bypass subscription entitlements in settings.
 
 ## Truthfulness Rules
 
@@ -54,12 +55,12 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Interview rescheduling and editing need a fuller interface.
-- Subscription billing and feature entitlements are not connected.
+- Razorpay checkout, webhook processing, and paid-plan activation are not connected.
 - Chrome-extension autofill and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
-1. Add subscription plans, owner bypass, and usage entitlements.
+1. Add Razorpay checkout, verified webhooks, and paid-plan activation.
 2. Add additional compliant job providers and provider health monitoring.
 3. Design browser-extension capture and assisted autofill.
 

@@ -15,8 +15,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_unique_constraint("uq_applications_user_job", "applications", ["user_id", "job_id"])
+    with op.batch_alter_table("applications") as batch_op:
+        batch_op.create_unique_constraint("uq_applications_user_job", ["user_id", "job_id"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_applications_user_job", "applications", type_="unique")
+    with op.batch_alter_table("applications") as batch_op:
+        batch_op.drop_constraint("uq_applications_user_job", type_="unique")

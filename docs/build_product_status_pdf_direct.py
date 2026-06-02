@@ -96,6 +96,7 @@ for item in [
     "Add application notes and review visible tracker timeline events.",
     "Schedule interview rounds inside the application workspace.",
     "Download authenticated DOCX or PDF exports for prepared resume versions.",
+    "Review persisted free-tier or owner-bypass subscription entitlements.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -124,7 +125,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Interview rescheduling and editing need a fuller interface.",
-    "Subscription billing and feature entitlements are not connected.",
+    "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
     "Extension capture and Playwright autofill remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
@@ -133,7 +134,7 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Subscriptions", "Plans, entitlements, and owner bypass"),
+            ("1", "Razorpay billing", "Checkout, webhooks, and paid activation"),
             ("2", "Provider expansion", "More compliant listing sources"),
             ("3", "Extension design", "Capture and assisted autofill plan"),
         ],

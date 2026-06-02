@@ -19,7 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("users", sa.Column("role", sa.String(length=32), server_default="member", nullable=False))
     op.create_index(op.f("ix_users_role"), "users", ["role"], unique=False)
-    op.alter_column("users", "role", server_default=None)
+    if op.get_bind().dialect.name != "sqlite":
+        op.alter_column("users", "role", server_default=None)
 
 
 def downgrade() -> None:

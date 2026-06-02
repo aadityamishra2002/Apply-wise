@@ -43,6 +43,7 @@ class User(Base):
     applications: Mapped[list["Application"]] = relationship(back_populates="user")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
     job_preferences: Mapped["JobPreference | None"] = relationship(back_populates="user", uselist=False)
+    subscription: Mapped["Subscription | None"] = relationship(back_populates="user", uselist=False)
 
 
 class RefreshToken(Base):
@@ -69,6 +70,21 @@ class JobPreference(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     user: Mapped[User] = relationship(back_populates="job_preferences")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    plan: Mapped[str] = mapped_column(String(32), default="free", index=True)
+    status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    provider: Mapped[str | None] = mapped_column(String(32))
+    provider_subscription_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    user: Mapped[User] = relationship(back_populates="subscription")
 
 
 class MasterResume(Base):

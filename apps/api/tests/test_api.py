@@ -343,6 +343,27 @@ def test_allowlisted_owner_registers_as_admin() -> None:
     assert registration.json()["user"]["role"] == "admin"
 
 
+def test_owner_subscription_bypass_and_member_free_tier() -> None:
+    owner = register_user("owner@example.com")
+    owner_subscription = client.get(
+        "/api/v1/billing/subscription",
+        headers={"Authorization": f"Bearer {owner['tokens']['access_token']}"},
+    )
+    assert owner_subscription.status_code == 200
+    assert owner_subscription.json()["plan"] == "owner"
+    assert owner_subscription.json()["owner_bypass"] is True
+    assert "gemini_tailoring" in owner_subscription.json()["features"]
+
+    member = register_user("member-subscription@example.com")
+    member_subscription = client.get(
+        "/api/v1/billing/subscription",
+        headers={"Authorization": f"Bearer {member['tokens']['access_token']}"},
+    )
+    assert member_subscription.status_code == 200
+    assert member_subscription.json()["plan"] == "free"
+    assert member_subscription.json()["owner_bypass"] is False
+
+
 def test_existing_allowlisted_owner_becomes_admin_on_login(monkeypatch) -> None:
     payload = {"email": "avery@example.com", "password": "correct-horse-battery-staple"}
     assert client.post("/api/v1/auth/register", json=payload).json()["user"]["role"] == "member"

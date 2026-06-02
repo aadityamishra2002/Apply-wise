@@ -15,7 +15,7 @@ from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, Res
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Interview, Job, JobMatch, JobPreference, ResumeVersion
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -159,6 +159,13 @@ class JobPreferenceRequest(BaseModel):
 
 class JobPreferenceResponse(JobPreferenceRequest):
     pass
+
+
+class SubscriptionResponse(BaseModel):
+    plan: str
+    status: str
+    owner_bypass: bool
+    features: list[str]
 
 
 @router.get("/health")
@@ -331,6 +338,25 @@ async def update_job_preferences(
     preferences.remote_only = payload.remote_only
     await session.commit()
     return job_preference_response(preferences)
+
+
+@router.get("/billing/subscription", response_model=SubscriptionResponse)
+async def get_subscription(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SubscriptionResponse:
+    subscription = await session.scalar(select(Subscription).where(Subscription.user_id == user.id))
+    if not subscription:
+        subscription = Subscription(user_id=user.id)
+        session.add(subscription)
+        await session.commit()
+    owner_bypass = user.role == "admin"
+    return SubscriptionResponse(
+        plan="owner" if owner_bypass else subscription.plan,
+        status=subscription.status,
+        owner_bypass=owner_bypass,
+        features=subscription_features("owner" if owner_bypass else subscription.plan),
+    )
 
 
 @router.post("/jobs/{job_id}/save", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
@@ -625,6 +651,12 @@ def job_preference_response(preferences: JobPreference) -> JobPreferenceResponse
         location=preferences.location,
         remote_only=preferences.remote_only,
     )
+
+
+def subscription_features(plan: str) -> list[str]:
+    if plan in {"owner", "pro"}:
+        return ["unlimited_job_discovery", "gemini_tailoring", "resume_exports", "application_tracking", "analytics"]
+    return ["job_discovery", "safe_tailoring", "resume_exports", "application_tracking"]
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:

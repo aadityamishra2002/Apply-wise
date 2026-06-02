@@ -28,6 +28,7 @@ The maintained product guide is available in two formats:
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
 - Authenticated DOCX and PDF downloads for tailored resume versions
+- Persisted subscription foundation with free-tier status and owner bypass
 
 ## Current Limitations
 
@@ -35,7 +36,7 @@ The maintained product guide is available in two formats:
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
 - Automated job applications and browser autofill are intentionally deferred.
-- Subscription billing is not connected yet.
+- Razorpay checkout and webhook processing are not connected yet.
 
 ## Architecture
 
@@ -83,6 +84,6 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Next Changes
 
-1. Subscription plans and feature entitlements
+1. Razorpay checkout, webhook verification, and paid-plan activation
 2. Additional compliant job providers and provider health monitoring
 3. Browser-extension capture and assisted autofill design

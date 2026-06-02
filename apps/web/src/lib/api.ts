@@ -33,6 +33,7 @@ export type ApplicationMaterials = { application: ApplicationRecord; resume_vers
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
+export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
 
 type TokenResponse = {
   access_token: string;
@@ -221,6 +222,14 @@ export async function saveJobPreferences(preferences: JobPreferences, accessToke
   });
   if (!response.ok) throw new Error("Could not save job preferences.");
   return (await response.json()) as JobPreferences;
+}
+
+export async function loadSubscription(accessToken: string): Promise<Subscription> {
+  const response = await fetch(`${apiUrl}/billing/subscription`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load subscription details.");
+  return (await response.json()) as Subscription;
 }
 
 export async function logout(): Promise<void> {

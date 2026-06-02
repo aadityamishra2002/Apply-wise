@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, LoaderCircle, Save } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { getAccessToken, loadJobPreferences, saveJobPreferences, type JobPreferences } from "@/lib/api";
+import { getAccessToken, loadJobPreferences, loadSubscription, saveJobPreferences, type JobPreferences, type Subscription } from "@/lib/api";
 
 const emptyPreferences: JobPreferences = { role_keywords: "", location: "", remote_only: false };
 
@@ -13,7 +13,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   useEffect(() => { const token = getAccessToken(); if (token) void loadJobPreferences(token).then(setPreferences).catch((loadError: Error) => setError(loadError.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { const token = getAccessToken(); if (token) void loadSubscription(token).then(setSubscription).catch((loadError: Error) => setError(loadError.message)); }, []);
   async function persist() {
     const token = getAccessToken(); if (!token) return;
     setSaving(true); setSaved(false); setError(null);
@@ -32,5 +34,6 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3"><button className="flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:opacity-60" disabled={saving} onClick={() => void persist()}><Save size={14}/>{saving ? "Saving..." : "Save preferences"}</button>{saved ? <p className="flex items-center gap-1 text-[12px] font-bold text-[#66801f]"><Check size={14}/>Saved</p> : null}</div>
       </div>}
     </section>
+    {subscription ? <section className="mt-5 max-w-2xl rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Subscription</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-[18px] font-bold capitalize">{subscription.plan} plan</h2><p className="mt-1 text-[12px] text-[#71807c]">{subscription.owner_bypass ? "Owner access is enabled. All product features are available without billing." : "Your workspace starts on the free tier. Paid checkout will be added next."}</p></div><span className="rounded-full bg-[#e8f4ef] px-3 py-1 text-[11px] font-bold capitalize text-[#176b5b]">{subscription.status}</span></div><div className="mt-4 flex flex-wrap gap-2">{subscription.features.map((feature) => <span className="rounded-full border border-[#dce7e2] px-3 py-1 text-[11px] font-bold text-[#65736f]" key={feature}>{feature.replaceAll("_"," ")}</span>)}</div></section> : null}
   </AppShell>;
 }
