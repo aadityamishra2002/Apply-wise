@@ -27,7 +27,11 @@ def test_readiness_checks_database() -> None:
 def test_feature_health_does_not_expose_credentials() -> None:
     response = client.get("/api/v1/health/features")
     assert response.status_code == 200
-    assert response.json() == {"adzuna_enabled": False, "gemini_enabled": False}
+    assert response.json() == {
+        "adzuna_enabled": False,
+        "gemini_enabled": False,
+        "gemini_environment_present": False,
+    }
 
 
 def test_local_browser_origin_is_allowed() -> None:

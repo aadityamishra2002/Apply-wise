@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import os
 from typing import Annotated
 from uuid import UUID
 
@@ -182,7 +183,11 @@ async def readiness(
 
 @router.get("/health/features")
 def feature_health() -> dict[str, bool]:
-    return {"adzuna_enabled": settings.adzuna_enabled, "gemini_enabled": settings.gemini_enabled}
+    return {
+        "adzuna_enabled": settings.adzuna_enabled,
+        "gemini_enabled": settings.gemini_enabled,
+        "gemini_environment_present": bool(os.getenv("GEMINI_API_KEY")),
+    }
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
