@@ -241,6 +241,24 @@ def test_application_notes_create_visible_timeline_event() -> None:
     assert events.json()[0]["event_type"] == "notes_updated"
 
 
+def test_interview_round_is_scheduled_and_updates_pipeline() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+    scheduled = client.post(
+        f"/api/v1/applications/{application['id']}/interviews",
+        headers=headers,
+        json={"interview_round": "Recruiter screen", "scheduled_at": "2026-06-10T10:30:00Z", "notes": "Prepare role summary."},
+    )
+    assert scheduled.status_code == 201
+    assert scheduled.json()["interview_round"] == "Recruiter screen"
+    interviews = client.get(f"/api/v1/applications/{application['id']}/interviews", headers=headers)
+    assert interviews.json()[0]["notes"] == "Prepare role summary."
+    assert client.get("/api/v1/applications", headers=headers).json()[0]["status"] == "interview"
+
+
 def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() -> None:
     token = register_user()["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

@@ -24,6 +24,7 @@ The maintained product guide is available in two formats:
 - Explainable resume-aware ranking with configurable scoring weights
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Application notes and visible activity timeline
+- Interview-round scheduling inside the application workspace
 - Evidence-grounded cover-letter drafts and tailored-resume version history
 
 ## Current Limitations
@@ -80,8 +81,8 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Next Changes
 
-1. Interview scheduling and interview-round tracking
-2. AI-provider integration for stronger truthful tailoring
-3. DOCX and PDF export for generated resume versions
-4. Subscription plans and feature entitlements
-5. Additional compliant job providers and provider health monitoring
+1. AI-provider integration for stronger truthful tailoring
+2. DOCX and PDF export for generated resume versions
+3. Subscription plans and feature entitlements
+4. Additional compliant job providers and provider health monitoring
+5. Browser-extension capture and assisted autofill design

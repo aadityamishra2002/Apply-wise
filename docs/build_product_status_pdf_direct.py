@@ -94,6 +94,7 @@ for item in [
     "Prepare evidence-grounded cover-letter drafts and resume versions.",
     "Set role keywords, location, and remote-only discovery preferences.",
     "Add application notes and review visible tracker timeline events.",
+    "Schedule interview rounds inside the application workspace.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -122,7 +123,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Drafts are evidence-grounded templates; LLM enhancement is not enabled yet.",
     "Generated DOCX and PDF resume exports are not implemented.",
-    "Interview rounds and scheduling need a fuller interface.",
+    "Interview rescheduling and editing need a fuller interface.",
     "Subscription billing and feature entitlements are not connected.",
     "Extension capture and Playwright autofill remain future work.",
 ]:
@@ -132,11 +133,10 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Interview scheduling", "Rounds, dates, and interview notes"),
-            ("2", "AI-provider enhancement", "Stronger grounded resume tailoring"),
-            ("3", "Document exports", "Downloadable DOCX and PDF resumes"),
-            ("4", "Subscriptions", "Plans, entitlements, and owner bypass"),
-            ("5", "Provider expansion", "More compliant listing sources"),
+            ("1", "AI-provider enhancement", "Stronger grounded resume tailoring"),
+            ("2", "Document exports", "Downloadable DOCX and PDF resumes"),
+            ("3", "Subscriptions", "Plans, entitlements, and owner bypass"),
+            ("4", "Provider expansion", "More compliant listing sources"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),

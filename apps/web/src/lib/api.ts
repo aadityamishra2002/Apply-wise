@@ -27,6 +27,7 @@ export type JobRecommendation = {
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string };
 export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
+export type InterviewRecord = { id: string; interview_round: string; scheduled_at: string; notes: string | null };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
@@ -148,6 +149,20 @@ export async function loadApplicationEvents(applicationId: string, accessToken: 
   });
   if (!response.ok) throw new Error("Could not load application activity.");
   return (await response.json()) as ApplicationEvent[];
+}
+
+export async function loadInterviews(applicationId: string, accessToken: string): Promise<InterviewRecord[]> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/interviews`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load interviews.");
+  return (await response.json()) as InterviewRecord[];
+}
+
+export async function createInterview(applicationId: string, interview: Omit<InterviewRecord, "id">, accessToken: string): Promise<InterviewRecord> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/interviews`, {
+    method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(interview),
+  });
+  if (!response.ok) throw new Error("Could not schedule interview.");
+  return (await response.json()) as InterviewRecord;
 }
 
 export async function prepareApplication(applicationId: string, accessToken: string): Promise<ApplicationMaterials> {

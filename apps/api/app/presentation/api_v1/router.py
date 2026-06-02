@@ -13,7 +13,7 @@ from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
 from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Job, JobMatch, JobPreference, ResumeVersion
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, Interview, Job, JobMatch, JobPreference, ResumeVersion
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import get_current_user, router as auth_router
@@ -97,6 +97,16 @@ class ApplicationEventResponse(BaseModel):
     from_status: str | None
     to_status: str | None
     occurred_at: str
+
+
+class InterviewRequest(BaseModel):
+    interview_round: str = Field(min_length=1, max_length=120)
+    scheduled_at: datetime
+    notes: str | None = Field(default=None, max_length=5000)
+
+
+class InterviewResponse(InterviewRequest):
+    id: str
 
 
 class DashboardSummaryResponse(BaseModel):
@@ -425,6 +435,41 @@ async def list_application_events(
     ]
 
 
+@router.get("/applications/{application_id}/interviews", response_model=list[InterviewResponse])
+async def list_interviews(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[InterviewResponse]:
+    application = await get_owned_application(session, application_id, user.id)
+    interviews = (
+        await session.scalars(
+            select(Interview).where(Interview.application_id == application.id).order_by(Interview.scheduled_at)
+        )
+    ).all()
+    return [interview_response(interview) for interview in interviews]
+
+
+@router.post("/applications/{application_id}/interviews", response_model=InterviewResponse, status_code=status.HTTP_201_CREATED)
+async def create_interview(
+    application_id: UUID,
+    payload: InterviewRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InterviewResponse:
+    application = await get_owned_application(session, application_id, user.id)
+    interview = Interview(
+        application_id=application.id,
+        interview_round=payload.interview_round.strip(),
+        scheduled_at=payload.scheduled_at,
+        notes=payload.notes.strip() if payload.notes else None,
+    )
+    application.status = ApplicationStatus.INTERVIEW
+    session.add_all([interview, ApplicationEvent(application_id=application.id, event_type="interview_scheduled", to_status=ApplicationStatus.INTERVIEW.value)])
+    await session.commit()
+    return interview_response(interview)
+
+
 @router.post("/applications/{application_id}/prepare", response_model=ApplicationMaterialsResponse, status_code=status.HTTP_201_CREATED)
 async def prepare_application(
     application_id: UUID,
@@ -538,6 +583,22 @@ async def get_or_create_job_preferences(session: AsyncSession, user_id: UUID) ->
     session.add(preferences)
     await session.flush()
     return preferences
+
+
+async def get_owned_application(session: AsyncSession, application_id: UUID, user_id: UUID) -> Application:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user_id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    return application
+
+
+def interview_response(interview: Interview) -> InterviewResponse:
+    return InterviewResponse(
+        id=str(interview.id),
+        interview_round=interview.interview_round,
+        scheduled_at=interview.scheduled_at,
+        notes=interview.notes,
+    )
 
 
 def job_preference_response(preferences: JobPreference) -> JobPreferenceResponse:

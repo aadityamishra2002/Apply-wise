@@ -31,6 +31,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 9. Review pipeline analytics and generated resume-version history.
 10. Save role, location, and remote-only job-discovery preferences.
 11. Add application notes and review visible timeline events.
+12. Schedule interview rounds within an application workspace.
 
 ## Truthfulness Rules
 
@@ -52,18 +53,17 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Tailored materials are stored evidence-grounded drafts, not LLM-enhanced documents yet.
 - Resume DOCX and PDF export is not implemented yet.
-- Interview rounds and scheduling need a fuller interface.
+- Interview rescheduling and editing need a fuller interface.
 - Subscription billing and feature entitlements are not connected.
 - Chrome-extension autofill and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
-1. Add interview-round scheduling and interview notes.
-2. Integrate an AI provider with strict evidence grounding and prompt guardrails.
-3. Add generated resume DOCX and PDF exports.
-4. Add subscription plans, owner bypass, and usage entitlements.
-5. Add additional compliant job providers and provider health monitoring.
-6. Design browser-extension capture and assisted autofill.
+1. Integrate an AI provider with strict evidence grounding and prompt guardrails.
+2. Add generated resume DOCX and PDF exports.
+3. Add subscription plans, owner bypass, and usage entitlements.
+4. Add additional compliant job providers and provider health monitoring.
+5. Design browser-extension capture and assisted autofill.
 
 ## Deployment Note
 
