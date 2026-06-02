@@ -182,6 +182,21 @@ export async function createInterview(applicationId: string, interview: Omit<Int
   return (await response.json()) as InterviewRecord;
 }
 
+export async function updateInterview(applicationId: string, interviewId: string, interview: Partial<Omit<InterviewRecord, "id">>, accessToken: string): Promise<InterviewRecord> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/interviews/${interviewId}`, {
+    method: "PATCH", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(interview),
+  });
+  if (!response.ok) throw new Error("Could not update interview.");
+  return (await response.json()) as InterviewRecord;
+}
+
+export async function deleteInterview(applicationId: string, interviewId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/interviews/${interviewId}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not remove interview.");
+}
+
 export async function prepareApplication(applicationId: string, accessToken: string): Promise<ApplicationMaterials> {
   const response = await fetch(`${apiUrl}/applications/${applicationId}/prepare`, {
     method: "POST",

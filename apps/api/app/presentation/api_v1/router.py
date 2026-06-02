@@ -117,6 +117,12 @@ class InterviewResponse(InterviewRequest):
     id: str
 
 
+class InterviewUpdateRequest(BaseModel):
+    interview_round: str | None = Field(default=None, min_length=1, max_length=120)
+    scheduled_at: datetime | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+
+
 class DashboardSummaryResponse(BaseModel):
     applications: int
     interviews: int
@@ -559,6 +565,42 @@ async def create_interview(
     return interview_response(interview)
 
 
+@router.patch("/applications/{application_id}/interviews/{interview_id}", response_model=InterviewResponse)
+async def update_interview(
+    application_id: UUID,
+    interview_id: UUID,
+    payload: InterviewUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InterviewResponse:
+    application = await get_owned_application(session, application_id, user.id)
+    interview = await get_application_interview(session, application.id, interview_id)
+    if payload.interview_round is not None:
+        interview.interview_round = payload.interview_round.strip()
+    if payload.scheduled_at is not None:
+        interview.scheduled_at = payload.scheduled_at
+    if payload.notes is not None:
+        interview.notes = payload.notes.strip() or None
+    session.add(ApplicationEvent(application_id=application.id, event_type="interview_updated"))
+    await session.commit()
+    return interview_response(interview)
+
+
+@router.delete("/applications/{application_id}/interviews/{interview_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_interview(
+    application_id: UUID,
+    interview_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    application = await get_owned_application(session, application_id, user.id)
+    interview = await get_application_interview(session, application.id, interview_id)
+    await session.delete(interview)
+    session.add(ApplicationEvent(application_id=application.id, event_type="interview_removed"))
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/applications/{application_id}/prepare", response_model=ApplicationMaterialsResponse, status_code=status.HTTP_201_CREATED)
 async def prepare_application(
     application_id: UUID,
@@ -654,6 +696,13 @@ async def get_owned_application(session: AsyncSession, application_id: UUID, use
     if not application:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     return application
+
+
+async def get_application_interview(session: AsyncSession, application_id: UUID, interview_id: UUID) -> Interview:
+    interview = await session.scalar(select(Interview).where(Interview.id == interview_id, Interview.application_id == application_id))
+    if not interview:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    return interview
 
 
 def interview_response(interview: Interview) -> InterviewResponse:

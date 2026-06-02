@@ -270,6 +270,18 @@ def test_interview_round_is_scheduled_and_updates_pipeline() -> None:
     assert scheduled.json()["interview_round"] == "Recruiter screen"
     interviews = client.get(f"/api/v1/applications/{application['id']}/interviews", headers=headers)
     assert interviews.json()[0]["notes"] == "Prepare role summary."
+    interview_id = interviews.json()[0]["id"]
+    updated = client.patch(
+        f"/api/v1/applications/{application['id']}/interviews/{interview_id}",
+        headers=headers,
+        json={"interview_round": "Technical interview", "scheduled_at": "2026-06-12T11:00:00Z", "notes": "Review system design."},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["interview_round"] == "Technical interview"
+    assert updated.json()["notes"] == "Review system design."
+    removed = client.delete(f"/api/v1/applications/{application['id']}/interviews/{interview_id}", headers=headers)
+    assert removed.status_code == 204
+    assert client.get(f"/api/v1/applications/{application['id']}/interviews", headers=headers).json() == []
     assert client.get("/api/v1/applications", headers=headers).json()[0]["status"] == "interview"
 
 

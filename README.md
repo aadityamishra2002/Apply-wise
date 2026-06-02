@@ -25,6 +25,7 @@ The maintained product guide is available in two formats:
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Application notes and visible activity timeline
 - Interview-round scheduling inside the application workspace
+- Interview rescheduling, preparation notes, and removal
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
 - Authenticated DOCX and PDF downloads for tailored resume versions

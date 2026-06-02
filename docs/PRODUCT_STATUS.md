@@ -35,6 +35,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 13. Download authenticated DOCX or PDF exports for prepared resume versions.
 14. Review persisted free-tier or owner-bypass subscription entitlements in settings.
 15. Review non-secret provider health for the configured job-source aggregator.
+16. Reschedule interviews, edit preparation notes, or remove obsolete rounds.
 
 ## Truthfulness Rules
 
@@ -55,7 +56,6 @@ Generated application drafts use stored resume evidence only. The current implem
 - Adzuna is the only live provider adapter currently connected.
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
-- Interview rescheduling and editing need a fuller interface.
 - Razorpay checkout, webhook processing, and paid-plan activation are not connected.
 - Chrome-extension autofill and Playwright application automation remain future work.
 

@@ -98,6 +98,7 @@ for item in [
     "Download authenticated DOCX or PDF exports for prepared resume versions.",
     "Review persisted free-tier or owner-bypass subscription entitlements.",
     "Review non-secret health for the configured job-source aggregator.",
+    "Reschedule interviews, edit preparation notes, or remove obsolete rounds.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -125,7 +126,6 @@ for item in [
     "Adzuna is the only live provider adapter currently connected.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
-    "Interview rescheduling and editing need a fuller interface.",
     "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
     "Extension capture and Playwright autofill remain future work.",
 ]:
