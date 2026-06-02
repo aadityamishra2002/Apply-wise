@@ -99,6 +99,7 @@ for item in [
     "Review persisted free-tier or owner-bypass subscription entitlements.",
     "Review non-secret health for the configured job-source aggregator.",
     "Reschedule interviews, edit preparation notes, or remove obsolete rounds.",
+    "Paste a career-page role, score it, and save it into the tracker.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

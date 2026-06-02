@@ -36,6 +36,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 14. Review persisted free-tier or owner-bypass subscription entitlements in settings.
 15. Review non-secret provider health for the configured job-source aggregator.
 16. Reschedule interviews, edit preparation notes, or remove obsolete rounds.
+17. Paste a role from any career page, score it, and save it into the tracker.
 
 ## Truthfulness Rules
 

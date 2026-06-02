@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from typing import Annotated
 from uuid import UUID
+from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
@@ -11,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.exports.service import ResumeExportService, download_filename
-from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError
+from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.domain.jobs.entities import Job as ProviderJob
@@ -165,6 +167,14 @@ class JobPreferenceRequest(BaseModel):
 
 class JobPreferenceResponse(JobPreferenceRequest):
     pass
+
+
+class ManualJobRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    company: str = Field(min_length=1, max_length=255)
+    location: str = Field(default="Not specified", max_length=255)
+    url: str = Field(min_length=1, max_length=1000)
+    description: str = Field(min_length=40, max_length=50000)
 
 
 class SubscriptionResponse(BaseModel):
@@ -341,6 +351,41 @@ async def search_jobs(
         )
         for match in matches
     ]
+
+
+@router.post("/jobs/manual", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def capture_manual_job(
+    payload: ManualJobRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> JobResponse:
+    profile = await ResumeService(session).get_active(user.id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before capturing a job.")
+    external_id = sha256(payload.url.strip().encode()).hexdigest()
+    job = ProviderJob(
+        id=uuid5(NAMESPACE_URL, f"jobcopilot:manual:{external_id}"),
+        external_id=external_id,
+        source="manual",
+        title=payload.title.strip(),
+        company=payload.company.strip(),
+        location=payload.location.strip() or "Not specified",
+        description=payload.description.strip(),
+        required_skills=frozenset(skill for skill, _ in detect_skills(payload.description)),
+        url=payload.url.strip(),
+        work_mode="Not specified",
+    )
+    match = matching_service.rank_jobs([job], {skill.lower() for skill in profile.skills}, set(profile.extracted_text.lower().split()))[0]
+    stored_job = await ensure_stored_job(session, job)
+    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
+    if stored_match:
+        stored_match.match_score = match.match_score
+        stored_match.matching_skills = list(match.matching_skills)
+        stored_match.missing_skills = list(match.missing_skills)
+    else:
+        session.add(JobMatch(user_id=user.id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills)))
+    await session.commit()
+    return job_response(match)
 
 
 @router.get("/settings/job-preferences", response_model=JobPreferenceResponse)
@@ -726,6 +771,25 @@ def subscription_features(plan: str) -> list[str]:
     if plan in {"owner", "pro"}:
         return ["unlimited_job_discovery", "gemini_tailoring", "resume_exports", "application_tracking", "analytics"]
     return ["job_discovery", "safe_tailoring", "resume_exports", "application_tracking"]
+
+
+def job_response(match) -> JobResponse:
+    return JobResponse(
+        id=str(match.job.id),
+        title=match.job.title,
+        company=match.job.company,
+        location=match.job.location,
+        work_mode=match.job.work_mode,
+        salary=match.job.salary,
+        description=match.job.description,
+        source=match.job.source,
+        url=match.job.url,
+        posted_at=match.job.posted_at.isoformat() if match.job.posted_at else None,
+        match_score=match.match_score,
+        matching_skills=list(match.matching_skills),
+        missing_skills=list(match.missing_skills),
+        experience_match=match.experience_match,
+    )
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:

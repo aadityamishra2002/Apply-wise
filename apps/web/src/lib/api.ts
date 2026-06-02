@@ -35,6 +35,7 @@ export type AnalyticsSummary = { total_applications: number; interview_rate: num
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
 export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
 export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null };
+export type ManualJob = { title: string; company: string; location: string; url: string; description: string };
 
 type TokenResponse = {
   access_token: string;
@@ -140,6 +141,17 @@ export async function saveJob(jobId: string, accessToken: string): Promise<Appli
   });
   if (!response.ok) throw new Error("Could not save this job.");
   return (await response.json()) as ApplicationRecord;
+}
+
+export async function captureManualJob(job: ManualJob, accessToken: string): Promise<JobRecommendation> {
+  const response = await fetch(`${apiUrl}/jobs/manual`, {
+    method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(job),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not capture this job.");
+  }
+  return (await response.json()) as JobRecommendation;
 }
 
 export async function loadApplications(accessToken: string): Promise<ApplicationRecord[]> {

@@ -192,6 +192,29 @@ def test_jobs_require_resume_and_saved_job_appears_in_tracker() -> None:
     assert jobs
     saved = client.post(f"/api/v1/jobs/{jobs[0]['id']}/save", headers=headers)
     assert saved.status_code == 201
+
+
+def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
+    token = register_user()["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Platform Engineer",
+            "company": "Example Career Site",
+            "location": "Remote",
+            "url": "https://example.com/careers/platform-engineer",
+            "description": "Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.",
+        },
+    )
+    assert captured.status_code == 201
+    assert captured.json()["source"] == "manual"
+    assert captured.json()["match_score"] > 0
+    assert "python" in captured.json()["matching_skills"]
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers)
+    assert saved.status_code == 201
     assert saved.json()["status"] == "saved"
     applications = client.get("/api/v1/applications", headers=headers)
     assert applications.status_code == 200
