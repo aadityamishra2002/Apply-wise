@@ -93,6 +93,16 @@ class IdentityService:
             await self._uow.refresh_tokens.revoke(stored_token.id, datetime.now(timezone.utc))
             await self._uow.commit()
 
+    async def change_password(self, user_id: UUID, current_password: str, new_password: str) -> None:
+        user = await self._uow.users.get_by_id(user_id)
+        if not user or user.status != "active":
+            raise AuthenticationError("User account is unavailable.")
+        if not await asyncio.to_thread(verify_password, current_password, user.password_hash):
+            raise AuthenticationError("Current password is incorrect.")
+        await self._uow.users.update_password(user.id, await asyncio.to_thread(hash_password, new_password))
+        await self._uow.refresh_tokens.revoke_all_for_user(user.id, datetime.now(timezone.utc))
+        await self._uow.commit()
+
     async def authenticate_access_token(self, access_token: str) -> UserRecord:
         try:
             user_id = decode_access_token(access_token, self._settings)

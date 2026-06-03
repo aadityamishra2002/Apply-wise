@@ -57,6 +57,9 @@ class SqlAlchemyUserRepository:
     async def update_role(self, user_id: UUID, role: str) -> None:
         await self._session.execute(update(User).where(User.id == user_id).values(role=role))
 
+    async def update_password(self, user_id: UUID, password_hash: str) -> None:
+        await self._session.execute(update(User).where(User.id == user_id).values(password_hash=password_hash))
+
 
 class SqlAlchemyRefreshTokenRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -99,6 +102,13 @@ class SqlAlchemyRefreshTokenRepository:
                 RefreshToken.token_family_id == token_family_id,
                 RefreshToken.revoked_at.is_(None),
             )
+            .values(revoked_at=revoked_at)
+        )
+
+    async def revoke_all_for_user(self, user_id: UUID, revoked_at: datetime) -> None:
+        await self._session.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=revoked_at)
         )
 

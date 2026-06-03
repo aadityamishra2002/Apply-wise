@@ -18,6 +18,9 @@ class UserRepository(Protocol):
     async def update_role(self, user_id: UUID, role: str) -> None:
         ...
 
+    async def update_password(self, user_id: UUID, password_hash: str) -> None:
+        ...
+
 
 class RefreshTokenRepository(Protocol):
     async def create(
@@ -36,6 +39,9 @@ class RefreshTokenRepository(Protocol):
         ...
 
     async def revoke_family(self, token_family_id: UUID, revoked_at: datetime) -> None:
+        ...
+
+    async def revoke_all_for_user(self, user_id: UUID, revoked_at: datetime) -> None:
         ...
 
 

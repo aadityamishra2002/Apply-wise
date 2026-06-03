@@ -294,6 +294,19 @@ export async function createExtensionPairingCode(accessToken: string): Promise<E
   return (await response.json()) as ExtensionPairingCode;
 }
 
+export async function changePassword(currentPassword: string, newPassword: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/auth/change-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : "Could not change password.");
+  }
+}
+
 export async function logout(): Promise<void> {
   try {
     await fetch(`${apiUrl}/auth/logout`, {

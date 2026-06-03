@@ -24,6 +24,11 @@ class CredentialsRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -115,6 +120,20 @@ async def logout(
 ) -> None:
     if refresh_token:
         await service.logout(refresh_token)
+    delete_refresh_cookie(response)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    payload: ChangePasswordRequest,
+    response: Response,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> None:
+    try:
+        await service.change_password(user.id, payload.current_password, payload.new_password)
+    except AuthenticationError as error:
+        raise unauthorized(str(error)) from error
     delete_refresh_cookie(response)
 
 

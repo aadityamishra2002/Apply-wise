@@ -121,6 +121,7 @@ story += [
 for item in [
     "Argon2id password hashing and HTTP-only refresh cookies.",
     "Refresh-token rotation with replay detection and token-family revocation.",
+    "Logged-in password changes verify the current password and revoke existing refresh sessions.",
     "Owner admin allowlist configured through Railway environment variables.",
     "Production secrets stored in Railway variables, not committed to Git.",
     "Railway health and PostgreSQL readiness probes.",

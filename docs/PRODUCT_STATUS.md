@@ -42,6 +42,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 20. Review duplicate protection, draft readiness, and the employer-page handoff before manually submitting an application.
 21. Inspect common employer application fields locally from the extension before future assisted autofill.
 22. Capture cleaner Greenhouse, Lever, and LinkedIn job-page details through site-aware extension adapters with a generic fallback.
+23. Change the logged-in account password from Settings and revoke existing refresh sessions.
 
 ## Truthfulness Rules
 
@@ -52,6 +53,7 @@ Generated application drafts use stored resume evidence only. The current implem
 - Passwords are hashed with Argon2id.
 - Refresh tokens rotate and replay attempts revoke the token family.
 - Refresh cookies are HTTP-only.
+- Logged-in password changes verify the current password and revoke existing refresh sessions.
 - Owner admin access is configured through an environment-variable allowlist.
 - Production secrets remain in Railway variables and are not committed to Git.
 - Railway exposes health and database-readiness probes.

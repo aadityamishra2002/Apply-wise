@@ -516,6 +516,37 @@ def test_login_rejects_invalid_password() -> None:
     assert login.status_code == 401
 
 
+def test_authenticated_user_can_change_password_and_revoke_refresh_tokens() -> None:
+    payload = {"email": "avery@example.com", "password": "correct-horse-battery-staple"}
+    registration = client.post("/api/v1/auth/register", json=payload)
+    assert registration.status_code == 201
+    access_token = registration.json()["tokens"]["access_token"]
+    refresh_token = registration.cookies.get("jobcopilot_refresh")
+    assert refresh_token
+
+    wrong_current = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"current_password": "wrong-password", "new_password": "new-correct-horse-password"},
+    )
+    assert wrong_current.status_code == 401
+
+    changed = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"current_password": payload["password"], "new_password": "new-correct-horse-password"},
+    )
+    assert changed.status_code == 204
+
+    assert client.post("/api/v1/auth/login", json=payload).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": payload["email"], "password": "new-correct-horse-password"},
+    ).status_code == 200
+    client.cookies.set("jobcopilot_refresh", refresh_token, path="/api/v1/auth")
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+
+
 def test_refresh_token_rotation_detects_reuse() -> None:
     registration = client.post(
         "/api/v1/auth/register",
