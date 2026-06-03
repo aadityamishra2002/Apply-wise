@@ -43,6 +43,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 21. Inspect common employer application fields locally from the extension before future assisted autofill.
 22. Capture cleaner Greenhouse, Lever, and LinkedIn job-page details through site-aware extension adapters with a generic fallback.
 23. Change the logged-in account password from Settings and revoke existing refresh sessions.
+24. Review skill recommendations learned from missing skills across matched and approved roles.
 
 ## Truthfulness Rules
 

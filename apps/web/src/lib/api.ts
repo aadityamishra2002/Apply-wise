@@ -38,6 +38,7 @@ export type DashboardSummary = { applications: number; interviews: number; saved
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
+export type SkillRecommendation = { skill: string; mention_count: number; approved_role_count: number; high_fit_role_count: number; reason: string };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
 export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
 export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null };
@@ -252,6 +253,14 @@ export async function loadAnalyticsSummary(accessToken: string): Promise<Analyti
   });
   if (!response.ok) throw new Error("Could not load analytics.");
   return (await response.json()) as AnalyticsSummary;
+}
+
+export async function loadSkillRecommendations(accessToken: string): Promise<SkillRecommendation[]> {
+  const response = await fetch(`${apiUrl}/learning/skill-recommendations`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load skill recommendations.");
+  return (await response.json()) as SkillRecommendation[];
 }
 
 export async function loadJobPreferences(accessToken: string): Promise<JobPreferences> {

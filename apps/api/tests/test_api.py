@@ -240,6 +240,32 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     assert approval.json()["approval_status"] == "approved"
 
 
+def test_learning_skill_recommendations_rank_missing_skills() -> None:
+    token = register_user("learning@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Platform Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://example.com/platform-engineer",
+            "description": "Build Kubernetes and Java services with GraphQL for a platform team.",
+        },
+    )
+    assert captured.status_code == 201
+    assert client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"}).status_code == 200
+
+    recommendations = client.get("/api/v1/learning/skill-recommendations", headers=headers)
+    assert recommendations.status_code == 200
+    skills = {item["skill"]: item for item in recommendations.json()}
+    assert skills["java"]["mention_count"] == 1
+    assert skills["java"]["approved_role_count"] == 1
+    assert "approved" in skills["java"]["reason"]
+
+
 def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> None:
     token = register_user("extension-owner@example.com")["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

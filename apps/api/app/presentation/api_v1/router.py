@@ -205,6 +205,14 @@ class AnalyticsSummaryResponse(BaseModel):
     status_counts: dict[str, int]
 
 
+class SkillRecommendationResponse(BaseModel):
+    skill: str
+    mention_count: int
+    approved_role_count: int
+    high_fit_role_count: int
+    reason: str
+
+
 class JobPreferenceRequest(BaseModel):
     role_keywords: str = Field(default="", max_length=255)
     location: str = Field(default="", max_length=255)
@@ -366,6 +374,41 @@ async def analytics_summary(
         offer_rate=round((offers / total) * 100, 1) if total else 0,
         status_counts={status.value: status_counts.get(status.value, 0) for status in ApplicationStatus},
     )
+
+
+@router.get("/learning/skill-recommendations", response_model=list[SkillRecommendationResponse])
+async def skill_recommendations(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SkillRecommendationResponse]:
+    rows = await session.execute(select(JobMatch).where(JobMatch.user_id == user.id))
+    scores: dict[str, dict[str, int]] = {}
+    for match in rows.scalars():
+        for skill in match.missing_skills or []:
+            normalized = str(skill).strip()
+            if not normalized:
+                continue
+            bucket = scores.setdefault(normalized, {"mentions": 0, "approved": 0, "high_fit": 0})
+            bucket["mentions"] += 1
+            if match.approval_status == "approved":
+                bucket["approved"] += 1
+            if match.ats_score >= settings.ats_high_fit_threshold:
+                bucket["high_fit"] += 1
+    ranked = sorted(
+        scores.items(),
+        key=lambda item: (item[1]["approved"] * 3 + item[1]["high_fit"] * 2 + item[1]["mentions"], item[0].lower()),
+        reverse=True,
+    )
+    return [
+        SkillRecommendationResponse(
+            skill=skill,
+            mention_count=counts["mentions"],
+            approved_role_count=counts["approved"],
+            high_fit_role_count=counts["high_fit"],
+            reason=recommendation_reason(skill, counts),
+        )
+        for skill, counts in ranked[:8]
+    ]
 
 
 @router.get("/jobs", response_model=list[JobResponse])
@@ -898,6 +941,14 @@ def subscription_features(plan: str) -> list[str]:
     if plan in {"owner", "pro"}:
         return ["unlimited_job_discovery", "gemini_tailoring", "resume_exports", "application_tracking", "analytics"]
     return ["job_discovery", "safe_tailoring", "resume_exports", "application_tracking"]
+
+
+def recommendation_reason(skill: str, counts: dict[str, int]) -> str:
+    if counts["approved"]:
+        return f"{skill} appears in roles you approved for application prep."
+    if counts["high_fit"]:
+        return f"{skill} appears in high-ATS roles that are close to your profile."
+    return f"{skill} appears repeatedly in matched roles but is missing from your resume evidence."
 
 
 async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest) -> JobResponse:
