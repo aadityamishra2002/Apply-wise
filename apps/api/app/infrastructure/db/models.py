@@ -113,6 +113,8 @@ class MasterResume(Base):
     user: Mapped[User] = relationship(back_populates="resumes")
     skills: Mapped[list["Skill"]] = relationship(back_populates="resume")
     experiences: Mapped[list["Experience"]] = relationship(back_populates="resume")
+    education: Mapped[list["Education"]] = relationship(back_populates="resume")
+    certifications: Mapped[list["Certification"]] = relationship(back_populates="resume")
 
 
 class Skill(Base):
@@ -142,6 +144,32 @@ class Experience(Base):
     description: Mapped[str] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     resume: Mapped[MasterResume] = relationship(back_populates="experiences")
+
+
+class Education(Base):
+    __tablename__ = "education"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("master_resumes.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    institution: Mapped[str] = mapped_column(String(255))
+    degree: Mapped[str] = mapped_column(String(255))
+    year: Mapped[str | None] = mapped_column(String(32))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    resume: Mapped[MasterResume] = relationship(back_populates="education")
+
+
+class Certification(Base):
+    __tablename__ = "certifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("master_resumes.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    issuer: Mapped[str | None] = mapped_column(String(255))
+    year: Mapped[str | None] = mapped_column(String(32))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    resume: Mapped[MasterResume] = relationship(back_populates="certifications")
 
 
 class Job(Base):

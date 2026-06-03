@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.infrastructure.db.models import Experience, MasterResume, Skill
+from app.infrastructure.db.models import Certification, Education, Experience, MasterResume, Skill
 
 
 MAX_RESUME_BYTES = 10 * 1024 * 1024
@@ -58,6 +58,8 @@ class ResumeProfile:
     detected_sections: tuple[str, ...]
     skills: tuple[str, ...]
     experiences: tuple["ResumeExperience", ...]
+    education: tuple["ResumeEducation", ...] = ()
+    certifications: tuple["ResumeCertification", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -65,6 +67,20 @@ class ResumeExperience:
     title: str
     company: str
     description: str
+
+
+@dataclass(frozen=True)
+class ResumeEducation:
+    institution: str
+    degree: str
+    year: str | None
+
+
+@dataclass(frozen=True)
+class ResumeCertification:
+    name: str
+    issuer: str | None
+    year: str | None
 
 
 class ResumeService:
@@ -115,6 +131,28 @@ class ResumeService:
                     sort_order=index,
                 )
             )
+        for index, education in enumerate(detect_education(extracted_text)):
+            self._session.add(
+                Education(
+                    resume_id=resume.id,
+                    user_id=user_id,
+                    institution=education.institution,
+                    degree=education.degree,
+                    year=education.year,
+                    sort_order=index,
+                )
+            )
+        for index, certification in enumerate(detect_certifications(extracted_text)):
+            self._session.add(
+                Certification(
+                    resume_id=resume.id,
+                    user_id=user_id,
+                    name=certification.name,
+                    issuer=certification.issuer,
+                    year=certification.year,
+                    sort_order=index,
+                )
+            )
         await self._session.commit()
         profile = await self.get_active(user_id)
         if not profile:
@@ -124,7 +162,12 @@ class ResumeService:
     async def get_active(self, user_id: UUID) -> ResumeProfile | None:
         resume = await self._session.scalar(
             select(MasterResume)
-            .options(selectinload(MasterResume.skills), selectinload(MasterResume.experiences))
+            .options(
+                selectinload(MasterResume.skills),
+                selectinload(MasterResume.experiences),
+                selectinload(MasterResume.education),
+                selectinload(MasterResume.certifications),
+            )
             .where(MasterResume.user_id == user_id, MasterResume.is_active.is_(True))
             .order_by(MasterResume.created_at.desc())
         )
@@ -176,15 +219,7 @@ def detect_skills(text: str) -> tuple[tuple[str, str], ...]:
 
 
 def detect_experiences(text: str) -> tuple[ResumeExperience, ...]:
-    lines = text.splitlines()
-    section_start = next((index for index, line in enumerate(lines) if line.lower() == "experience"), None)
-    if section_start is None:
-        return ()
-    section_end = next(
-        (index for index in range(section_start + 1, len(lines)) if lines[index].lower() in SECTION_NAMES),
-        len(lines),
-    )
-    content = lines[section_start + 1 : section_end]
+    content = section_lines(text, "experience")
     experiences = []
     for index in range(0, len(content) - 1, 3):
         title, company = content[index : index + 2]
@@ -192,6 +227,59 @@ def detect_experiences(text: str) -> tuple[ResumeExperience, ...]:
         if title and company:
             experiences.append(ResumeExperience(title=title, company=company, description=description))
     return tuple(experiences)
+
+
+def detect_education(text: str) -> tuple[ResumeEducation, ...]:
+    education = []
+    for line in section_lines(text, "education"):
+        parts = split_structured_line(line)
+        year = extract_year(line)
+        if len(parts) >= 2:
+            institution, degree = parts[0], parts[1]
+        else:
+            institution, degree = "Review source resume", parts[0]
+        if degree:
+            education.append(ResumeEducation(institution=institution, degree=degree, year=year))
+    return tuple(education)
+
+
+def detect_certifications(text: str) -> tuple[ResumeCertification, ...]:
+    certifications = []
+    for line in section_lines(text, "certifications"):
+        parts = split_structured_line(line)
+        year = extract_year(line)
+        if not parts:
+            continue
+        certifications.append(
+            ResumeCertification(
+                name=parts[0],
+                issuer=parts[1] if len(parts) > 1 else None,
+                year=year,
+            )
+        )
+    return tuple(certifications)
+
+
+def section_lines(text: str, section: str) -> list[str]:
+    lines = text.splitlines()
+    section_start = next((index for index, line in enumerate(lines) if line.lower() == section), None)
+    if section_start is None:
+        return []
+    section_end = next(
+        (index for index in range(section_start + 1, len(lines)) if lines[index].lower() in SECTION_NAMES),
+        len(lines),
+    )
+    return [line for line in lines[section_start + 1 : section_end] if line.strip()]
+
+
+def split_structured_line(line: str) -> list[str]:
+    cleaned = re.sub(r"\b(19|20)\d{2}\b", "", line)
+    return [part.strip(" -,\t") for part in re.split(r"\s+\|\s+|\s+-\s+|,\s*", cleaned) if part.strip(" -,\t")]
+
+
+def extract_year(line: str) -> str | None:
+    match = re.search(r"\b((?:19|20)\d{2})\b", line)
+    return match.group(1) if match else None
 
 
 def to_profile(resume: MasterResume) -> ResumeProfile:
@@ -207,5 +295,13 @@ def to_profile(resume: MasterResume) -> ResumeProfile:
         experiences=tuple(
             ResumeExperience(title=experience.title, company=experience.company, description=experience.description)
             for experience in sorted(resume.experiences, key=lambda item: item.sort_order)
+        ),
+        education=tuple(
+            ResumeEducation(institution=item.institution, degree=item.degree, year=item.year)
+            for item in sorted(resume.education, key=lambda entry: entry.sort_order)
+        ),
+        certifications=tuple(
+            ResumeCertification(name=item.name, issuer=item.issuer, year=item.year)
+            for item in sorted(resume.certifications, key=lambda entry: entry.sort_order)
         ),
     )

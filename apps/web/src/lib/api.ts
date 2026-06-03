@@ -17,9 +17,13 @@ export type ResumeProfile = {
   detected_sections: string[];
   skills: string[];
   experiences: ResumeExperience[];
+  education: ResumeEducation[];
+  certifications: ResumeCertification[];
 };
 
 export type ResumeExperience = { title: string; company: string; description: string };
+export type ResumeEducation = { institution: string; degree: string; year: string | null };
+export type ResumeCertification = { name: string; issuer: string | null; year: string | null };
 export type JobRecommendation = {
   id: string; title: string; company: string; location: string; work_mode: string; salary: string | null;
   description: string; source: string; url: string; posted_at: string | null; match_score: number;

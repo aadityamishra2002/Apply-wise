@@ -100,12 +100,26 @@ class ResumeProfileResponse(BaseModel):
     detected_sections: list[str]
     skills: list[str]
     experiences: list["ResumeExperienceResponse"]
+    education: list["ResumeEducationResponse"]
+    certifications: list["ResumeCertificationResponse"]
 
 
 class ResumeExperienceResponse(BaseModel):
     title: str
     company: str
     description: str
+
+
+class ResumeEducationResponse(BaseModel):
+    institution: str
+    degree: str
+    year: str | None
+
+
+class ResumeCertificationResponse(BaseModel):
+    name: str
+    issuer: str | None
+    year: str | None
 
 
 class ApplicationResponse(BaseModel):
@@ -1015,5 +1029,13 @@ def resume_profile_response(profile: ResumeProfile) -> ResumeProfileResponse:
         experiences=[
             ResumeExperienceResponse(title=experience.title, company=experience.company, description=experience.description)
             for experience in profile.experiences
+        ],
+        education=[
+            ResumeEducationResponse(institution=item.institution, degree=item.degree, year=item.year)
+            for item in profile.education
+        ],
+        certifications=[
+            ResumeCertificationResponse(name=item.name, issuer=item.issuer, year=item.year)
+            for item in profile.certifications
         ],
     )

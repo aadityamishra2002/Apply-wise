@@ -68,7 +68,7 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated June 2, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Updated June 3, 2026  |  Live: https://apply-wise-1.vercel.app", small),
     Spacer(1, 4),
     para("What is live", heading),
     para("Apply Wise is a deployed web product for resume-aware job discovery, truthful application preparation, and pipeline tracking. Users can register publicly and maintain private workspaces."),
@@ -88,7 +88,7 @@ story = [
 ]
 for item in [
     "Register, log in, log out, and refresh an authenticated session.",
-    "Upload a PDF or DOCX master resume and review extracted evidence.",
+    "Upload a PDF or DOCX master resume and review extracted skills, experience, education, and certifications.",
     "Search live Adzuna listings and rank jobs against stored resume skills.",
     "Save roles, update statuses, and monitor dashboard and analytics metrics.",
     "Prepare Gemini-enhanced grounded drafts with deterministic fallback.",

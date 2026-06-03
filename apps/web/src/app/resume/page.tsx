@@ -111,6 +111,30 @@ export default function ResumePage() {
                 </div>
               </div>
               <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Education</h3>
+                <div className="mt-3 space-y-3">
+                  {profile.education.length ? profile.education.map((education) => (
+                    <div className="rounded-xl bg-[#f6f8f5] p-4" key={`${education.degree}-${education.institution}`}>
+                      <p className="text-[13px] font-bold">{education.degree}</p>
+                      <p className="mt-1 text-[12px] font-bold text-[#176b5b]">{education.institution}</p>
+                      {education.year ? <p className="mt-2 text-[11px] text-[#71807c]">{education.year}</p> : null}
+                    </div>
+                  )) : <p className="text-[12px] text-[#91a09c]">No structured education blocks detected yet.</p>}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Certifications</h3>
+                <div className="mt-3 space-y-3">
+                  {profile.certifications.length ? profile.certifications.map((certification) => (
+                    <div className="rounded-xl bg-[#f6f8f5] p-4" key={`${certification.name}-${certification.issuer ?? "issuer"}`}>
+                      <p className="text-[13px] font-bold">{certification.name}</p>
+                      {certification.issuer ? <p className="mt-1 text-[12px] font-bold text-[#176b5b]">{certification.issuer}</p> : null}
+                      {certification.year ? <p className="mt-2 text-[11px] text-[#71807c]">{certification.year}</p> : null}
+                    </div>
+                  )) : <p className="text-[12px] text-[#91a09c]">No structured certifications detected yet.</p>}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Extracted text preview</h3>
                 <pre className="mt-3 max-h-[300px] overflow-auto whitespace-pre-wrap rounded-xl bg-[#f6f8f5] p-4 text-[11px] leading-5 text-[#65736f] thin-scrollbar">{profile.extracted_text}</pre>
               </div>

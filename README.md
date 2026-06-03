@@ -18,7 +18,7 @@ The maintained product guide is available in two formats:
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
 - Owner admin allowlist support through Railway environment variables
 - PDF and DOCX master-resume upload with persisted text extraction
-- Resume section, skill, and structured experience extraction
+- Resume section, skill, structured experience, education, and certification extraction
 - Live Adzuna job discovery for India with keyword search and attribution
 - Persisted job-discovery preferences for role keywords, location, and remote-only filtering
 - Explainable resume-aware ranking with configurable scoring weights

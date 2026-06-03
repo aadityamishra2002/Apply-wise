@@ -144,13 +144,27 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
     assert upload.status_code == 201
     assert upload.json()["original_filename"] == "resume.docx"
     assert upload.json()["parse_status"] == "review_required"
-    assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills"]
-    assert upload.json()["skills"] == ["Docker", "FastAPI", "PostgreSQL", "Python", "React", "TypeScript"]
+    assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills", "certifications"]
+    assert upload.json()["skills"] == ["AWS", "Docker", "FastAPI", "PostgreSQL", "Python", "React", "TypeScript"]
     assert upload.json()["experiences"] == [
         {
             "title": "Senior Product Engineer",
             "company": "Northstar Labs",
             "description": "Built React and TypeScript applications with Python, FastAPI, PostgreSQL, and Docker.",
+        }
+    ]
+    assert upload.json()["education"] == [
+        {
+            "institution": "State University",
+            "degree": "Bachelor of Engineering",
+            "year": "2021",
+        }
+    ]
+    assert upload.json()["certifications"] == [
+        {
+            "name": "AWS Certified Cloud Practitioner",
+            "issuer": "Amazon Web Services",
+            "year": "2022",
         }
     ]
 
@@ -562,7 +576,9 @@ def make_resume_docx() -> bytes:
     document.add_paragraph("Northstar Labs")
     document.add_paragraph("Built React and TypeScript applications with Python, FastAPI, PostgreSQL, and Docker.")
     document.add_heading("Education", level=1)
-    document.add_paragraph("Bachelor of Engineering")
+    document.add_paragraph("State University - Bachelor of Engineering - 2021")
+    document.add_heading("Certifications", level=1)
+    document.add_paragraph("AWS Certified Cloud Practitioner - Amazon Web Services - 2022")
     document.add_heading("Skills", level=1)
     document.add_paragraph("React TypeScript Python FastAPI PostgreSQL Docker")
     buffer = BytesIO()

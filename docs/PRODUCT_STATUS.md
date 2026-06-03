@@ -1,7 +1,7 @@
 # Apply Wise Product Status
 
-**Last updated:** June 2, 2026  
-**Live site:** https://apply-wise-1.vercel.app  
+**Last updated:** June 3, 2026
+**Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
 ## What Apply Wise Does
@@ -22,7 +22,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 
 1. Register or log in.
 2. Upload a PDF or DOCX master resume.
-3. Review extracted sections, recognized skills, and structured experience.
+3. Review extracted sections, recognized skills, structured experience, education, and certifications.
 4. Search live Adzuna listings by role or keyword.
 5. Review explainable profile-match scores and missing skills.
 6. Save a role into the application tracker.
