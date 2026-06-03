@@ -15,7 +15,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 | Web app | Next.js 15, TypeScript, Tailwind CSS | Responsive SaaS interface deployed on Vercel |
 | API | FastAPI, Python | Authenticated application API deployed on Railway |
 | Database | PostgreSQL, SQLAlchemy, Alembic | Users, resumes, jobs, scores, drafts, applications, analytics |
-| Job source | Adzuna API | Live India job listings with attribution |
+| Job source | Adzuna API, Remotive API | Live India listings and remote-job listings with attribution |
 | Authentication | JWT access tokens and refresh-token rotation | Protected user workspaces |
 
 ## Implemented User Journey
@@ -23,7 +23,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 1. Register or log in.
 2. Upload a PDF or DOCX master resume.
 3. Review extracted sections, recognized skills, structured experience, education, and certifications.
-4. Search live Adzuna listings by role or keyword.
+4. Search live Adzuna and Remotive listings by role or keyword.
 5. Review explainable profile-match scores and missing skills.
 6. Save a role into the application tracker.
 7. Prepare a Gemini-enhanced evidence-grounded resume version and cover-letter draft with deterministic fallback.
@@ -47,6 +47,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
 26. See already-saved jobs reflected in recommendations and manual capture results.
 27. Track the first applied date when an application is marked Applied.
+28. Discover remote roles through the Remotive provider with short-lived API caching and visible source attribution.
 
 ## Truthfulness Rules
 
@@ -65,7 +66,7 @@ Generated application drafts use stored resume evidence only. The current implem
 
 ## Current Limitations
 
-- Adzuna is the only live provider adapter currently connected.
+- Adzuna and Remotive are connected; LinkedIn, Indeed, Naukri, and direct company-career-page adapters remain future work.
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Payment checkout, webhook processing, and paid-plan activation are not connected.
@@ -74,7 +75,7 @@ Generated application drafts use stored resume evidence only. The current implem
 ## Next Delivery Slices
 
 1. Add payment gateway checkout, verified webhooks, and paid-plan activation.
-2. Add additional compliant job provider adapters.
+2. Add additional compliant job provider adapters and deeper remote-role filtering.
 3. Add more site-specific extension extractors and assisted autofill design.
 
 ## Deployment Note

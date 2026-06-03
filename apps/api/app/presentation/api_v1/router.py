@@ -300,7 +300,11 @@ async def readiness(
 
 @router.get("/health/features")
 def feature_health() -> dict[str, bool]:
-    return {"adzuna_enabled": settings.adzuna_enabled, "gemini_enabled": settings.gemini_enabled}
+    return {
+        "adzuna_enabled": settings.adzuna_enabled,
+        "gemini_enabled": settings.gemini_enabled,
+        "remotive_enabled": settings.remotive_enabled,
+    }
 
 
 @router.get("/health/providers", response_model=list[ProviderHealthResponse])

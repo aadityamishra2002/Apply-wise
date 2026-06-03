@@ -21,6 +21,7 @@ The maintained product guide is available in two formats:
 - PDF and DOCX master-resume upload with persisted text extraction
 - Resume section, skill, structured experience, education, and certification extraction
 - Live Adzuna job discovery for India with keyword search and attribution
+- Live Remotive remote-job discovery with respectful short-lived caching and attribution
 - Persisted job-discovery preferences for role keywords, location, and remote-only filtering
 - Explainable resume-aware ranking with configurable scoring weights
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
@@ -46,7 +47,7 @@ The maintained product guide is available in two formats:
 
 ## Current Limitations
 
-- Adzuna remains the first live provider; additional compliant provider adapters are not connected yet.
+- Adzuna and Remotive are connected; LinkedIn, Indeed, Naukri, and company-career-page adapters are not connected yet.
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
 - Automatic submission and browser autofill remain intentionally deferred.
@@ -65,6 +66,8 @@ Railway
       +--> PostgreSQL
       |
       +--> Adzuna Jobs API
+      |
+      +--> Remotive Remote Jobs API
 ```
 
 The backend follows clean-architecture boundaries with domain entities, application services, provider adapters, SQLAlchemy persistence, and FastAPI presentation routes.
@@ -99,7 +102,7 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 ## Next Changes
 
 1. Payment gateway checkout, webhook verification, and paid-plan activation
-2. Additional compliant job provider adapters
+2. Additional compliant job provider adapters and deeper remote-role filtering
 3. Site-specific extension extractors and assisted autofill design
 
 ## Chrome Extension MVP

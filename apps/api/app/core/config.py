@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     adzuna_country: str = "in"
     adzuna_results_per_page: int = 20
     adzuna_timeout_seconds: float = 10
+    remotive_enabled: bool = True
+    remotive_results_limit: int = 20
+    remotive_timeout_seconds: float = 10
+    remotive_cache_minutes: int = 15
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 20

@@ -67,6 +67,6 @@ export default function JobsPage() {
         </div> : null}
       </section>
     ) : <section className="rounded-2xl border border-[#e4e8e3] bg-white p-8 text-center small-shadow"><Search className="mx-auto text-[#91a09c]" /><h2 className="mt-4 text-[17px] font-bold">Upload your resume first</h2><p className="mt-2 text-[13px] text-[#71807c]">Recommendations are scored from your persisted resume evidence.</p><Link className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white" href="/resume"><FileText size={15}/>Add resume</Link></section>}
-    {jobs.some((job) => job.source === "adzuna") ? <p className="mt-5 text-[11px] font-bold text-[#91a09c]">Jobs by <a className="text-[#176b5b] underline" href="https://www.adzuna.in/" rel="noreferrer" target="_blank">Adzuna</a>. Manually captured career-page roles are labeled separately.</p> : null}
+    {jobs.some((job) => job.source === "adzuna" || job.source === "remotive") ? <p className="mt-5 text-[11px] font-bold text-[#91a09c]">Listings may be provided by <a className="text-[#176b5b] underline" href="https://www.adzuna.in/" rel="noreferrer" target="_blank">Adzuna</a> and <a className="text-[#176b5b] underline" href="https://remotive.com/remote-jobs" rel="noreferrer" target="_blank">Remotive</a>. Manually captured career-page roles are labeled separately.</p> : null}
   </AppShell>;
 }

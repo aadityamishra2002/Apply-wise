@@ -27,7 +27,7 @@ def test_readiness_checks_database() -> None:
 def test_feature_health_does_not_expose_credentials() -> None:
     response = client.get("/api/v1/health/features")
     assert response.status_code == 200
-    assert response.json() == {"adzuna_enabled": False, "gemini_enabled": False}
+    assert response.json() == {"adzuna_enabled": False, "gemini_enabled": False, "remotive_enabled": False}
 
 
 def test_provider_health_is_public_and_non_secret() -> None:

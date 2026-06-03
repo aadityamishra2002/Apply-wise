@@ -79,7 +79,7 @@ story = [
             ("Web app", "Next.js 15 / Vercel", "Responsive SaaS interface"),
             ("API", "FastAPI / Railway", "Authenticated application API"),
             ("Database", "PostgreSQL / Alembic", "Persistent product records"),
-            ("Job source", "Adzuna API", "Live India listings with attribution"),
+            ("Job source", "Adzuna + Remotive APIs", "Live India and remote listings with attribution"),
             ("Security", "JWT + refresh rotation", "Protected user workspaces"),
         ],
         [1.15 * inch, 1.8 * inch, 4.05 * inch],
@@ -89,7 +89,7 @@ story = [
 for item in [
     "Register, log in, log out, and refresh an authenticated session.",
     "Upload a PDF or DOCX master resume and review extracted skills, experience, education, and certifications.",
-    "Search live Adzuna listings and rank jobs against stored resume skills.",
+    "Search live Adzuna and Remotive listings and rank jobs against stored resume skills.",
     "Save roles, update statuses, and monitor dashboard and analytics metrics.",
     "Prepare Gemini-enhanced grounded drafts with deterministic fallback.",
     "Set role keywords, location, and remote-only discovery preferences.",
@@ -105,6 +105,7 @@ for item in [
     "Review duplicate protection and draft readiness before opening the employer page for manual submission.",
     "Inspect common employer application fields locally from the extension without filling or submitting them.",
     "Capture cleaner Greenhouse, Lever, and LinkedIn job pages through site-aware extension adapters.",
+    "Discover remote roles through the Remotive provider with short-lived API caching and visible attribution.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -130,7 +131,7 @@ for item in [
     story.append(Paragraph(item, bullet, bulletText="•"))
 story.append(para("Current limitations", heading))
 for item in [
-    "Adzuna is the only live provider adapter currently connected.",
+    "Adzuna and Remotive are connected; LinkedIn, Indeed, Naukri, and direct company-career-page adapters remain future work.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Payment checkout, webhooks, and paid-plan activation are not connected.",
@@ -143,7 +144,7 @@ story += [
         ["Order", "Slice", "Outcome"],
         [
             ("1", "Payment gateway billing", "Checkout, webhooks, and paid activation"),
-            ("2", "Provider adapters", "More compliant listing sources"),
+            ("2", "Provider adapters", "More compliant listing sources and deeper remote-role filtering"),
             ("3", "Extension extractors", "Site-specific capture and autofill plan"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
