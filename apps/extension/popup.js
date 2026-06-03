@@ -41,14 +41,31 @@ async function extract() {
 async function send() {
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
   const payload = Object.fromEntries(fields.map((field) => [field, document.getElementById(field).value.trim()]));
+  const missing = ["title", "company", "url", "description"].filter((field) => !payload[field]);
+  if (!extensionToken) return message("Pair the extension again from Apply Wise Settings before sending.");
+  if (missing.length) return message(`Capture blocked: review and fill ${missing.join(", ")} before sending.`);
+  if (payload.description.length < 40) return message("Capture blocked: the job description must be at least 40 characters. Open the full job page or paste the description.");
   const response = await fetch(`${apiUrl}/extension/jobs/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) return message("Capture failed. Check the reviewed fields and confirm your resume is uploaded.");
+  if (!response.ok) return message(`Capture failed: ${await responseMessage(response)}`);
   const body = await response.json();
   message(`Captured with a ${body.match_score}% resume match. Open Apply Wise to save or prepare this role.`);
+}
+
+async function responseMessage(response) {
+  let body = null;
+  try { body = await response.json(); } catch { return `HTTP ${response.status}`; }
+  if (typeof body?.detail === "string") return body.detail;
+  if (Array.isArray(body?.detail)) {
+    return body.detail.map((error) => {
+      const field = Array.isArray(error.loc) ? error.loc.filter((part) => part !== "body").join(".") : "";
+      return `${field || "request"}: ${error.msg}`;
+    }).join("; ");
+  }
+  return `HTTP ${response.status}`;
 }
 
 async function inspectForm() {
