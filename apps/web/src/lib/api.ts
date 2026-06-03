@@ -31,7 +31,7 @@ export type JobRecommendation = {
   ats_score: number; ats_breakdown: Record<string, number>; ats_recommendations: string[]; high_fit: boolean; approval_status: string;
   saved: boolean; application_id: string | null;
 };
-export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string };
+export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string; applied_at: string | null };
 export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
 export type InterviewRecord = { id: string; interview_round: string; scheduled_at: string; notes: string | null };
 export type AssistedApplicationChecklist = { application_id: string; duplicate_prevention: boolean; ats_approved: boolean; resume_prepared: boolean; cover_letter_prepared: boolean; target_url: string; manual_final_submission_required: boolean };

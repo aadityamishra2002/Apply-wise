@@ -323,6 +323,14 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     updated = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "interview"})
     assert updated.status_code == 200
     assert updated.json()["status"] == "interview"
+    assert updated.json()["applied_at"] is None
+    applied = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "applied"})
+    assert applied.status_code == 200
+    assert applied.json()["status"] == "applied"
+    assert applied.json()["applied_at"]
+    updated = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "interview"})
+    assert updated.status_code == 200
+    assert updated.json()["applied_at"] == applied.json()["applied_at"]
     summary = client.get("/api/v1/dashboard/summary", headers=headers).json()
     assert summary["applications"] == 1
     assert summary["interviews"] == 1

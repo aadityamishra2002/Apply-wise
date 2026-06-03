@@ -46,6 +46,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 24. Review skill recommendations learned from missing skills across matched and approved roles.
 25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
 26. See already-saved jobs reflected in recommendations and manual capture results.
+27. Track the first applied date when an application is marked Applied.
 
 ## Truthfulness Rules
 

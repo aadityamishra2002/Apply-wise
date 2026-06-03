@@ -132,6 +132,7 @@ class ApplicationResponse(BaseModel):
     status: str
     notes: str | None
     created_at: str
+    applied_at: str | None
 
 
 class ApplicationUpdateRequest(BaseModel):
@@ -1028,6 +1029,9 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
     created_at = application.created_at
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
+    applied_at = application.applied_at
+    if applied_at and applied_at.tzinfo is None:
+        applied_at = applied_at.replace(tzinfo=timezone.utc)
     return ApplicationResponse(
         id=str(application.id),
         job_id=str(job.id),
@@ -1036,6 +1040,7 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
         status=application.status.value,
         notes=application.notes,
         created_at=created_at.isoformat(),
+        applied_at=applied_at.isoformat() if applied_at else None,
     )
 
 
