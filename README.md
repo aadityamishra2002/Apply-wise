@@ -40,6 +40,7 @@ The maintained product guide is available in two formats:
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
 - Local extension form inspector for common employer application fields, without autofill or submission
 - Greenhouse, Lever, and LinkedIn extension extractors with a generic career-page fallback
+- Public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages
 
 ## Current Limitations
 
@@ -47,7 +48,7 @@ The maintained product guide is available in two formats:
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
 - Automatic submission and browser autofill remain intentionally deferred.
-- Razorpay checkout and webhook processing are not connected yet.
+- Payment checkout and webhook processing are not connected yet.
 
 ## Architecture
 
@@ -95,7 +96,7 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Next Changes
 
-1. Razorpay checkout, webhook verification, and paid-plan activation
+1. Payment gateway checkout, webhook verification, and paid-plan activation
 2. Additional compliant job provider adapters
 3. Site-specific extension extractors and assisted autofill design
 

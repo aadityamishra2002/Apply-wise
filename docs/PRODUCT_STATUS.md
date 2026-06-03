@@ -44,6 +44,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 22. Capture cleaner Greenhouse, Lever, and LinkedIn job-page details through site-aware extension adapters with a generic fallback.
 23. Change the logged-in account password from Settings and revoke existing refresh sessions.
 24. Review skill recommendations learned from missing skills across matched and approved roles.
+25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
 
 ## Truthfulness Rules
 
@@ -65,12 +66,12 @@ Generated application drafts use stored resume evidence only. The current implem
 - Adzuna is the only live provider adapter currently connected.
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
-- Razorpay checkout, webhook processing, and paid-plan activation are not connected.
+- Payment checkout, webhook processing, and paid-plan activation are not connected.
 - Additional site-specific extension extractors, assisted autofill, and Playwright application automation remain future work.
 
 ## Next Delivery Slices
 
-1. Add Razorpay checkout, verified webhooks, and paid-plan activation.
+1. Add payment gateway checkout, verified webhooks, and paid-plan activation.
 2. Add additional compliant job provider adapters.
 3. Add more site-specific extension extractors and assisted autofill design.
 

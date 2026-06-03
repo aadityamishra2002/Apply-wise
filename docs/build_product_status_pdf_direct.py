@@ -133,7 +133,7 @@ for item in [
     "Adzuna is the only live provider adapter currently connected.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
-    "Razorpay checkout, webhooks, and paid-plan activation are not connected.",
+    "Payment checkout, webhooks, and paid-plan activation are not connected.",
     "Additional site-specific extractors, assisted autofill, and Playwright automation remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
@@ -142,7 +142,7 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Razorpay billing", "Checkout, webhooks, and paid activation"),
+            ("1", "Payment gateway billing", "Checkout, webhooks, and paid activation"),
             ("2", "Provider adapters", "More compliant listing sources"),
             ("3", "Extension extractors", "Site-specific capture and autofill plan"),
         ],

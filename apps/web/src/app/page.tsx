@@ -163,18 +163,46 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-5 py-20 md:px-8" id="pricing">
+        <div className="mx-auto max-w-2xl text-center">
+          <Pill tone="green">Transparent beta pricing</Pill>
+          <h2 className="mt-5 text-[38px] font-bold tracking-[-0.065em] sm:text-[48px]">Start free while Apply Wise is in beta.</h2>
+          <p className="mt-4 text-[15px] leading-7 text-[#70807c]">Paid plans are not active yet. When billing is enabled, users will be able to review pricing before subscribing.</p>
+        </div>
+        <div className="mx-auto mt-10 grid max-w-4xl gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-[#e4e8e3] bg-white p-6 small-shadow">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Current plan</p>
+            <h3 className="mt-3 text-[24px] font-bold tracking-[-0.05em]">Free beta</h3>
+            <p className="mt-2 text-[34px] font-bold tracking-[-0.07em] text-[#176b5b]">₹0</p>
+            <p className="mt-3 text-[13px] leading-6 text-[#70807c]">Resume upload, job discovery, ATS-aware scoring, user-reviewed drafts, and application tracking.</p>
+          </div>
+          <div className="rounded-2xl border border-dashed border-[#b8d4cc] bg-[#f6fbf9] p-6">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Planned</p>
+            <h3 className="mt-3 text-[24px] font-bold tracking-[-0.05em]">Pro workspace</h3>
+            <p className="mt-2 text-[13px] leading-6 text-[#70807c]">Paid features will be launched only after payment-provider approval, with clear cancellation and refund terms.</p>
+          </div>
+        </div>
+      </section>
+
       <footer className="bg-[#173b35] px-5 py-12 text-white">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
             <p className="text-[22px] font-bold tracking-[-0.05em]">Your next role deserves a smarter search.</p>
             <p className="mt-2 text-[13px] text-[#b8d3cd]">Start with a resume. Leave with a plan.</p>
           </div>
-          <Link className="flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 text-[13px] font-bold text-[#176b5b]" href="/dashboard">
-            Start for free <ArrowRight size={15} />
-          </Link>
+          <div className="flex flex-col gap-4 sm:items-end">
+            <Link className="flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 text-[13px] font-bold text-[#176b5b]" href="/dashboard">
+              Start for free <ArrowRight size={15} />
+            </Link>
+            <div className="flex flex-wrap gap-4 text-[12px] font-bold text-[#b8d3cd]">
+              <Link href="/terms">Terms</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/refund-policy">Refund policy</Link>
+              <Link href="/contact">Contact</Link>
+            </div>
+          </div>
         </div>
       </footer>
     </main>
   );
 }
-
