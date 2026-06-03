@@ -106,6 +106,7 @@ for item in [
     "Inspect common employer application fields locally from the extension without filling or submitting them.",
     "Capture cleaner Greenhouse, Lever, and LinkedIn job pages through site-aware extension adapters.",
     "Discover remote roles through the Remotive provider with short-lived API caching and visible attribution.",
+    "Search by role and location directly from the Jobs page while still falling back to saved preferences.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

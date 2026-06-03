@@ -15,6 +15,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("");
   const [showCapture, setShowCapture] = useState(false);
   const [manualJob, setManualJob] = useState(emptyManualJob);
 
@@ -28,7 +29,7 @@ export default function JobsPage() {
     const token = getAccessToken();
     if (!token) return;
     setLoading(true); setError(null);
-    try { const items = await loadJobRecommendations(token, query); setJobs(items); setSelected(items[0] ?? null); }
+    try { const items = await loadJobRecommendations(token, query, location); setJobs(items); setSelected(items[0] ?? null); }
     catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load job recommendations."); }
     finally { setLoading(false); }
   }
@@ -43,8 +44,9 @@ export default function JobsPage() {
   async function decide(jobId: string, approvalStatus: "approved" | "dismissed") { const token=getAccessToken(); if(!token) return; await updateJobApproval(jobId,approvalStatus,token); setJobs((current)=>current.map((job)=>job.id===jobId?{...job,approval_status:approvalStatus}:job)); setSelected((current)=>current?.id===jobId?{...current,approval_status:approvalStatus}:current); }
 
   return <AppShell eyebrow="Job discovery" title="Resume-aware recommendations" actions={<Link className="rounded-lg border border-[#dfe6e2] bg-white px-3 py-2 text-[12px] font-bold text-[#65736f]" href="/applications">Saved jobs ({jobs.filter((job) => job.saved).length})</Link>}>
-    <form className="mb-5 flex gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-3 small-shadow" onSubmit={(event) => { event.preventDefault(); void searchJobs(); }}>
+    <form className="mb-5 grid gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-3 small-shadow sm:grid-cols-[1fr_.7fr_auto]" onSubmit={(event) => { event.preventDefault(); void searchJobs(); }}>
       <input aria-label="Search jobs" className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-[#a0aba8]" onChange={(event) => setQuery(event.target.value)} placeholder="Search roles or keywords, such as Python developer" value={query}/>
+      <input aria-label="Search location" className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-[#a0aba8]" onChange={(event) => setLocation(event.target.value)} placeholder="Location, such as Remote or Bengaluru" value={location}/>
       <button className="flex items-center gap-1.5 rounded-xl bg-[#176b5b] px-4 py-2.5 text-[12px] font-bold text-white" type="submit"><Search size={14}/>Search</button>
     </form>
     <div className="mb-5"><button className="flex items-center gap-1.5 text-[12px] font-bold text-[#176b5b]" onClick={() => setShowCapture((current) => !current)}><Plus size={14}/>{showCapture ? "Close job capture" : "Paste a job from any career page"}</button>{showCapture ? <div className="mt-3 grid gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-4 small-shadow sm:grid-cols-2"><input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event)=>setManualJob({...manualJob,title:event.target.value})} placeholder="Job title" value={manualJob.title}/><input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event)=>setManualJob({...manualJob,company:event.target.value})} placeholder="Company" value={manualJob.company}/><input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event)=>setManualJob({...manualJob,location:event.target.value})} placeholder="Location" value={manualJob.location}/><input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event)=>setManualJob({...manualJob,url:event.target.value})} placeholder="Job page URL" value={manualJob.url}/><textarea className="min-h-28 rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px] sm:col-span-2" onChange={(event)=>setManualJob({...manualJob,description:event.target.value})} placeholder="Paste the job description" value={manualJob.description}/><button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white sm:col-span-2" onClick={() => void captureJob()}>Score captured job</button></div> : null}</div>

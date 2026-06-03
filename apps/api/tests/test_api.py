@@ -104,6 +104,10 @@ def test_job_preferences_are_persisted_and_used_for_default_discovery() -> None:
     jobs = client.get("/api/v1/jobs", headers=headers)
     assert jobs.status_code == 200
     assert [job["title"] for job in jobs.json()] == ["Backend Engineer"]
+    overridden = client.get("/api/v1/jobs?query=engineer&location=Remote", headers=headers)
+    assert overridden.status_code == 200
+    assert overridden.json()
+    assert all("remote" in job["location"].lower() for job in overridden.json())
 
 
 def test_mock_job_ids_are_stable() -> None:

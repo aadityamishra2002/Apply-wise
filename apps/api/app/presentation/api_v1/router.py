@@ -423,6 +423,7 @@ async def search_jobs(
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
     query: Annotated[str, Query(max_length=100)] = "",
+    location: Annotated[str, Query(max_length=100)] = "",
 ) -> list[JobResponse]:
     profile = await ResumeService(session).get_active(user.id)
     if not profile:
@@ -431,8 +432,9 @@ async def search_jobs(
     profile_keywords = set(profile.extracted_text.lower().split())
     preferences = await get_or_create_job_preferences(session, user.id)
     effective_query = query.strip() or preferences.role_keywords
+    effective_location = location.strip() or preferences.location
     try:
-        jobs = provider.search_jobs(effective_query, preferences.location)
+        jobs = provider.search_jobs(effective_query, effective_location)
     except httpx.HTTPError as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

@@ -132,8 +132,12 @@ export async function uploadResume(file: File, accessToken: string): Promise<Res
   return (await response.json()) as ResumeProfile;
 }
 
-export async function loadJobRecommendations(accessToken: string, query = ""): Promise<JobRecommendation[]> {
-  const response = await fetch(`${apiUrl}/jobs?query=${encodeURIComponent(query)}`, {
+export async function loadJobRecommendations(accessToken: string, query = "", location = ""): Promise<JobRecommendation[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("query", query.trim());
+  if (location.trim()) params.set("location", location.trim());
+  const path = params.toString() ? `/jobs?${params.toString()}` : "/jobs";
+  const response = await fetch(`${apiUrl}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) {

@@ -22,6 +22,7 @@ The maintained product guide is available in two formats:
 - Resume section, skill, structured experience, education, and certification extraction
 - Live Adzuna job discovery for India with keyword search and attribution
 - Live Remotive remote-job discovery with respectful short-lived caching and attribution
+- Direct role and location search on the Jobs page
 - Persisted job-discovery preferences for role keywords, location, and remote-only filtering
 - Explainable resume-aware ranking with configurable scoring weights
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
