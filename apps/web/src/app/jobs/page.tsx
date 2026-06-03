@@ -12,7 +12,6 @@ const emptyManualJob: ManualJob = { title: "", company: "", location: "", url: "
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobRecommendation[]>([]);
   const [selected, setSelected] = useState<JobRecommendation | null>(null);
-  const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -37,13 +36,13 @@ export default function JobsPage() {
   async function persistSavedJob(jobId: string) {
     const token = getAccessToken();
     if (!token) return;
-    try { await saveJob(jobId, token); setSaved((current) => new Set(current).add(jobId)); }
+    try { const application = await saveJob(jobId, token); const markSaved = (job: JobRecommendation) => job.id === jobId ? {...job,saved:true,application_id:application.id} : job; setJobs((current) => current.map(markSaved)); setSelected((current) => current ? markSaved(current) : current); }
     catch (saveError) { setError(saveError instanceof Error ? saveError.message : "Could not save this job."); }
   }
   async function captureJob() { const token=getAccessToken(); if(!token) return; setError(null); try { const job=await captureManualJob(manualJob,token); setJobs((current)=>[job,...current.filter((item)=>item.id!==job.id)]); setSelected(job); setManualJob(emptyManualJob); setShowCapture(false); } catch(captureError){setError(captureError instanceof Error ? captureError.message : "Could not capture this job.");} }
   async function decide(jobId: string, approvalStatus: "approved" | "dismissed") { const token=getAccessToken(); if(!token) return; await updateJobApproval(jobId,approvalStatus,token); setJobs((current)=>current.map((job)=>job.id===jobId?{...job,approval_status:approvalStatus}:job)); setSelected((current)=>current?.id===jobId?{...current,approval_status:approvalStatus}:current); }
 
-  return <AppShell eyebrow="Job discovery" title="Resume-aware recommendations" actions={<Link className="rounded-lg border border-[#dfe6e2] bg-white px-3 py-2 text-[12px] font-bold text-[#65736f]" href="/applications">Saved jobs ({saved.size})</Link>}>
+  return <AppShell eyebrow="Job discovery" title="Resume-aware recommendations" actions={<Link className="rounded-lg border border-[#dfe6e2] bg-white px-3 py-2 text-[12px] font-bold text-[#65736f]" href="/applications">Saved jobs ({jobs.filter((job) => job.saved).length})</Link>}>
     <form className="mb-5 flex gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-3 small-shadow" onSubmit={(event) => { event.preventDefault(); void searchJobs(); }}>
       <input aria-label="Search jobs" className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-[#a0aba8]" onChange={(event) => setQuery(event.target.value)} placeholder="Search roles or keywords, such as Python developer" value={query}/>
       <button className="flex items-center gap-1.5 rounded-xl bg-[#176b5b] px-4 py-2.5 text-[12px] font-bold text-white" type="submit"><Search size={14}/>Search</button>
@@ -63,7 +62,7 @@ export default function JobsPage() {
           <div className="mt-4 flex flex-wrap gap-2">{selected.matching_skills.map((skill) => <Pill tone="green" key={skill}><Check size={11}/>{skill}</Pill>)}</div>
           <div className="mt-4 rounded-xl bg-[#f6f8f5] p-4"><p className="text-[12px] font-bold">ATS readiness {selected.ats_score}%</p><div className="mt-2 grid gap-1 text-[11px] text-[#71807c]">{Object.entries(selected.ats_breakdown).map(([label,score])=><p className="capitalize" key={label}>{label.replace("_"," ")}: {score}%</p>)}</div>{selected.ats_recommendations.map((item)=><p className="mt-2 text-[11px] text-[#71807c]" key={item}>{item}</p>)}</div>
           <p className="mt-5 text-[13px] leading-6 text-[#65736f]">{selected.description}</p>
-          <button className="mt-5 flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:opacity-60" disabled={saved.has(selected.id)} onClick={() => void persistSavedJob(selected.id)}><Bookmark size={15}/>{saved.has(selected.id) ? "Saved to tracker" : "Save job"}</button>
+          <button className="mt-5 flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:opacity-60" disabled={selected.saved} onClick={() => void persistSavedJob(selected.id)}><Bookmark size={15}/>{selected.saved ? "Saved to tracker" : "Save job"}</button>{selected.saved ? <Link className="mt-3 inline-flex rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" href="/applications">Open tracker</Link> : null}
           {selected.high_fit&&selected.approval_status==="review_required"?<div className="mt-3 flex gap-2"><button className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" onClick={()=>void decide(selected.id,"approved")}>Approve 80+ role</button><button className="rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f]" onClick={()=>void decide(selected.id,"dismissed")}>Dismiss</button></div>:null}
         </div> : null}
       </section>

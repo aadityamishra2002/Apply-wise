@@ -209,6 +209,10 @@ def test_jobs_require_resume_and_saved_job_appears_in_tracker() -> None:
     saved = client.post(f"/api/v1/jobs/{jobs[0]['id']}/save", headers=headers)
     assert saved.status_code == 201
     assert saved.json()["status"] == "saved"
+    refreshed_jobs = client.get("/api/v1/jobs", headers=headers).json()
+    saved_job = next(job for job in refreshed_jobs if job["id"] == jobs[0]["id"])
+    assert saved_job["saved"] is True
+    assert saved_job["application_id"] == saved.json()["id"]
     applications = client.get("/api/v1/applications", headers=headers)
     assert applications.status_code == 200
     assert applications.json() == [saved.json()]
@@ -235,6 +239,20 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     assert "python" in captured.json()["matching_skills"]
     saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers)
     assert saved.status_code == 201
+    captured_again = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Manual Python Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://example.com/careers/platform-engineer",
+            "description": "Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.",
+        },
+    )
+    assert captured_again.status_code == 201
+    assert captured_again.json()["saved"] is True
+    assert captured_again.json()["application_id"] == saved.json()["id"]
     approval = client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"})
     assert approval.status_code == 200
     assert approval.json()["approval_status"] == "approved"

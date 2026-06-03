@@ -26,6 +26,7 @@ The maintained product guide is available in two formats:
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
 - Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
+- Persisted saved-job state in recommendations and manual capture handoff
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Learning-system MVP with missing-skill recommendations from matched and approved roles
 - Application notes and visible activity timeline

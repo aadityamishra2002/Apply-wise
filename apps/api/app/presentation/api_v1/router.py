@@ -75,6 +75,8 @@ class JobResponse(BaseModel):
     ats_recommendations: list[str]
     high_fit: bool
     approval_status: str
+    saved: bool = False
+    application_id: str | None = None
 
 
 class JobApprovalRequest(BaseModel):
@@ -436,9 +438,11 @@ async def search_jobs(
     matches = matching_service.rank_jobs(jobs, profile_skills, profile_keywords)
     ats_results = {match.job.id: ats_service.analyze(match.job, profile) for match in matches}
     approvals: dict[UUID, str] = {}
+    stored_job_ids: list[UUID] = []
     for match in matches:
         ats = ats_results[match.job.id]
         stored_job = await ensure_stored_job(session, match.job)
+        stored_job_ids.append(stored_job.id)
         stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == stored_job.id))
         if stored_match:
             stored_match.match_score = match.match_score
@@ -463,8 +467,9 @@ async def search_jobs(
             )
             approvals[match.job.id] = "review_required"
     await session.commit()
+    applications = await saved_applications_by_job(session, user.id, stored_job_ids)
     return [
-        job_response(match, ats_results[match.job.id], approvals[match.job.id])
+        job_response(match, ats_results[match.job.id], approvals[match.job.id], applications.get(match.job.id))
         for match in matches
     ]
 
@@ -982,10 +987,18 @@ async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, paylo
     else:
         session.add(JobMatch(user_id=user_id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills), ats_score=ats.score, ats_breakdown=ats.breakdown, ats_recommendations=list(ats.recommendations)))
     await session.commit()
-    return job_response(match, ats, stored_match.approval_status if stored_match else "review_required")
+    applications = await saved_applications_by_job(session, user_id, [stored_job.id])
+    return job_response(match, ats, stored_match.approval_status if stored_match else "review_required", applications.get(stored_job.id))
 
 
-def job_response(match, ats, approval_status: str = "review_required") -> JobResponse:
+async def saved_applications_by_job(session: AsyncSession, user_id: UUID, job_ids: list[UUID]) -> dict[UUID, Application]:
+    if not job_ids:
+        return {}
+    rows = await session.execute(select(Application).where(Application.user_id == user_id, Application.job_id.in_(job_ids)))
+    return {application.job_id: application for application in rows.scalars()}
+
+
+def job_response(match, ats, approval_status: str = "review_required", application: Application | None = None) -> JobResponse:
     return JobResponse(
         id=str(match.job.id),
         title=match.job.title,
@@ -1006,6 +1019,8 @@ def job_response(match, ats, approval_status: str = "review_required") -> JobRes
         ats_recommendations=list(ats.recommendations),
         high_fit=ats.score >= settings.ats_high_fit_threshold,
         approval_status=approval_status,
+        saved=application is not None,
+        application_id=str(application.id) if application else None,
     )
 
 

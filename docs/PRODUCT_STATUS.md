@@ -45,6 +45,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 23. Change the logged-in account password from Settings and revoke existing refresh sessions.
 24. Review skill recommendations learned from missing skills across matched and approved roles.
 25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
+26. See already-saved jobs reflected in recommendations and manual capture results.
 
 ## Truthfulness Rules
 
