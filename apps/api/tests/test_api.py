@@ -458,7 +458,9 @@ def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -
         "duplicate_prevention": True,
         "ats_approved": False,
         "resume_prepared": False,
+        "resume_version_id": None,
         "cover_letter_prepared": False,
+        "cover_letter_id": None,
         "target_url": job["url"],
         "manual_final_submission_required": True,
     }
@@ -469,7 +471,9 @@ def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -
     prepared = client.get(checklist_url, headers=headers).json()
     assert prepared["ats_approved"] is True
     assert prepared["resume_prepared"] is True
+    assert prepared["resume_version_id"]
     assert prepared["cover_letter_prepared"] is True
+    assert prepared["cover_letter_id"]
     assert prepared["manual_final_submission_required"] is True
 
 

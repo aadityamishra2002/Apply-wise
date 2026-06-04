@@ -49,6 +49,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 27. Track the first applied date when an application is marked Applied.
 28. Discover remote roles through the Remotive provider with short-lived API caching and visible source attribution.
 29. Search by role and location directly from the Jobs page while still falling back to saved preferences.
+30. Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.
 
 ## Truthfulness Rules
 

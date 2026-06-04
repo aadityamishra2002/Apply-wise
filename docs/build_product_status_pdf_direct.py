@@ -107,6 +107,7 @@ for item in [
     "Capture cleaner Greenhouse, Lever, and LinkedIn job pages through site-aware extension adapters.",
     "Discover remote roles through the Remotive provider with short-lived API caching and visible attribution.",
     "Search by role and location directly from the Jobs page while still falling back to saved preferences.",
+    "Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

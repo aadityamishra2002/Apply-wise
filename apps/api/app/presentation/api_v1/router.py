@@ -187,7 +187,9 @@ class AssistedApplicationChecklistResponse(BaseModel):
     duplicate_prevention: bool
     ats_approved: bool
     resume_prepared: bool
+    resume_version_id: str | None
     cover_letter_prepared: bool
+    cover_letter_id: str | None
     target_url: str
     manual_final_submission_required: bool = True
 
@@ -751,7 +753,9 @@ async def assisted_application_checklist(
         duplicate_prevention=True,
         ats_approved=bool(match and match.approval_status == "approved"),
         resume_prepared=application.resume_version_id is not None,
+        resume_version_id=str(application.resume_version_id) if application.resume_version_id else None,
         cover_letter_prepared=application.cover_letter_id is not None,
+        cover_letter_id=str(application.cover_letter_id) if application.cover_letter_id else None,
         target_url=job.url,
     )
 
