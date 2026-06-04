@@ -29,6 +29,20 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    reset_url: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -132,6 +146,33 @@ async def change_password(
 ) -> None:
     try:
         await service.change_password(user.id, payload.current_password, payload.new_password)
+    except AuthenticationError as error:
+        raise unauthorized(str(error)) from error
+    delete_refresh_cookie(response)
+
+
+@router.post("/password-reset/request", response_model=PasswordResetResponse)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> PasswordResetResponse:
+    token = await service.request_password_reset(str(payload.email))
+    settings = get_settings()
+    reset_url = f"/reset-password?token={token}" if token and settings.app_env != "production" else None
+    return PasswordResetResponse(
+        message="If an account exists for that email, password reset instructions will be available.",
+        reset_url=reset_url,
+    )
+
+
+@router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
+async def confirm_password_reset(
+    payload: PasswordResetConfirmRequest,
+    response: Response,
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> None:
+    try:
+        await service.reset_password(payload.token, payload.new_password)
     except AuthenticationError as error:
         raise unauthorized(str(error)) from error
     delete_refresh_cookie(response)

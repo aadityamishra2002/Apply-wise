@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.identity.entities import RefreshTokenRecord, UserRecord
+from app.domain.identity.entities import PasswordResetTokenRecord, RefreshTokenRecord, UserRecord
 
 
 class UserRepository(Protocol):
@@ -45,9 +45,24 @@ class RefreshTokenRepository(Protocol):
         ...
 
 
+class PasswordResetTokenRepository(Protocol):
+    async def create(self, user_id: UUID, token_hash: str, expires_at: datetime) -> PasswordResetTokenRecord:
+        ...
+
+    async def get_by_hash(self, token_hash: str) -> PasswordResetTokenRecord | None:
+        ...
+
+    async def mark_used(self, token_id: UUID, used_at: datetime) -> None:
+        ...
+
+    async def revoke_unused_for_user(self, user_id: UUID, used_at: datetime) -> None:
+        ...
+
+
 class IdentityUnitOfWork(Protocol):
     users: UserRepository
     refresh_tokens: RefreshTokenRepository
+    password_reset_tokens: PasswordResetTokenRepository
 
     async def commit(self) -> None:
         ...

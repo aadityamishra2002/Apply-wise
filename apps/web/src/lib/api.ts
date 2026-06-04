@@ -391,6 +391,28 @@ export async function changePassword(currentPassword: string, newPassword: strin
   }
 }
 
+export async function requestPasswordReset(email: string): Promise<{ message: string; reset_url: string | null }> {
+  const response = await fetch(`${apiUrl}/auth/password-reset/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) throw new Error("Could not request password reset.");
+  return (await response.json()) as { message: string; reset_url: string | null };
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/auth/password-reset/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : "Could not reset password.");
+  }
+}
+
 export async function logout(): Promise<void> {
   try {
     await fetch(`${apiUrl}/auth/logout`, {

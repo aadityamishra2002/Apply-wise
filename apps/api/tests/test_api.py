@@ -669,6 +669,31 @@ def test_authenticated_user_can_change_password_and_revoke_refresh_tokens() -> N
     assert client.post("/api/v1/auth/refresh").status_code == 401
 
 
+def test_password_reset_changes_password_and_rejects_token_reuse() -> None:
+    payload = {"email": "reset@example.com", "password": "correct-horse-battery-staple"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    requested = client.post("/api/v1/auth/password-reset/request", json={"email": payload["email"]})
+    assert requested.status_code == 200
+    assert requested.json()["message"].startswith("If an account exists")
+    token = requested.json()["reset_url"].split("token=", 1)[1]
+
+    reset = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token, "new_password": "new-correct-horse-password"},
+    )
+    assert reset.status_code == 204
+    assert client.post("/api/v1/auth/login", json=payload).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": payload["email"], "password": "new-correct-horse-password"},
+    ).status_code == 200
+    reused = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token, "new_password": "another-new-password"},
+    )
+    assert reused.status_code == 401
+
+
 def test_refresh_token_rotation_detects_reuse() -> None:
     registration = client.post(
         "/api/v1/auth/register",

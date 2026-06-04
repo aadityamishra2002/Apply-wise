@@ -21,3 +21,12 @@ class RefreshTokenRecord:
     token_family_id: UUID
     expires_at: datetime
     revoked_at: datetime | None
+
+
+@dataclass(frozen=True)
+class PasswordResetTokenRecord:
+    id: UUID
+    user_id: UUID
+    token_hash: str
+    expires_at: datetime
+    used_at: datetime | None

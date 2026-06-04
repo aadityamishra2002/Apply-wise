@@ -103,6 +103,34 @@ class IdentityService:
         await self._uow.refresh_tokens.revoke_all_for_user(user.id, datetime.now(timezone.utc))
         await self._uow.commit()
 
+    async def request_password_reset(self, email: str) -> str | None:
+        user = await self._uow.users.get_by_email(email.strip().lower())
+        if not user or user.status != "active":
+            return None
+        now = datetime.now(timezone.utc)
+        await self._uow.password_reset_tokens.revoke_unused_for_user(user.id, now)
+        token = create_refresh_token()
+        await self._uow.password_reset_tokens.create(
+            user_id=user.id,
+            token_hash=hash_refresh_token(token),
+            expires_at=now + timedelta(hours=1),
+        )
+        await self._uow.commit()
+        return token
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        now = datetime.now(timezone.utc)
+        stored_token = await self._uow.password_reset_tokens.get_by_hash(hash_refresh_token(token))
+        if not stored_token or stored_token.used_at or is_expired(stored_token.expires_at, now):
+            raise AuthenticationError("Password reset link is invalid or expired.")
+        user = await self._uow.users.get_by_id(stored_token.user_id)
+        if not user or user.status != "active":
+            raise AuthenticationError("User account is unavailable.")
+        await self._uow.users.update_password(user.id, await asyncio.to_thread(hash_password, new_password))
+        await self._uow.password_reset_tokens.mark_used(stored_token.id, now)
+        await self._uow.refresh_tokens.revoke_all_for_user(user.id, now)
+        await self._uow.commit()
+
     async def authenticate_access_token(self, access_token: str) -> UserRecord:
         try:
             user_id = decode_access_token(access_token, self._settings)

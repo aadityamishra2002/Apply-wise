@@ -73,7 +73,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {!isRegister && (
           <div className="flex items-center justify-between text-[11px] font-bold">
             <label className="flex items-center gap-2 text-[#71807c]"><input type="checkbox" /> Remember me</label>
-            <a className="text-[#176b5b]" href="#">Forgot password?</a>
+            <Link className="text-[#176b5b]" href="/forgot-password">Forgot password?</Link>
           </div>
         )}
         {error && <p className="rounded-xl bg-[#fff1ee] px-3 py-2.5 text-[12px] font-bold text-[#a4483c]">{error}</p>}

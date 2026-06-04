@@ -17,6 +17,7 @@ The maintained product guide is available in two formats:
 - FastAPI backend deployed on Railway with PostgreSQL readiness checks
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
 - Authenticated password change with refresh-session revocation
+- Password reset token flow with dev-mode reset link and session revocation
 - Owner admin allowlist support through Railway environment variables
 - PDF and DOCX master-resume upload with persisted text extraction
 - Resume section, skill, structured experience, education, and certification extraction
