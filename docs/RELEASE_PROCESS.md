@@ -112,22 +112,35 @@ Vercel is connected to the repository and has already produced branch preview de
 | `STAGE` | `https://apply-wise-git-stage-aadityamishra10s-projects.vercel.app` |
 | `main` | `https://apply-wise-1.vercel.app` |
 
-Important: the current Vercel project has `NEXT_PUBLIC_API_URL` configured for Production and Preview. Until separate Railway QA and STAGE APIs are created and wired, QA/STAGE preview deployments may call the production API. Do not use QA/STAGE for data-changing tests until their own backend and database URLs are configured.
+Important: the current Vercel project has `NEXT_PUBLIC_API_URL` configured for Production and Preview. Until Vercel branch-specific API URLs are wired, QA/STAGE preview deployments may still call the production API. Do not use QA/STAGE for data-changing tests until their own backend URLs are configured in Vercel.
+
+## Current Railway Status
+
+Railway now has three environments in the same project:
+
+| Environment | Branch | API URL | Environment ID | Status |
+|---|---|---|---|---|
+| Production | `main` | `https://jobsearchautomation-production.up.railway.app` | `5848c9b5-b9c3-4239-ba6d-a1e16863b296` | Live production |
+| QA | `QA` | `https://applywise-qa.up.railway.app` | `28dfee88-404b-4628-bec4-3d65af5d0038` | Created, branch-connected, variables updated |
+| STAGE | `STAGE` | `https://applywise-stage.up.railway.app` | `d36a4ca2-383a-4d9f-8a4d-45bae9924b20` | Created, branch-connected, variables updated |
+
+QA and STAGE were duplicated from production with separate Postgres services. Confirm `DATABASE_URL` still points to the matching environment's Postgres before running destructive tests.
 
 ## Railway Setup
 
-Recommended setup:
+Current setup:
 
-1. Keep the current Railway project as production.
-2. Create a new Railway project or environment for `STAGE`.
-3. Create a new Railway project or environment for `QA`.
-4. Add a separate Postgres service for each.
-5. Add a separate API service for each, rooted at `apps/api`.
-6. Configure each service to deploy from the matching branch:
+1. The current Railway project remains production.
+2. Railway environments exist for `QA` and `STAGE`.
+3. Each environment includes an API service and Postgres service.
+4. Each API service is rooted at `apps/api`.
+5. Each service deploys from the matching branch:
    - QA service: `QA`
    - Stage service: `STAGE`
    - Production service: `main`
-7. Set each environment's variables independently.
+6. Set each environment's variables independently:
+   - QA: `APP_ENV=qa`, `ALLOWED_HOSTS=applywise-qa.up.railway.app,healthcheck.railway.app`, `CORS_ORIGINS=https://apply-wise-git-qa-aadityamishra10s-projects.vercel.app`
+   - STAGE: `APP_ENV=stage`, `ALLOWED_HOSTS=applywise-stage.up.railway.app,healthcheck.railway.app`, `CORS_ORIGINS=https://apply-wise-git-stage-aadityamishra10s-projects.vercel.app`
 
 The API already runs Alembic migrations before deploy through `apps/api/railway.json`.
 
