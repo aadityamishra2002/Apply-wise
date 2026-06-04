@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+import re
 from secrets import token_urlsafe
 from typing import Annotated
 from uuid import UUID
@@ -657,6 +658,29 @@ async def download_resume_version(
     )
 
 
+@router.get("/cover-letters/{cover_letter_id}/download")
+async def download_cover_letter(
+    cover_letter_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    row = await session.execute(
+        select(CoverLetter, Job)
+        .join(Job, CoverLetter.job_id == Job.id)
+        .where(CoverLetter.id == cover_letter_id, CoverLetter.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover letter not found.")
+    cover_letter, job = result
+    filename = f"cover-letter-{slugify_filename(job.company)}-{slugify_filename(job.title)}.txt"
+    return Response(
+        cover_letter.content,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/applications", response_model=list[ApplicationResponse])
 async def list_applications(
     user: Annotated[UserRecord, Depends(get_current_user)],
@@ -1052,6 +1076,11 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
         created_at=created_at.isoformat(),
         applied_at=applied_at.isoformat() if applied_at else None,
     )
+
+
+def slugify_filename(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug[:80] or "application"
 
 
 @router.post("/resumes/analyze", response_model=ResumeAnalyzeResponse)

@@ -441,6 +441,11 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
     assert pdf.content.startswith(b"%PDF")
+    cover_letter = client.get(f"/api/v1/cover-letters/{body['cover_letter_id']}/download", headers=headers)
+    assert cover_letter.status_code == 200
+    assert cover_letter.headers["content-type"].startswith("text/plain")
+    assert "Northstar Labs" in cover_letter.text
+    assert "cover-letter-linear-senior-product-engineer.txt" in cover_letter.headers["content-disposition"]
 
 
 def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -> None:
@@ -488,6 +493,22 @@ def test_resume_download_is_scoped_to_its_owner() -> None:
     other_token = register_user("other-download@example.com")["tokens"]["access_token"]
     response = client.get(
         f"/api/v1/resume-versions/{version_id}/download?format=pdf",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_cover_letter_download_is_scoped_to_its_owner() -> None:
+    owner_token = register_user("owner-cover@example.com")["tokens"]["access_token"]
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    upload_resume(owner_token)
+    job = client.get("/api/v1/jobs", headers=owner_headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=owner_headers).json()
+    cover_letter_id = client.post(f"/api/v1/applications/{application['id']}/prepare", headers=owner_headers).json()["cover_letter_id"]
+
+    other_token = register_user("other-cover@example.com")["tokens"]["access_token"]
+    response = client.get(
+        f"/api/v1/cover-letters/{cover_letter_id}/download",
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert response.status_code == 404

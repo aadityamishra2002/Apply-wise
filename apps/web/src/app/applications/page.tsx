@@ -19,6 +19,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   createInterview,
   deleteInterview,
+  downloadCoverLetter,
   downloadResumeVersion,
   getAccessToken,
   loadApplicationEvents,
@@ -173,7 +174,14 @@ export default function ApplicationsPage() {
     if (token && versionId) void downloadResumeVersion(versionId, format, token);
   }
 
+  function downloadPreparedCoverLetter() {
+    const token = getAccessToken();
+    const coverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
+    if (token && coverLetterId) void downloadCoverLetter(coverLetterId, token);
+  }
+
   const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
+  const preparedCoverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
   const selectedIsApplied = selected?.status === "applied" || selected?.status === "interview" || selected?.status === "offer";
 
   return (
@@ -253,6 +261,7 @@ export default function ApplicationsPage() {
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void prepare(selected.id)}><WandSparkles size={13} />Prepare materials</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("docx")}><Download size={13} />Resume DOCX</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("pdf")}><Download size={13} />Resume PDF</button>
+            <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedCoverLetterId} onClick={() => downloadPreparedCoverLetter()}><Download size={13} />Cover letter TXT</button>
             <a className="inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={checklist.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page</a>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f] disabled:opacity-50" disabled={selectedIsApplied || updating === selected.id} onClick={() => void markApplied()}><CheckCircle2 size={13} />Mark applied</button>
           </div>
