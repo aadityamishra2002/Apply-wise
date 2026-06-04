@@ -25,14 +25,17 @@ import {
   loadApplicationEvents,
   loadApplications,
   loadAssistedApplicationChecklist,
+  loadCoverLetter,
   loadInterviews,
   prepareApplication,
+  saveCoverLetter,
   updateApplication,
   updateInterview,
   type ApplicationEvent,
   type ApplicationMaterials,
   type ApplicationRecord,
   type AssistedApplicationChecklist,
+  type CoverLetterRecord,
   type InterviewRecord,
 } from "@/lib/api";
 
@@ -52,6 +55,9 @@ export default function ApplicationsPage() {
   const [interviewNotes, setInterviewNotes] = useState("");
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<AssistedApplicationChecklist | null>(null);
+  const [coverLetter, setCoverLetter] = useState<CoverLetterRecord | null>(null);
+  const [coverLetterDraft, setCoverLetterDraft] = useState("");
+  const [coverLetterSaved, setCoverLetterSaved] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -79,6 +85,15 @@ export default function ApplicationsPage() {
     setEvents(loadedEvents);
     setInterviews(loadedInterviews);
     setChecklist(loadedChecklist);
+    setCoverLetterSaved(false);
+    if (loadedChecklist.cover_letter_id) {
+      const loadedCoverLetter = await loadCoverLetter(loadedChecklist.cover_letter_id, token);
+      setCoverLetter(loadedCoverLetter);
+      setCoverLetterDraft(loadedCoverLetter.content);
+    } else {
+      setCoverLetter(null);
+      setCoverLetterDraft("");
+    }
   }
 
   async function scheduleInterview() {
@@ -158,6 +173,9 @@ export default function ApplicationsPage() {
     try {
       const prepared = await prepareApplication(applicationId, token);
       setMaterials(prepared);
+      setCoverLetter({ id: prepared.cover_letter_id, content: prepared.cover_letter, created_at: new Date().toISOString() });
+      setCoverLetterDraft(prepared.cover_letter);
+      setCoverLetterSaved(false);
       setApplications((current) => current.map((item) => (item.id === prepared.application.id ? prepared.application : item)));
       await inspect(prepared.application);
     } finally {
@@ -180,6 +198,16 @@ export default function ApplicationsPage() {
     const token = getAccessToken();
     const coverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
     if (token && coverLetterId) void downloadCoverLetter(coverLetterId, token);
+  }
+
+  async function saveCoverLetterDraft() {
+    const token = getAccessToken();
+    const coverLetterId = coverLetter?.id ?? materials?.cover_letter_id ?? checklist?.cover_letter_id;
+    if (!token || !coverLetterId) return;
+    const saved = await saveCoverLetter(coverLetterId, coverLetterDraft, token);
+    setCoverLetter(saved);
+    setCoverLetterDraft(saved.content);
+    setCoverLetterSaved(true);
   }
 
   const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
@@ -298,12 +326,16 @@ export default function ApplicationsPage() {
         </section>
       ) : null}
 
-      {materials ? (
+      {coverLetter || materials ? (
         <section className="mt-5 rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
           <div className="flex items-center gap-2 text-[#176b5b]"><FileText size={17} /><h2 className="text-[16px] font-bold">Evidence-grounded application draft</h2></div>
-          <p className="mt-2 text-[12px] text-[#71807c]">Generated from your stored resume only. Review every line before applying.</p>
-          <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{materials.provenance === "gemini_evidence_grounded" ? "Gemini-enhanced grounded draft" : "Safe grounded fallback draft"}</p>
-          <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-[#fbfcfa] p-4 text-[12px] leading-6 text-[#53645f]">{materials.cover_letter}</pre>
+          <p className="mt-2 text-[12px] text-[#71807c]">Generated from your stored resume only. Edit the letter for tone, detail, and employer context before applying.</p>
+          {materials ? <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{materials.provenance === "gemini_evidence_grounded" ? "Gemini-enhanced grounded draft" : "Safe grounded fallback draft"}</p> : null}
+          <textarea className="mt-4 min-h-80 w-full rounded-xl border border-[#dce7e2] bg-[#fbfcfa] p-4 text-[12px] leading-6 text-[#53645f] outline-none focus:border-[#79b6a8]" onChange={(event) => { setCoverLetterDraft(event.target.value); setCoverLetterSaved(false); }} value={coverLetterDraft} />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={coverLetterDraft.trim().length < 20} onClick={() => void saveCoverLetterDraft()}>Save edited letter</button>
+            {coverLetterSaved ? <p className="text-[12px] font-bold text-[#176b5b]">Saved</p> : null}
+          </div>
         </section>
       ) : null}
     </AppShell>

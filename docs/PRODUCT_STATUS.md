@@ -54,6 +54,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 32. Open the exact saved application workflow directly from a job recommendation.
 33. Filter job recommendations by high-fit score, provider source, and remote-only roles.
 34. Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.
+35. Edit and save prepared cover letters before downloading or applying.
 
 ## Truthfulness Rules
 

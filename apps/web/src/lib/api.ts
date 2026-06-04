@@ -47,6 +47,7 @@ export type AssistedApplicationChecklist = {
 };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
+export type CoverLetterRecord = { id: string; content: string; created_at: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type SkillRecommendation = { skill: string; mention_count: number; approved_role_count: number; high_fit_role_count: number; reason: string };
@@ -140,6 +141,24 @@ export async function downloadCoverLetter(coverLetterId: string, accessToken: st
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+export async function loadCoverLetter(coverLetterId: string, accessToken: string): Promise<CoverLetterRecord> {
+  const response = await fetch(`${apiUrl}/cover-letters/${coverLetterId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load this cover letter.");
+  return (await response.json()) as CoverLetterRecord;
+}
+
+export async function saveCoverLetter(coverLetterId: string, content: string, accessToken: string): Promise<CoverLetterRecord> {
+  const response = await fetch(`${apiUrl}/cover-letters/${coverLetterId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) throw new Error("Could not save this cover letter.");
+  return (await response.json()) as CoverLetterRecord;
 }
 
 export async function uploadResume(file: File, accessToken: string): Promise<ResumeProfile> {

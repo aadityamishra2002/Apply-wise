@@ -448,6 +448,18 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert cover_letter.headers["content-type"].startswith("text/plain")
     assert "Northstar Labs" in cover_letter.text
     assert "cover-letter-linear-senior-product-engineer.txt" in cover_letter.headers["content-disposition"]
+    loaded_cover_letter = client.get(f"/api/v1/cover-letters/{body['cover_letter_id']}", headers=headers)
+    assert loaded_cover_letter.status_code == 200
+    assert loaded_cover_letter.json()["content"] == cover_letter.text
+    edited = client.patch(
+        f"/api/v1/cover-letters/{body['cover_letter_id']}",
+        headers=headers,
+        json={"content": "Dear hiring team,\n\nI am excited to apply with my Python and React experience from Northstar Labs."},
+    )
+    assert edited.status_code == 200
+    assert "excited to apply" in edited.json()["content"]
+    downloaded_edit = client.get(f"/api/v1/cover-letters/{body['cover_letter_id']}/download", headers=headers)
+    assert "excited to apply" in downloaded_edit.text
 
 
 def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -> None:
@@ -514,6 +526,12 @@ def test_cover_letter_download_is_scoped_to_its_owner() -> None:
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert response.status_code == 404
+    assert client.get(f"/api/v1/cover-letters/{cover_letter_id}", headers={"Authorization": f"Bearer {other_token}"}).status_code == 404
+    assert client.patch(
+        f"/api/v1/cover-letters/{cover_letter_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"content": "This edit should not be allowed for another user's cover letter."},
+    ).status_code == 404
 
 
 def test_register_and_read_current_user() -> None:

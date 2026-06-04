@@ -185,6 +185,16 @@ class ApplicationMaterialsResponse(BaseModel):
     provenance: str
 
 
+class CoverLetterResponse(BaseModel):
+    id: str
+    content: str
+    created_at: str
+
+
+class CoverLetterUpdateRequest(BaseModel):
+    content: str = Field(min_length=20, max_length=20_000)
+
+
 class AssistedApplicationChecklistResponse(BaseModel):
     application_id: str
     duplicate_prevention: bool
@@ -683,6 +693,33 @@ async def download_cover_letter(
     )
 
 
+@router.get("/cover-letters/{cover_letter_id}", response_model=CoverLetterResponse)
+async def get_cover_letter(
+    cover_letter_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CoverLetterResponse:
+    cover_letter = await session.scalar(select(CoverLetter).where(CoverLetter.id == cover_letter_id, CoverLetter.user_id == user.id))
+    if not cover_letter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover letter not found.")
+    return cover_letter_response(cover_letter)
+
+
+@router.patch("/cover-letters/{cover_letter_id}", response_model=CoverLetterResponse)
+async def update_cover_letter(
+    cover_letter_id: UUID,
+    payload: CoverLetterUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CoverLetterResponse:
+    cover_letter = await session.scalar(select(CoverLetter).where(CoverLetter.id == cover_letter_id, CoverLetter.user_id == user.id))
+    if not cover_letter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover letter not found.")
+    cover_letter.content = payload.content.strip()
+    await session.commit()
+    return cover_letter_response(cover_letter)
+
+
 @router.get("/applications", response_model=list[ApplicationResponse])
 async def list_applications(
     user: Annotated[UserRecord, Depends(get_current_user)],
@@ -1101,6 +1138,17 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
         notes=application.notes,
         created_at=created_at.isoformat(),
         applied_at=applied_at.isoformat() if applied_at else None,
+    )
+
+
+def cover_letter_response(cover_letter: CoverLetter) -> CoverLetterResponse:
+    created_at = cover_letter.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return CoverLetterResponse(
+        id=str(cover_letter.id),
+        content=cover_letter.content,
+        created_at=created_at.isoformat(),
     )
 
 

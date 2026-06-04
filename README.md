@@ -43,6 +43,7 @@ The maintained product guide is available in two formats:
 - Tailored-resume version history
 - Authenticated DOCX and PDF downloads for tailored resume versions
 - Authenticated TXT downloads for persisted cover letters
+- Editable cover-letter workspace with authenticated save and download
 - Persisted subscription foundation with free-tier status and owner bypass
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
