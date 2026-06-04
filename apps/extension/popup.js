@@ -4,8 +4,10 @@ const fields = ["title", "company", "location", "url", "description"];
 document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("pair").addEventListener("click", pair);
   document.getElementById("send").addEventListener("click", send);
+  document.getElementById("refresh").addEventListener("click", extract);
   document.getElementById("inspect-form").addEventListener("click", inspectForm);
   document.getElementById("unpair").addEventListener("click", unpair);
+  for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
   showPaired(Boolean(extensionToken));
   if (extensionToken) await extract();
@@ -33,18 +35,26 @@ async function unpair() {
 async function extract() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
-  const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractPage });
+  let result;
+  try {
+    [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractPage });
+  } catch (error) {
+    message(`Extraction failed on this page: ${error.message}. Paste the fields manually or open the full job description page.`);
+    updateQualityPreview();
+    return;
+  }
   for (const field of fields) document.getElementById(field).value = result[field] ?? "";
+  updateQualityPreview();
   message(`Extracted with the ${result.extractor} page adapter. Review every field before sending.`);
 }
 
 async function send() {
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
   const payload = Object.fromEntries(fields.map((field) => [field, document.getElementById(field).value.trim()]));
-  const missing = ["title", "company", "url", "description"].filter((field) => !payload[field]);
+  const quality = captureQuality(payload);
+  const blocking = quality.filter((item) => !item.ready);
   if (!extensionToken) return message("Pair the extension again from Apply Wise Settings before sending.");
-  if (missing.length) return message(`Capture blocked: review and fill ${missing.join(", ")} before sending.`);
-  if (payload.description.length < 40) return message("Capture blocked: the job description must be at least 40 characters. Open the full job page or paste the description.");
+  if (blocking.length) return message(`Capture blocked: ${blocking.map((item) => item.label).join(", ")} need review.`);
   const response = await fetch(`${apiUrl}/extension/jobs/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
@@ -89,6 +99,28 @@ function showPaired(paired) {
 }
 
 function message(value) { document.getElementById("message").textContent = value; }
+
+function updateQualityPreview() {
+  const payload = Object.fromEntries(fields.map((field) => [field, document.getElementById(field).value.trim()]));
+  const list = document.getElementById("quality-list");
+  list.replaceChildren();
+  for (const item of captureQuality(payload)) {
+    const row = document.createElement("li");
+    row.className = item.ready ? "ready" : "blocked";
+    row.textContent = `${item.ready ? "Ready" : "Needs review"}: ${item.label}`;
+    list.appendChild(row);
+  }
+}
+
+function captureQuality(payload) {
+  return [
+    { label: "Job title", ready: Boolean(payload.title) },
+    { label: "Company", ready: Boolean(payload.company) },
+    { label: "Job URL", ready: Boolean(payload.url) && /^https?:\/\//.test(payload.url) },
+    { label: "Description has at least 40 characters", ready: payload.description.length >= 40 },
+    { label: "Description has useful detail", ready: payload.description.length >= 250 },
+  ];
+}
 
 function extractPage() {
   const text = document.body.innerText;

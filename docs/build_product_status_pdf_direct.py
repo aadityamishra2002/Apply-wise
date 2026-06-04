@@ -114,6 +114,7 @@ for item in [
     "Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.",
     "Edit and save prepared cover letters before downloading or applying.",
     "Edit tailored resume summary, skills, and experience text before DOCX/PDF download.",
+    "Review extension capture readiness and re-extract the current page before sending a job.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

@@ -56,6 +56,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 34. Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.
 35. Edit and save prepared cover letters before downloading or applying.
 36. Edit tailored resume summary, skills, and experience text before DOCX/PDF download.
+37. Review extension capture readiness and re-extract the current page before sending a job.
 
 ## Truthfulness Rules
 
