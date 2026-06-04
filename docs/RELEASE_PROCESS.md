@@ -102,6 +102,18 @@ QA web         -> QA API
 
 Never point QA or STAGE at the production database.
 
+## Current Vercel Status
+
+Vercel is connected to the repository and has already produced branch preview deployments:
+
+| Branch | Current Vercel URL |
+|---|---|
+| `QA` | `https://apply-wise-git-qa-aadityamishra10s-projects.vercel.app` |
+| `STAGE` | `https://apply-wise-git-stage-aadityamishra10s-projects.vercel.app` |
+| `main` | `https://apply-wise-1.vercel.app` |
+
+Important: the current Vercel project has `NEXT_PUBLIC_API_URL` configured for Production and Preview. Until separate Railway QA and STAGE APIs are created and wired, QA/STAGE preview deployments may call the production API. Do not use QA/STAGE for data-changing tests until their own backend and database URLs are configured.
+
 ## Railway Setup
 
 Recommended setup:
