@@ -19,6 +19,7 @@ The maintained product guide is available in two formats:
 - Authenticated password change with refresh-session revocation
 - Password reset token flow with dev-mode reset link and session revocation
 - Owner admin allowlist support through Railway environment variables
+- Owner-only admin summary for users, jobs, applications, generated materials, and subscriptions
 - PDF and DOCX master-resume upload with persisted text extraction
 - Resume section, skill, structured experience, education, and certification extraction
 - Live Adzuna job discovery for India with keyword search and attribution

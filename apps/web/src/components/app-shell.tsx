@@ -10,6 +10,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Shield,
   Search,
   Settings,
 } from "lucide-react";
@@ -60,7 +61,7 @@ function AuthenticatedShell({
           <Logo />
         </div>
         <nav className="mt-9 space-y-1">
-          {items.map((item) => {
+          {[...items, ...(user.role === "admin" ? [{ href: "/admin", label: "Admin", icon: Shield }] : [])].map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
             return (

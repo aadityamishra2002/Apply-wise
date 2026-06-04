@@ -116,6 +116,7 @@ for item in [
     "Edit tailored resume summary, skills, and experience text before DOCX/PDF download.",
     "Review extension capture readiness and re-extract the current page before sending a job.",
     "Request and confirm password resets with one-time tokens and session revocation.",
+    "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

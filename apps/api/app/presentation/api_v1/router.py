@@ -239,6 +239,15 @@ class SkillRecommendationResponse(BaseModel):
     reason: str
 
 
+class AdminSummaryResponse(BaseModel):
+    users: int
+    applications: int
+    jobs: int
+    resume_versions: int
+    cover_letters: int
+    subscriptions: dict[str, int]
+
+
 class JobPreferenceRequest(BaseModel):
     role_keywords: str = Field(default="", max_length=255)
     location: str = Field(default="", max_length=255)
@@ -605,6 +614,23 @@ async def get_subscription(
         status=subscription.status,
         owner_bypass=owner_bypass,
         features=subscription_features("owner" if owner_bypass else subscription.plan),
+    )
+
+
+@router.get("/admin/summary", response_model=AdminSummaryResponse)
+async def admin_summary(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminSummaryResponse:
+    require_admin(user)
+    rows = await session.execute(select(Subscription.plan, func.count()).group_by(Subscription.plan))
+    return AdminSummaryResponse(
+        users=await count_rows(session, User),
+        applications=await count_rows(session, Application),
+        jobs=await count_rows(session, Job),
+        resume_versions=await count_rows(session, ResumeVersion),
+        cover_letters=await count_rows(session, CoverLetter),
+        subscriptions={plan: count for plan, count in rows.all()},
     )
 
 
@@ -1227,6 +1253,15 @@ def cover_letter_response(cover_letter: CoverLetter) -> CoverLetterResponse:
 def slugify_filename(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:80] or "application"
+
+
+def require_admin(user: UserRecord) -> None:
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+
+
+async def count_rows(session: AsyncSession, model) -> int:
+    return await session.scalar(select(func.count()).select_from(model)) or 0
 
 
 @router.post("/resumes/analyze", response_model=ResumeAnalyzeResponse)

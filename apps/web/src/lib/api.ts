@@ -64,6 +64,7 @@ export type Subscription = { plan: string; status: string; owner_bypass: boolean
 export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null };
 export type ManualJob = { title: string; company: string; location: string; url: string; description: string };
 export type ExtensionPairingCode = { code: string; expires_at: string };
+export type AdminSummary = { users: number; applications: number; jobs: number; resume_versions: number; cover_letters: number; subscriptions: Record<string, number> };
 
 type TokenResponse = {
   access_token: string;
@@ -368,6 +369,14 @@ export async function loadProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiUrl}/health/providers`);
   if (!response.ok) throw new Error("Could not load provider health.");
   return (await response.json()) as ProviderHealth[];
+}
+
+export async function loadAdminSummary(accessToken: string): Promise<AdminSummary> {
+  const response = await fetch(`${apiUrl}/admin/summary`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load admin summary.");
+  return (await response.json()) as AdminSummary;
 }
 
 export async function createExtensionPairingCode(accessToken: string): Promise<ExtensionPairingCode> {
