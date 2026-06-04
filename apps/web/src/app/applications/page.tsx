@@ -56,10 +56,12 @@ export default function ApplicationsPage() {
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
+    const requestedApplicationId = new URLSearchParams(window.location.search).get("application");
     void loadApplications(token)
       .then((items) => {
         setApplications(items);
-        if (items[0]) void inspect(items[0]);
+        const preferred = items.find((item) => item.id === requestedApplicationId) ?? items[0];
+        if (preferred) void inspect(preferred);
       })
       .finally(() => setLoading(false));
   }, []);

@@ -29,6 +29,7 @@ The maintained product guide is available in two formats:
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
 - Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
+- Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Learning-system MVP with missing-skill recommendations from matched and approved roles

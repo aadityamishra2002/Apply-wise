@@ -109,6 +109,7 @@ for item in [
     "Search by role and location directly from the Jobs page while still falling back to saved preferences.",
     "Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.",
     "Download persisted cover letters as authenticated TXT files after preparation.",
+    "Open the exact saved application workflow directly from a job recommendation.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
