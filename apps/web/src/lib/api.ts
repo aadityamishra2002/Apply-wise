@@ -49,6 +49,14 @@ export type DashboardSummary = { applications: number; interviews: number; saved
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
 export type CoverLetterRecord = { id: string; content: string; created_at: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
+export type ResumeExperienceDraft = { title: string; company: string; description: string };
+export type ResumeContentDraft = {
+  professional_summary?: string;
+  skills: string[];
+  experience: ResumeExperienceDraft[];
+  [key: string]: unknown;
+};
+export type ResumeVersionDetail = ResumeVersionRecord & { resume_content: ResumeContentDraft };
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type SkillRecommendation = { skill: string; mention_count: number; approved_role_count: number; high_fit_role_count: number; reason: string };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
@@ -111,6 +119,24 @@ export async function loadResumeVersions(accessToken: string): Promise<ResumeVer
   });
   if (!response.ok) throw new Error("Could not load resume versions.");
   return (await response.json()) as ResumeVersionRecord[];
+}
+
+export async function loadResumeVersion(versionId: string, accessToken: string): Promise<ResumeVersionDetail> {
+  const response = await fetch(`${apiUrl}/resume-versions/${versionId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load this resume version.");
+  return (await response.json()) as ResumeVersionDetail;
+}
+
+export async function saveResumeVersion(versionId: string, resumeContent: ResumeContentDraft, accessToken: string): Promise<ResumeVersionDetail> {
+  const response = await fetch(`${apiUrl}/resume-versions/${versionId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ resume_content: resumeContent }),
+  });
+  if (!response.ok) throw new Error("Could not save this resume version.");
+  return (await response.json()) as ResumeVersionDetail;
 }
 
 export async function downloadResumeVersion(versionId: string, format: "docx" | "pdf", accessToken: string): Promise<void> {

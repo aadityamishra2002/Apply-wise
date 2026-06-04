@@ -41,6 +41,7 @@ The maintained product guide is available in two formats:
 - Interview rescheduling, preparation notes, and removal
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
+- Editable tailored-resume workspace for summary, skills, and experience text
 - Authenticated DOCX and PDF downloads for tailored resume versions
 - Authenticated TXT downloads for persisted cover letters
 - Editable cover-letter workspace with authenticated save and download

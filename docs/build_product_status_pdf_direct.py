@@ -113,6 +113,7 @@ for item in [
     "Filter job recommendations by high-fit score, provider source, and remote-only roles.",
     "Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.",
     "Edit and save prepared cover letters before downloading or applying.",
+    "Edit tailored resume summary, skills, and experience text before DOCX/PDF download.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

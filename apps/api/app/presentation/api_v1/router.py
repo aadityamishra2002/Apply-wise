@@ -216,6 +216,14 @@ class ResumeVersionResponse(BaseModel):
     created_at: str
 
 
+class ResumeVersionDetailResponse(ResumeVersionResponse):
+    resume_content: dict
+
+
+class ResumeVersionUpdateRequest(BaseModel):
+    resume_content: dict
+
+
 class AnalyticsSummaryResponse(BaseModel):
     total_applications: int
     interview_rate: float
@@ -641,6 +649,29 @@ async def list_resume_versions(
     ]
 
 
+@router.get("/resume-versions/{version_id}", response_model=ResumeVersionDetailResponse)
+async def get_resume_version(
+    version_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeVersionDetailResponse:
+    version, job = await get_owned_resume_version_row(session, version_id, user.id)
+    return resume_version_detail_response(version, job)
+
+
+@router.patch("/resume-versions/{version_id}", response_model=ResumeVersionDetailResponse)
+async def update_resume_version(
+    version_id: UUID,
+    payload: ResumeVersionUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeVersionDetailResponse:
+    version, job = await get_owned_resume_version_row(session, version_id, user.id)
+    version.resume_content = validate_resume_version_content(payload.resume_content)
+    await session.commit()
+    return resume_version_detail_response(version, job)
+
+
 @router.get("/resume-versions/{version_id}/download")
 async def download_resume_version(
     version_id: UUID,
@@ -648,15 +679,7 @@ async def download_resume_version(
     session: Annotated[AsyncSession, Depends(get_session)],
     format: Annotated[str, Query(pattern="^(docx|pdf)$")] = "docx",
 ) -> Response:
-    row = await session.execute(
-        select(ResumeVersion, Job)
-        .join(Job, ResumeVersion.job_id == Job.id)
-        .where(ResumeVersion.id == version_id, ResumeVersion.user_id == user.id)
-    )
-    result = row.one_or_none()
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume version not found.")
-    version, job = result
+    version, job = await get_owned_resume_version_row(session, version_id, user.id)
     if format == "pdf":
         body = resume_export_service.build_pdf(version, job)
         media_type = "application/pdf"
@@ -1139,6 +1162,55 @@ def application_response(application: Application, job: Job) -> ApplicationRespo
         created_at=created_at.isoformat(),
         applied_at=applied_at.isoformat() if applied_at else None,
     )
+
+
+async def get_owned_resume_version_row(session: AsyncSession, version_id: UUID, user_id: UUID) -> tuple[ResumeVersion, Job]:
+    row = await session.execute(
+        select(ResumeVersion, Job)
+        .join(Job, ResumeVersion.job_id == Job.id)
+        .where(ResumeVersion.id == version_id, ResumeVersion.user_id == user_id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume version not found.")
+    return result
+
+
+def resume_version_detail_response(version: ResumeVersion, job: Job) -> ResumeVersionDetailResponse:
+    created_at = version.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return ResumeVersionDetailResponse(
+        id=str(version.id),
+        job_id=str(job.id),
+        job_title=job.title,
+        company=job.company,
+        ats_score=version.ats_score,
+        created_at=created_at.isoformat(),
+        resume_content=version.resume_content,
+    )
+
+
+def validate_resume_version_content(content: dict) -> dict:
+    if not isinstance(content.get("skills"), list):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Resume content must include a skills list.")
+    if not isinstance(content.get("experience"), list):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Resume content must include an experience list.")
+    cleaned = dict(content)
+    cleaned["professional_summary"] = str(content.get("professional_summary", "")).strip()[:1200]
+    cleaned["skills"] = [str(skill).strip()[:120] for skill in content["skills"] if str(skill).strip()]
+    cleaned["experience"] = [
+        {
+            "title": str(experience.get("title", "")).strip()[:255],
+            "company": str(experience.get("company", "")).strip()[:255],
+            "description": str(experience.get("description", "")).strip()[:4000],
+        }
+        for experience in content["experience"]
+        if isinstance(experience, dict)
+    ]
+    if not cleaned["experience"]:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Resume content must include at least one experience entry.")
+    return cleaned
 
 
 def cover_letter_response(cover_letter: CoverLetter) -> CoverLetterResponse:

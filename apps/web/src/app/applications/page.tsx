@@ -27,8 +27,10 @@ import {
   loadAssistedApplicationChecklist,
   loadCoverLetter,
   loadInterviews,
+  loadResumeVersion,
   prepareApplication,
   saveCoverLetter,
+  saveResumeVersion,
   updateApplication,
   updateInterview,
   type ApplicationEvent,
@@ -36,6 +38,8 @@ import {
   type ApplicationRecord,
   type AssistedApplicationChecklist,
   type CoverLetterRecord,
+  type ResumeContentDraft,
+  type ResumeVersionDetail,
   type InterviewRecord,
 } from "@/lib/api";
 
@@ -58,6 +62,9 @@ export default function ApplicationsPage() {
   const [coverLetter, setCoverLetter] = useState<CoverLetterRecord | null>(null);
   const [coverLetterDraft, setCoverLetterDraft] = useState("");
   const [coverLetterSaved, setCoverLetterSaved] = useState(false);
+  const [resumeVersion, setResumeVersion] = useState<ResumeVersionDetail | null>(null);
+  const [resumeDraft, setResumeDraft] = useState<ResumeContentDraft | null>(null);
+  const [resumeSaved, setResumeSaved] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -86,6 +93,15 @@ export default function ApplicationsPage() {
     setInterviews(loadedInterviews);
     setChecklist(loadedChecklist);
     setCoverLetterSaved(false);
+    setResumeSaved(false);
+    if (loadedChecklist.resume_version_id) {
+      const loadedResumeVersion = await loadResumeVersion(loadedChecklist.resume_version_id, token);
+      setResumeVersion(loadedResumeVersion);
+      setResumeDraft(loadedResumeVersion.resume_content);
+    } else {
+      setResumeVersion(null);
+      setResumeDraft(null);
+    }
     if (loadedChecklist.cover_letter_id) {
       const loadedCoverLetter = await loadCoverLetter(loadedChecklist.cover_letter_id, token);
       setCoverLetter(loadedCoverLetter);
@@ -173,6 +189,10 @@ export default function ApplicationsPage() {
     try {
       const prepared = await prepareApplication(applicationId, token);
       setMaterials(prepared);
+      const preparedResume = await loadResumeVersion(prepared.resume_version_id, token);
+      setResumeVersion(preparedResume);
+      setResumeDraft(preparedResume.resume_content);
+      setResumeSaved(false);
       setCoverLetter({ id: prepared.cover_letter_id, content: prepared.cover_letter, created_at: new Date().toISOString() });
       setCoverLetterDraft(prepared.cover_letter);
       setCoverLetterSaved(false);
@@ -208,6 +228,34 @@ export default function ApplicationsPage() {
     setCoverLetter(saved);
     setCoverLetterDraft(saved.content);
     setCoverLetterSaved(true);
+  }
+
+  async function saveResumeDraft() {
+    const token = getAccessToken();
+    const versionId = resumeVersion?.id ?? materials?.resume_version_id ?? checklist?.resume_version_id;
+    if (!token || !versionId || !resumeDraft) return;
+    const saved = await saveResumeVersion(versionId, resumeDraft, token);
+    setResumeVersion(saved);
+    setResumeDraft(saved.resume_content);
+    setResumeSaved(true);
+  }
+
+  function updateResumeDraft(next: Partial<ResumeContentDraft>) {
+    setResumeDraft((current) => current ? { ...current, ...next } : current);
+    setResumeSaved(false);
+  }
+
+  function updateResumeExperience(index: number, field: "title" | "company" | "description", value: string) {
+    setResumeDraft((current) => {
+      if (!current) return current;
+      const experience = current.experience.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item);
+      return { ...current, experience };
+    });
+    setResumeSaved(false);
+  }
+
+  function updateResumeSkills(value: string) {
+    updateResumeDraft({ skills: value.split(",").map((skill) => skill.trim()).filter(Boolean) });
   }
 
   const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
@@ -296,6 +344,35 @@ export default function ApplicationsPage() {
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f] disabled:opacity-50" disabled={selectedIsApplied || updating === selected.id} onClick={() => void markApplied()}><CheckCircle2 size={13} />Mark applied</button>
           </div>
           <p className="mt-3 text-[11px] font-bold text-[#a34f3f]">Manual final submission required. Review every employer field before submitting.</p>
+        </section>
+      ) : null}
+
+      {resumeDraft ? (
+        <section className="mt-5 rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
+          <div className="flex items-center gap-2 text-[#176b5b]"><FileText size={17} /><h2 className="text-[16px] font-bold">Editable tailored resume</h2></div>
+          <p className="mt-2 text-[12px] text-[#71807c]">Edit only truthful resume evidence. Saved changes are used for DOCX and PDF downloads.</p>
+          <label className="mt-4 block text-[12px] font-bold text-[#53645f]">Professional summary
+            <textarea className="mt-2 min-h-28 w-full rounded-xl border border-[#dce7e2] p-3 text-[12px] font-normal leading-6 outline-none focus:border-[#79b6a8]" onChange={(event) => updateResumeDraft({ professional_summary: event.target.value })} value={resumeDraft.professional_summary ?? ""} />
+          </label>
+          <label className="mt-4 block text-[12px] font-bold text-[#53645f]">Skills, comma-separated
+            <input className="mt-2 w-full rounded-xl border border-[#dce7e2] px-3 py-3 text-[12px] font-normal outline-none focus:border-[#79b6a8]" onChange={(event) => updateResumeSkills(event.target.value)} value={resumeDraft.skills.join(", ")} />
+          </label>
+          <div className="mt-4 space-y-3">
+            <p className="text-[12px] font-bold text-[#53645f]">Experience</p>
+            {resumeDraft.experience.map((experience, index) => (
+              <div className="rounded-xl bg-[#f6f8f5] p-3" key={`${experience.company}-${experience.title}-${index}`}>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => updateResumeExperience(index, "title", event.target.value)} placeholder="Title" value={experience.title} />
+                  <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => updateResumeExperience(index, "company", event.target.value)} placeholder="Company" value={experience.company} />
+                </div>
+                <textarea className="mt-2 min-h-24 w-full rounded-lg border border-[#dce7e2] p-3 text-[12px] leading-6 outline-none focus:border-[#79b6a8]" onChange={(event) => updateResumeExperience(index, "description", event.target.value)} placeholder="Evidence-backed description" value={experience.description} />
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={!resumeDraft.skills.length || !resumeDraft.experience.length} onClick={() => void saveResumeDraft()}>Save resume edits</button>
+            {resumeSaved ? <p className="text-[12px] font-bold text-[#176b5b]">Saved</p> : null}
+          </div>
         </section>
       ) : null}
 

@@ -443,6 +443,21 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
     assert pdf.content.startswith(b"%PDF")
+    version_detail = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}", headers=headers)
+    assert version_detail.status_code == 200
+    edited_content = dict(version_detail.json()["resume_content"])
+    edited_content["professional_summary"] = "Product engineer focused on reliable Python, React, and PostgreSQL systems."
+    edited_content["skills"] = ["Python", "React", "PostgreSQL"]
+    edited = client.patch(
+        f"/api/v1/resume-versions/{body['resume_version_id']}",
+        headers=headers,
+        json={"resume_content": edited_content},
+    )
+    assert edited.status_code == 200
+    assert edited.json()["resume_content"]["professional_summary"].startswith("Product engineer")
+    edited_docx = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}/download?format=docx", headers=headers)
+    edited_document = Document(BytesIO(edited_docx.content))
+    assert any("Product engineer focused" in paragraph.text for paragraph in edited_document.paragraphs)
     cover_letter = client.get(f"/api/v1/cover-letters/{body['cover_letter_id']}/download", headers=headers)
     assert cover_letter.status_code == 200
     assert cover_letter.headers["content-type"].startswith("text/plain")
@@ -510,6 +525,12 @@ def test_resume_download_is_scoped_to_its_owner() -> None:
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert response.status_code == 404
+    assert client.get(f"/api/v1/resume-versions/{version_id}", headers={"Authorization": f"Bearer {other_token}"}).status_code == 404
+    assert client.patch(
+        f"/api/v1/resume-versions/{version_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"resume_content": {"skills": ["Python"], "experience": [{"title": "Other", "company": "Other", "description": "Nope"}]}},
+    ).status_code == 404
 
 
 def test_cover_letter_download_is_scoped_to_its_owner() -> None:
