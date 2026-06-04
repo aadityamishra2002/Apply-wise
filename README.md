@@ -110,6 +110,16 @@ Open `http://localhost:3000`. API documentation is available at `http://localhos
 
 Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configuration. Keep secrets in Railway variables, never in Git.
 
+## Release Process
+
+Production is protected by a three-branch flow:
+
+```text
+QA -> STAGE -> main
+```
+
+`main` is the stable user-facing branch. Future work should start on `QA`, promote to `STAGE` after testing, and reach `main` only after STAGE validation. See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+
 ## Next Changes
 
 1. Payment gateway checkout, webhook verification, and paid-plan activation
