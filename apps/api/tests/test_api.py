@@ -60,6 +60,8 @@ def test_jobs_are_ranked() -> None:
     assert scores == sorted(scores, reverse=True)
     assert response.json()[0]["ats_breakdown"]["keywords"] >= 0
     assert isinstance(response.json()[0]["high_fit"], bool)
+    assert response.json()[0]["recommendation_summary"]
+    assert any("resume skills" in reason for reason in response.json()[0]["recommendation_reasons"])
     summary = client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"}).json()
     assert summary["average_match_score"] is not None
 

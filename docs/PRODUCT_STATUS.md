@@ -52,6 +52,8 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 30. Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.
 31. Download persisted cover letters as authenticated TXT files after preparation.
 32. Open the exact saved application workflow directly from a job recommendation.
+33. Filter job recommendations by high-fit score, provider source, and remote-only roles.
+34. Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.
 
 ## Truthfulness Rules
 

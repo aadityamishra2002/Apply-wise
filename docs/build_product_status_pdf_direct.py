@@ -110,6 +110,8 @@ for item in [
     "Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.",
     "Download persisted cover letters as authenticated TXT files after preparation.",
     "Open the exact saved application workflow directly from a job recommendation.",
+    "Filter job recommendations by high-fit score, provider source, and remote-only roles.",
+    "Review recommendation explanations for matched skills, ATS readiness, missing skills, and seniority fit.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

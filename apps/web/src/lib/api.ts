@@ -28,7 +28,7 @@ export type JobRecommendation = {
   id: string; title: string; company: string; location: string; work_mode: string; salary: string | null;
   description: string; source: string; url: string; posted_at: string | null; match_score: number;
   matching_skills: string[]; missing_skills: string[]; experience_match: number;
-  ats_score: number; ats_breakdown: Record<string, number>; ats_recommendations: string[]; high_fit: boolean; approval_status: string;
+  ats_score: number; ats_breakdown: Record<string, number>; ats_recommendations: string[]; recommendation_summary: string; recommendation_reasons: string[]; high_fit: boolean; approval_status: string;
   saved: boolean; application_id: string | null;
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string; applied_at: string | null };

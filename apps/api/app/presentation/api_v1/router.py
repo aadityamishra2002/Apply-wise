@@ -74,6 +74,8 @@ class JobResponse(BaseModel):
     ats_score: int
     ats_breakdown: dict[str, int]
     ats_recommendations: list[str]
+    recommendation_summary: str
+    recommendation_reasons: list[str]
     high_fit: bool
     approval_status: str
     saved: bool = False
@@ -1034,6 +1036,7 @@ async def saved_applications_by_job(session: AsyncSession, user_id: UUID, job_id
 
 
 def job_response(match, ats, approval_status: str = "review_required", application: Application | None = None) -> JobResponse:
+    reasons = recommendation_reasons(match, ats)
     return JobResponse(
         id=str(match.job.id),
         title=match.job.title,
@@ -1052,11 +1055,34 @@ def job_response(match, ats, approval_status: str = "review_required", applicati
         ats_score=ats.score,
         ats_breakdown=ats.breakdown,
         ats_recommendations=list(ats.recommendations),
+        recommendation_summary=reasons[0],
+        recommendation_reasons=reasons,
         high_fit=ats.score >= settings.ats_high_fit_threshold,
         approval_status=approval_status,
         saved=application is not None,
         application_id=str(application.id) if application else None,
     )
+
+
+def recommendation_reasons(match, ats) -> list[str]:
+    reasons: list[str] = []
+    if match.matching_skills:
+        skills = ", ".join(list(match.matching_skills)[:5])
+        reasons.append(f"Matches your resume skills: {skills}.")
+    if ats.score >= settings.ats_high_fit_threshold:
+        reasons.append(f"ATS readiness is {ats.score}%, above the {settings.ats_high_fit_threshold}% review threshold.")
+    elif ats.score >= 65:
+        reasons.append(f"ATS readiness is {ats.score}%, but a few missing keywords may need review.")
+    else:
+        reasons.append(f"ATS readiness is {ats.score}%, so review missing keywords before applying.")
+    if match.missing_skills:
+        missing = ", ".join(list(match.missing_skills)[:4])
+        reasons.append(f"Missing or unverified skills from the job: {missing}.")
+    if match.experience_match >= 95:
+        reasons.append("Seniority appears aligned with your current resume evidence.")
+    else:
+        reasons.append("Seniority may be slightly above the current resume evidence.")
+    return reasons
 
 
 def application_response(application: Application, job: Job) -> ApplicationResponse:
