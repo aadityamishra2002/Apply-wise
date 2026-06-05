@@ -327,6 +327,11 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
         json={"event_type": "autofill_attempted", "metadata": {"filled": [{"field_key": "skills"}], "skipped": []}},
     )
     assert event.status_code == 201
+    prepared = client.post(f"/api/v1/applications/{captured.json()['application_id']}/prepare", headers=headers)
+    assert prepared.status_code == 201
+    downloaded = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/resume-download?format=pdf", headers=extension_headers)
+    assert downloaded.status_code == 200
+    assert downloaded.headers["content-type"] == "application/pdf"
     assert client.get("/api/v1/applications", headers=extension_headers).status_code == 401
     assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
 
