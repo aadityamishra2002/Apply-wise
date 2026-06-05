@@ -5,12 +5,17 @@ h2 { color: #176b5b; font-size: 14px; margin: 16px 0 0; }
 .muted { color: #71807c; line-height: 1.5; }
 label { display: block; color: #53645f; font-size: 11px; font-weight: 700; margin-top: 10px; }
 input, textarea { box-sizing: border-box; width: 100%; margin-top: 5px; border: 1px solid #dce7e2; border-radius: 8px; padding: 9px; font: inherit; }
+input[type="checkbox"] { width: auto; margin: 0 8px 0 0; }
 textarea { min-height: 130px; resize: vertical; }
 button { width: 100%; margin-top: 12px; border: 0; border-radius: 9px; background: #176b5b; color: white; cursor: pointer; font-weight: 700; padding: 10px; }
 button.secondary { background: #e8f4ef; color: #176b5b; }
 #message { color: #65736f; font-size: 12px; line-height: 1.4; }
 ul { margin: 8px 0 0; padding-left: 18px; }
 li { color: #53645f; font-size: 12px; line-height: 1.6; }
-#quality-preview { margin-top: 12px; border: 1px solid #dce7e2; border-radius: 10px; background: white; padding: 10px; }
+#quality-preview, #autofill-preview { margin-top: 12px; border: 1px solid #dce7e2; border-radius: 10px; background: white; padding: 10px; }
 .ready { color: #176b5b; }
 .blocked { color: #a34f3f; }
+.field-card { list-style: none; margin: 8px 0; border: 1px solid #edf0ed; border-radius: 9px; padding: 8px; background: #fbfcfa; }
+.field-card label { display: flex; align-items: flex-start; gap: 2px; margin: 0; color: #23312e; font-size: 12px; }
+.field-card p { margin: 4px 0 0 24px; color: #71807c; font-size: 11px; line-height: 1.4; }
+.warning { color: #a34f3f; }

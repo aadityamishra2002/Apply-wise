@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Apply Wise Job Capture",
-  "version": "0.1.2",
-  "description": "Capture a job page and send it to Apply Wise for resume-aware scoring.",
+  "version": "0.2.0",
+  "description": "Capture job pages, review autofill plans, and fill approved application fields with Apply Wise.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["https://jobsearchautomation-production.up.railway.app/*"],
   "action": {

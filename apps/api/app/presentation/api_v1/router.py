@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.jobs.ats import AtsAnalysisService, AtsWeights
 from app.application.exports.service import ResumeExportService, download_filename
+from app.application.applications.autofill import build_autofill_plan
 from app.application.identity.service import is_expired
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.service import GeminiTailoringService
@@ -148,6 +149,7 @@ class ApplicationEventResponse(BaseModel):
     event_type: str
     from_status: str | None
     to_status: str | None
+    metadata: dict
     occurred_at: str
 
 
@@ -293,6 +295,31 @@ class ProviderHealthResponse(BaseModel):
     status: str
     last_checked_at: str | None
     last_result_count: int | None
+
+
+class AutofillFieldResponse(BaseModel):
+    field_key: str
+    label: str
+    value: str
+    confidence: float
+    source: str
+    sensitive: bool
+    requires_review: bool
+
+
+class AutofillPlanResponse(BaseModel):
+    application_id: str
+    job_title: str
+    company: str
+    target_url: str
+    fields: list[AutofillFieldResponse]
+    warnings: list[str]
+    manual_final_submission_required: bool = True
+
+
+class ExtensionApplicationEventRequest(BaseModel):
+    event_type: str = Field(pattern="^(autofill_previewed|autofill_attempted|resume_upload_attempted)$")
+    metadata: dict = Field(default_factory=dict)
 
 
 async def get_extension_user_id(
@@ -572,7 +599,7 @@ async def capture_extension_job(
     user_id: Annotated[UUID, Depends(get_extension_user_id)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> JobResponse:
-    return await score_and_store_manual_job(session, user_id, payload)
+    return await score_and_store_manual_job(session, user_id, payload, create_application=True)
 
 
 @router.get("/settings/job-preferences", response_model=JobPreferenceResponse)
@@ -838,6 +865,7 @@ async def list_application_events(
             event_type=event.event_type,
             from_status=event.from_status,
             to_status=event.to_status,
+            metadata=event.metadata_ or {},
             occurred_at=event.occurred_at.isoformat(),
         )
         for event in events
@@ -1079,7 +1107,7 @@ def recommendation_reason(skill: str, counts: dict[str, int]) -> str:
     return f"{skill} appears repeatedly in matched roles but is missing from your resume evidence."
 
 
-async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest) -> JobResponse:
+async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest, create_application: bool = False) -> JobResponse:
     profile = await ResumeService(session).get_active(user_id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before capturing a job.")
@@ -1109,9 +1137,96 @@ async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, paylo
         stored_match.ats_recommendations = list(ats.recommendations)
     else:
         session.add(JobMatch(user_id=user_id, job_id=stored_job.id, match_score=match.match_score, matching_skills=list(match.matching_skills), missing_skills=list(match.missing_skills), ats_score=ats.score, ats_breakdown=ats.breakdown, ats_recommendations=list(ats.recommendations)))
+    application = await session.scalar(select(Application).where(Application.user_id == user_id, Application.job_id == stored_job.id))
+    if create_application and not application:
+        application = Application(user_id=user_id, job_id=stored_job.id)
+        session.add(application)
+        await session.flush()
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="extension_job_captured",
+                metadata_={"source_url": payload.url.strip(), "manual_final_submission_required": True},
+            )
+        )
+    elif create_application and application:
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="extension_job_recaptured",
+                metadata_={"source_url": payload.url.strip(), "manual_final_submission_required": True},
+            )
+        )
     await session.commit()
     applications = await saved_applications_by_job(session, user_id, [stored_job.id])
     return job_response(match, ats, stored_match.approval_status if stored_match else "review_required", applications.get(stored_job.id))
+
+
+@router.get("/extension/applications/{application_id}/autofill-plan", response_model=AutofillPlanResponse)
+async def extension_autofill_plan(
+    application_id: UUID,
+    user_id: Annotated[UUID, Depends(get_extension_user_id)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AutofillPlanResponse:
+    row = await session.execute(
+        select(Application, Job, ResumeVersion, CoverLetter)
+        .join(Job, Application.job_id == Job.id)
+        .outerjoin(ResumeVersion, Application.resume_version_id == ResumeVersion.id)
+        .outerjoin(CoverLetter, Application.cover_letter_id == CoverLetter.id)
+        .where(Application.id == application_id, Application.user_id == user_id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job, resume_version, cover_letter = result
+    profile = await ResumeService(session).get_active(user_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before assisted autofill.")
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
+    fields = build_autofill_plan(user=user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter)
+    warnings = [
+        "Review every field before filling. Apply Wise will never submit the application automatically.",
+        "Low-confidence and sensitive fields are unchecked by default in the extension.",
+    ]
+    if not resume_version:
+        warnings.append("Prepare a tailored resume before using resume upload assistance.")
+    if not cover_letter:
+        warnings.append("Prepare a cover letter before filling cover-letter fields.")
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="autofill_previewed",
+            metadata_={"field_count": len(fields), "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    return AutofillPlanResponse(
+        application_id=str(application.id),
+        job_title=job.title,
+        company=job.company,
+        target_url=job.url,
+        fields=[AutofillFieldResponse(**field.__dict__) for field in fields],
+        warnings=warnings,
+    )
+
+
+@router.post("/extension/applications/{application_id}/events", status_code=status.HTTP_201_CREATED)
+async def record_extension_application_event(
+    application_id: UUID,
+    payload: ExtensionApplicationEventRequest,
+    user_id: Annotated[UUID, Depends(get_extension_user_id)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, str]:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user_id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    metadata = dict(payload.metadata)
+    metadata["manual_final_submission_required"] = True
+    session.add(ApplicationEvent(application_id=application.id, event_type=payload.event_type, metadata_=metadata))
+    await session.commit()
+    return {"status": "recorded"}
 
 
 async def saved_applications_by_job(session: AsyncSession, user_id: UUID, job_ids: list[UUID]) -> dict[UUID, Application]:

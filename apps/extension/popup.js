@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("send").addEventListener("click", send);
   document.getElementById("refresh").addEventListener("click", extract);
   document.getElementById("inspect-form").addEventListener("click", inspectForm);
+  document.getElementById("load-autofill").addEventListener("click", loadAutofillPlan);
+  document.getElementById("fill-reviewed").addEventListener("click", fillReviewedFields);
   document.getElementById("unpair").addEventListener("click", unpair);
   for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
@@ -62,7 +64,8 @@ async function send() {
   }, { retries: 2 });
   if (!response.ok) return message(`Capture failed: ${await responseMessage(response)}`);
   const body = await response.json();
-  message(`Captured with a ${body.match_score}% resume match. Open Apply Wise to save or prepare this role.`);
+  if (body.application_id) await chrome.storage.local.set({ lastApplicationId: body.application_id });
+  message(`Captured with a ${body.match_score}% resume match. ${body.application_id ? "You can now load the assisted autofill plan." : "Save this role in Apply Wise before assisted autofill."}`);
 }
 
 async function fetchWithRetry(url, options, { retries = 1, timeoutMs = 12000 } = {}) {
@@ -118,11 +121,86 @@ async function inspectForm() {
   list.replaceChildren();
   for (const field of result) {
     const item = document.createElement("li");
-    item.textContent = `${field.label} (${field.kind})`;
+    item.textContent = `${field.label} (${field.kind})${field.type === "file" ? " - resume upload candidate" : ""}`;
     list.appendChild(item);
   }
   document.getElementById("form-preview").hidden = false;
-  message(result.length ? `Found ${result.length} application fields. Preview them before any future assisted fill.` : "No common application fields were detected on this page.");
+  message(result.length ? `Found ${result.length} application fields. Load an autofill plan when your materials are prepared.` : "No common application fields were detected on this page.");
+}
+
+async function loadAutofillPlan() {
+  const { extensionToken, lastApplicationId } = await chrome.storage.local.get(["extensionToken", "lastApplicationId"]);
+  if (!extensionToken) return message("Pair the extension again from Apply Wise Settings before assisted autofill.");
+  if (!lastApplicationId) return message("Send or save the job first, then prepare materials in Apply Wise before loading autofill.");
+  const response = await fetchWithRetry(`${apiUrl}/extension/applications/${lastApplicationId}/autofill-plan`, {
+    headers: { Authorization: `Bearer ${extensionToken}` },
+  }, { retries: 2 });
+  if (!response.ok) return message(`Could not load autofill plan: ${await responseMessage(response)}`);
+  const plan = await response.json();
+  await chrome.storage.local.set({ autofillPlan: plan });
+  renderAutofillPlan(plan);
+  message(`Loaded ${plan.fields.length} suggested fields for ${plan.company}. Review before filling.`);
+}
+
+function renderAutofillPlan(plan) {
+  const list = document.getElementById("autofill-fields");
+  list.replaceChildren();
+  for (const warning of plan.warnings || []) {
+    const item = document.createElement("li");
+    item.className = "warning";
+    item.textContent = warning;
+    list.appendChild(item);
+  }
+  for (const field of plan.fields) {
+    const item = document.createElement("li");
+    item.className = "field-card";
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.fieldKey = field.field_key;
+    checkbox.checked = Boolean(field.value) && !field.requires_review && field.confidence >= 0.75 && field.field_key !== "resume_file";
+    const title = document.createElement("span");
+    title.textContent = `${field.label} (${Math.round(field.confidence * 100)}% confidence)`;
+    label.append(checkbox, title);
+    const details = document.createElement("p");
+    const preview = field.field_key === "resume_file" ? "Resume upload is handled manually if the browser blocks file attachment." : truncate(field.value, 140);
+    details.textContent = `${preview || "Manual value required"} · Source: ${field.source}${field.sensitive ? " · Sensitive" : ""}${field.requires_review ? " · Needs review" : ""}`;
+    item.append(label, details);
+    list.appendChild(item);
+  }
+  document.getElementById("autofill-preview").hidden = false;
+}
+
+async function fillReviewedFields() {
+  const { extensionToken, autofillPlan } = await chrome.storage.local.get(["extensionToken", "autofillPlan"]);
+  if (!autofillPlan) return message("Load an autofill plan first.");
+  const approvedKeys = [...document.querySelectorAll("#autofill-fields input[type='checkbox']:checked")].map((input) => input.dataset.fieldKey);
+  const approvedFields = autofillPlan.fields.filter((field) => approvedKeys.includes(field.field_key) && field.value);
+  if (!approvedFields.length) return message("Select at least one reviewed field to fill.");
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  let result;
+  try {
+    [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillApplicationFields, args: [approvedFields] });
+  } catch (error) {
+    return message(`Autofill failed on this page: ${error.message}`);
+  }
+  if (extensionToken) {
+    await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/events`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type: "autofill_attempted", metadata: result }),
+    }, { retries: 1 }).catch(() => null);
+    if (result.resumeUploadFields > 0) {
+      await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/events`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "resume_upload_attempted", metadata: { detected_upload_fields: result.resumeUploadFields, direct_upload_supported: false } }),
+      }, { retries: 1 }).catch(() => null);
+    }
+  }
+  const uploadHint = result.resumeUploadFields > 0 ? ` Found ${result.resumeUploadFields} resume upload field(s); download the tailored resume from Apply Wise and attach it manually if needed.` : "";
+  message(`Filled ${result.filled.length} field(s). ${result.skipped.length} skipped for manual review.${uploadHint} Final submission is manual.`);
 }
 
 function showPaired(paired) {
@@ -152,6 +230,10 @@ function captureQuality(payload) {
     { label: "Description has at least 40 characters", ready: payload.description.length >= 40 },
     { label: "Description has useful detail", ready: payload.description.length >= 250 },
   ];
+}
+
+function truncate(value, length) {
+  return value && value.length > length ? `${value.slice(0, length)}...` : value;
 }
 
 function extractPage() {
@@ -279,12 +361,76 @@ function detectApplicationFields() {
       ["location", /location|city|address/],
       ["linkedin", /linkedin/],
       ["portfolio", /portfolio|website|github/],
+      ["skills", /skills?|technologies|tools/],
+      ["work experience", /experience|employment|work.?history/],
+      ["education", /education|degree|college|university/],
+      ["expected salary", /expected.?salary|salary.?expectation|ctc/],
+      ["notice period", /notice.?period|availability|start.?date/],
+      ["current company", /current.?company|employer/],
+      ["current role", /current.?role|current.?title|job.?title/],
       ["work authorization", /authori[sz]|sponsor|visa/],
     ];
     return rules.find(([, pattern]) => pattern.test(haystack))?.[0] ?? null;
   };
   return [...document.querySelectorAll("input, textarea, select")]
-    .map((element) => ({ kind: classify(element), label: element.labels?.[0]?.innerText?.trim() || element.getAttribute("aria-label") || element.placeholder || element.name || element.id || element.type }))
+    .map((element) => ({ kind: element.type === "file" ? "resume upload" : classify(element), label: element.labels?.[0]?.innerText?.trim() || element.getAttribute("aria-label") || element.placeholder || element.name || element.id || element.type, type: element.type || element.tagName.toLowerCase() }))
     .filter((field) => field.kind)
     .slice(0, 30);
+}
+
+function fillApplicationFields(fields) {
+  const aliases = {
+    full_name: [/full.?name|candidate.?name|applicant.?name/],
+    email: [/e-?mail/],
+    phone: [/phone|mobile|telephone/],
+    location: [/location|city|address/],
+    linkedin: [/linkedin/],
+    github: [/github/],
+    portfolio: [/portfolio|website|personal.?site/],
+    work_experience: [/experience|employment|work.?history/],
+    education: [/education|degree|college|university/],
+    skills: [/skills?|technologies|tools/],
+    notice_period: [/notice.?period|availability|start.?date/],
+    expected_salary: [/expected.?salary|salary.?expectation|ctc/],
+    current_company: [/current.?company|employer/],
+    current_role: [/current.?role|current.?title|job.?title/],
+    cover_letter: [/cover.?letter/],
+  };
+  const filled = [];
+  const skipped = [];
+  const elements = [...document.querySelectorAll("input, textarea, select")];
+  const resumeUploadFields = elements.filter((element) => element.type === "file" && /resume|cv|curriculum/i.test(fieldHaystack(element))).length;
+  for (const field of fields) {
+    if (field.field_key === "resume_file") {
+      skipped.push({ field_key: field.field_key, reason: "Browsers do not allow extensions to set local file paths directly." });
+      continue;
+    }
+    const element = elements.find((candidate) => candidate.type !== "file" && (aliases[field.field_key] || []).some((pattern) => pattern.test(fieldHaystack(candidate))));
+    if (!element) {
+      skipped.push({ field_key: field.field_key, reason: "No matching field detected." });
+      continue;
+    }
+    if (element.tagName === "SELECT") {
+      const matched = [...element.options].find((option) => option.textContent?.toLowerCase().includes(String(field.value).toLowerCase()));
+      if (!matched) {
+        skipped.push({ field_key: field.field_key, reason: "Select option needs manual choice." });
+        continue;
+      }
+      element.value = matched.value;
+    } else {
+      element.value = field.value;
+    }
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    filled.push({ field_key: field.field_key, label: field.label });
+  }
+  return { filled, skipped, resumeUploadFields, manualFinalSubmissionRequired: true };
+}
+
+function fieldHaystack(element) {
+  return [
+    element.name, element.id, element.type, element.autocomplete,
+    element.getAttribute("aria-label"), element.placeholder,
+    element.labels?.[0]?.innerText,
+  ].filter(Boolean).join(" ").toLowerCase();
 }
