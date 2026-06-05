@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     ats_formatting_weight: float = 0.15
     ats_parse_readiness_weight: float = 0.15
     ats_high_fit_threshold: int = 80
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_default_requests: int = 240
+    rate_limit_sensitive_requests: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

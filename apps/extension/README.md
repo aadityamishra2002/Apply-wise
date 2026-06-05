@@ -28,4 +28,4 @@ On an employer application page, click **Inspect application form** to preview c
 
 If capture fails, the popup shows the API reason. Common causes are an expired pairing token, no master resume uploaded in Apply Wise, a short or empty description, an invalid URL, or a protected page where the extension cannot read the full job text.
 
-The extraction logic uses adapters for Greenhouse, Lever, and LinkedIn pages with a general heuristic fallback. Review every extracted field because job-page markup can change over time.
+The extraction logic uses adapters for Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and common company career pages with a general heuristic fallback. Review every extracted field because job-page markup can change over time.
