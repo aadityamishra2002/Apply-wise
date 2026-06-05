@@ -15,9 +15,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function pair() {
   const code = document.getElementById("code").value.trim();
-  const response = await fetch(`${apiUrl}/extension/pair`, {
+  const response = await fetchWithRetry(`${apiUrl}/extension/pair`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
-  });
+  }, { retries: 1 });
   if (!response.ok) return message("Pairing failed. Generate a fresh code in Apply Wise Settings.");
   const body = await response.json();
   await chrome.storage.local.set({ extensionToken: body.extension_token });
@@ -55,14 +55,46 @@ async function send() {
   const blocking = quality.filter((item) => !item.ready);
   if (!extensionToken) return message("Pair the extension again from Apply Wise Settings before sending.");
   if (blocking.length) return message(`Capture blocked: ${blocking.map((item) => item.label).join(", ")} need review.`);
-  const response = await fetch(`${apiUrl}/extension/jobs/capture`, {
+  const response = await fetchWithRetry(`${apiUrl}/extension/jobs/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, { retries: 2 });
   if (!response.ok) return message(`Capture failed: ${await responseMessage(response)}`);
   const body = await response.json();
   message(`Captured with a ${body.match_score}% resume match. Open Apply Wise to save or prepare this role.`);
+}
+
+async function fetchWithRetry(url, options, { retries = 1, timeoutMs = 12000 } = {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      if (!shouldRetry(response.status) || attempt === retries) return response;
+      await waitForRetry(response, attempt);
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error;
+      if (attempt === retries) throw error;
+      await waitForRetry(null, attempt);
+    }
+  }
+  throw lastError ?? new Error("Request failed.");
+}
+
+function shouldRetry(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function waitForRetry(response, attempt) {
+  const retryAfter = Number(response?.headers?.get("Retry-After"));
+  const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+    ? Math.min(retryAfter * 1000, 5000)
+    : 500 * 2 ** attempt;
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 async function responseMessage(response) {
@@ -125,11 +157,35 @@ function captureQuality(payload) {
 function extractPage() {
   const text = document.body.innerText;
   const meta = (name) => document.querySelector(`meta[property="${name}"],meta[name="${name}"]`)?.content ?? "";
-  const firstText = (...selectors) => selectors.map((selector) => document.querySelector(selector)?.innerText?.trim()).find(Boolean) ?? "";
+  const clean = (value) => (value ?? "").replace(/\s+/g, " ").trim();
+  const firstText = (...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.innerText)).find(Boolean) ?? "";
+  const firstAttr = (attribute, ...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.getAttribute(attribute))).find(Boolean) ?? "";
+  const jsonLd = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .flatMap((script) => {
+      try {
+        const parsed = JSON.parse(script.textContent || "{}");
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [];
+      }
+    })
+    .find((entry) => entry?.["@type"] === "JobPosting" || entry?.["@type"]?.includes?.("JobPosting"));
+  const jsonLdCompany = typeof jsonLd?.hiringOrganization === "object" ? jsonLd.hiringOrganization.name : "";
+  const jsonLdLocation = Array.isArray(jsonLd?.jobLocation)
+    ? jsonLd.jobLocation.map((item) => item?.address?.addressLocality || item?.address?.addressRegion || item?.address?.addressCountry).filter(Boolean).join(", ")
+    : jsonLd?.jobLocation?.address?.addressLocality || jsonLd?.jobLocation?.address?.addressRegion || jsonLd?.jobLocation?.address?.addressCountry || "";
+  const jsonLdDescription = clean((jsonLd?.description || "").replace(/<[^>]+>/g, " "));
   const heading = document.querySelector("h1")?.innerText?.trim() ?? document.title.split("|")[0].trim();
   const jobLocation = [...document.querySelectorAll("[class*='location'],[data-testid*='location']")].map((node) => node.innerText).find(Boolean) ?? "";
-  const company = meta("og:site_name") || document.querySelector("[class*='company']")?.innerText?.trim() || window.location.hostname;
-  const base = { extractor: "generic", title: heading, company, location: jobLocation, url: window.location.href, description: text.slice(0, 45000) };
+  const company = jsonLdCompany || meta("og:site_name") || document.querySelector("[class*='company']")?.innerText?.trim() || window.location.hostname;
+  const base = {
+    extractor: "generic",
+    title: clean(jsonLd?.title) || clean(heading),
+    company: clean(company),
+    location: clean(jsonLdLocation || jobLocation),
+    url: window.location.href,
+    description: (jsonLdDescription || clean(text)).slice(0, 45000),
+  };
   if (window.location.hostname.includes("greenhouse.io")) return {
     ...base,
     extractor: "Greenhouse",
@@ -153,6 +209,54 @@ function extractPage() {
     company: firstText(".job-details-jobs-unified-top-card__company-name", ".topcard__org-name-link") || company,
     location: firstText(".job-details-jobs-unified-top-card__primary-description-container", ".topcard__flavor--bullet") || jobLocation,
     description: firstText(".jobs-description__content", ".show-more-less-html__markup") || base.description,
+  };
+  if (window.location.hostname.includes("indeed.")) return {
+    ...base,
+    extractor: "Indeed",
+    title: firstText('[data-testid="jobsearch-JobInfoHeader-title"]', ".jobsearch-JobInfoHeader-title", "h1") || base.title,
+    company: firstText('[data-testid="inlineHeader-companyName"]', '[data-company-name="true"]', ".jobsearch-InlineCompanyRating-companyHeader") || base.company,
+    location: firstText('[data-testid="job-location"]', "#jobLocationText", ".jobsearch-JobInfoHeader-subtitle div") || base.location,
+    description: firstText("#jobDescriptionText", '[data-testid="jobsearch-JobComponent-description"]') || base.description,
+  };
+  if (window.location.hostname.includes("naukri.com")) return {
+    ...base,
+    extractor: "Naukri",
+    title: firstText(".styles_jd-header-title__rZwM1", ".jd-header-title", "h1") || base.title,
+    company: firstText(".styles_jd-header-comp-name__MvqAI", ".jd-header-comp-name", ".company-name") || base.company,
+    location: firstText(".styles_jhc__location__W_pVs", ".location", ".locWdth") || base.location,
+    description: firstText(".styles_JDC__dang-inner-html__h0K4t", ".job-desc", ".dang-inner-html") || base.description,
+  };
+  if (window.location.hostname.includes("myworkdayjobs.com")) return {
+    ...base,
+    extractor: "Workday",
+    title: firstText('[data-automation-id="jobPostingHeader"]', "h1") || base.title,
+    company: firstAttr("alt", '[data-automation-id="logo"] img') || base.company,
+    location: firstText('[data-automation-id="locations"]', '[data-automation-id="jobPostingLocation"]') || base.location,
+    description: firstText('[data-automation-id="jobPostingDescription"]', '[data-automation-id="jobDescription"]') || base.description,
+  };
+  if (window.location.hostname.includes("ashbyhq.com")) return {
+    ...base,
+    extractor: "Ashby",
+    title: firstText('[data-testid="posting-title"]', "h1") || base.title,
+    company: firstText('[data-testid="nav-company-name"]', "header") || base.company,
+    location: firstText('[data-testid="posting-location"]', "[class*='location']") || base.location,
+    description: firstText('[data-testid="posting-description"]', "main") || base.description,
+  };
+  if (window.location.hostname.includes("smartrecruiters.com")) return {
+    ...base,
+    extractor: "SmartRecruiters",
+    title: firstText(".job-title", "h1") || base.title,
+    company: firstText(".company-name", "[class*='company']") || base.company,
+    location: firstText(".job-location", "[class*='location']") || base.location,
+    description: firstText(".job-description", "#st-job-description", "main") || base.description,
+  };
+  if (/careers|jobs|workfor|recruiting|boards|jobs\\.ashbyhq|jobvite|icims|bamboohr|workable/.test(window.location.hostname + window.location.pathname)) return {
+    ...base,
+    extractor: "Company career page",
+    title: firstText('[data-testid*="title"]', '[class*="job-title"]', '[class*="posting-title"]', "h1") || base.title,
+    company: firstText('[data-testid*="company"]', '[class*="company"]', "header") || base.company,
+    location: firstText('[data-testid*="location"]', '[class*="location"]', '[class*="job-location"]') || base.location,
+    description: firstText('[data-testid*="description"]', '[class*="description"]', '[class*="job-description"]', '[class*="posting-description"]', "main") || base.description,
   };
   return base;
 }

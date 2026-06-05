@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 3, 2026
+**Last updated:** June 5, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -41,7 +41,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 19. Review a distinct ATS-readiness breakdown and approve or dismiss roles in the `80+` queue.
 20. Review duplicate protection, draft readiness, and the employer-page handoff before manually submitting an application.
 21. Inspect common employer application fields locally from the extension before future assisted autofill.
-22. Capture cleaner Greenhouse, Lever, and LinkedIn job-page details through site-aware extension adapters with a generic fallback.
+22. Capture cleaner Greenhouse, Lever, LinkedIn, Indeed, Naukri, and common company-career job-page details through site-aware extension adapters with a generic fallback.
 23. Change the logged-in account password from Settings and revoke existing refresh sessions.
 24. Review skill recommendations learned from missing skills across matched and approved roles.
 25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
@@ -81,13 +81,29 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Payment checkout, webhook processing, and paid-plan activation are not connected.
-- Additional site-specific extension extractors, assisted autofill, and Playwright application automation remain future work.
+- Assisted autofill, resume-file upload during assisted applications, and Playwright application automation remain future work.
+
+## Pending Work Status
+
+| Item | Status | Notes |
+|---|---|---|
+| Build a real ATS evaluation engine that separately scores keywords, formatting, sections, and parsing quality | Done | Implemented as distinct keyword, section, formatting, and parse-readiness scoring. |
+| Add an `80+` score review queue | Done | High-fit jobs appear in the Jobs page review queue. |
+| Add per-job approval controls before preparing or applying | Done | Jobs can be approved or dismissed before preparation. |
+| Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
+| Add assisted autofill for application forms | Pending | Form inspection exists; filling is intentionally not active yet. |
+| Add resume-file upload support during assisted applications | Pending | Master resume upload exists; application-site file upload support is still deferred. |
+| Add Playwright automation adapters for selected job sites | Pending | No automated external application flow yet. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, and extension capture retries exist; broader backend retry policies remain pending. |
+| Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
+| Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 
 ## Next Delivery Slices
 
-1. Add payment gateway checkout, verified webhooks, and paid-plan activation.
-2. Add additional compliant job provider adapters and deeper remote-role filtering.
-3. Add more site-specific extension extractors and assisted autofill design.
+1. Finish extension-assisted application preparation: safe autofill preview, explicit consent screen, and resume-file upload handling.
+2. Add broader backend retry policies for external provider calls and generation workflows.
+3. Add Playwright automation adapters for selected job sites in dry-run/manual-submit mode.
+4. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
 
 ## Deployment Note
 

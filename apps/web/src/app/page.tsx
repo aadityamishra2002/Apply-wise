@@ -26,7 +26,7 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-3">
             <Link className="hidden text-[13px] font-bold text-[#4d5e5a] sm:block" href="/login">Log in</Link>
-            <Link className="rounded-full bg-[#176b5b] px-4 py-2.5 text-[12px] font-bold text-white transition hover:bg-[#0c4d42]" href="/dashboard">
+            <Link className="rounded-full bg-[#176b5b] px-4 py-2.5 text-[12px] font-bold text-white transition hover:bg-[#0c4d42]" href="/register">
               Start for free
             </Link>
           </div>
@@ -48,7 +48,7 @@ export default function Home() {
               Find the right roles, understand your fit, and create tailored applications with an AI copilot that keeps your search honest and organized.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link className="flex items-center gap-2 rounded-full bg-[#176b5b] px-5 py-3.5 text-[13px] font-bold text-white shadow-md transition hover:bg-[#0c4d42]" href="/dashboard">
+              <Link className="flex items-center gap-2 rounded-full bg-[#176b5b] px-5 py-3.5 text-[13px] font-bold text-white shadow-md transition hover:bg-[#0c4d42]" href="/register">
                 Build my workspace <ArrowRight size={16} />
               </Link>
               <a className="rounded-full border border-[#dce4df] bg-white px-5 py-3.5 text-[13px] font-bold text-[#4c5b57]" href="#how-it-works">
@@ -191,7 +191,7 @@ export default function Home() {
             <p className="mt-2 text-[13px] text-[#b8d3cd]">Start with a resume. Leave with a plan.</p>
           </div>
           <div className="flex flex-col gap-4 sm:items-end">
-            <Link className="flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 text-[13px] font-bold text-[#176b5b]" href="/dashboard">
+            <Link className="flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 text-[13px] font-bold text-[#176b5b]" href="/register">
               Start for free <ArrowRight size={15} />
             </Link>
             <div className="flex flex-wrap gap-4 text-[12px] font-bold text-[#b8d3cd]">
