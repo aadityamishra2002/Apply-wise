@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("inspect-form").addEventListener("click", inspectForm);
   document.getElementById("load-autofill").addEventListener("click", loadAutofillPlan);
   document.getElementById("fill-reviewed").addEventListener("click", fillReviewedFields);
+  document.getElementById("download-resume-pdf").addEventListener("click", () => downloadTailoredResume("pdf"));
+  document.getElementById("download-resume-docx").addEventListener("click", () => downloadTailoredResume("docx"));
   document.getElementById("unpair").addEventListener("click", unpair);
   for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
@@ -201,6 +203,26 @@ async function fillReviewedFields() {
   }
   const uploadHint = result.resumeUploadFields > 0 ? ` Found ${result.resumeUploadFields} resume upload field(s); download the tailored resume from Apply Wise and attach it manually if needed.` : "";
   message(`Filled ${result.filled.length} field(s). ${result.skipped.length} skipped for manual review.${uploadHint} Final submission is manual.`);
+}
+
+async function downloadTailoredResume(format) {
+  const { extensionToken, autofillPlan } = await chrome.storage.local.get(["extensionToken", "autofillPlan"]);
+  if (!extensionToken) return message("Pair the extension again before downloading a tailored resume.");
+  if (!autofillPlan?.application_id) return message("Load an autofill plan first so Apply Wise knows which application resume to download.");
+  const response = await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/resume-download?format=${format}`, {
+    headers: { Authorization: `Bearer ${extensionToken}` },
+  }, { retries: 1, timeoutMs: 20000 });
+  if (!response.ok) return message(`Could not download tailored resume: ${await responseMessage(response)}`);
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `tailored-resume.${format}`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  message(`Downloaded ${filename}. Attach it to the resume upload field manually, then review and submit manually.`);
 }
 
 function showPaired(paired) {

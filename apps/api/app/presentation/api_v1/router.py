@@ -1229,6 +1229,44 @@ async def record_extension_application_event(
     return {"status": "recorded"}
 
 
+@router.get("/extension/applications/{application_id}/resume-download")
+async def extension_download_application_resume(
+    application_id: UUID,
+    user_id: Annotated[UUID, Depends(get_extension_user_id)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    format: str = Query(default="pdf", pattern="^(docx|pdf)$"),
+) -> Response:
+    row = await session.execute(
+        select(Application, Job, ResumeVersion)
+        .join(Job, Application.job_id == Job.id)
+        .join(ResumeVersion, Application.resume_version_id == ResumeVersion.id)
+        .where(Application.id == application_id, Application.user_id == user_id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Prepare a tailored resume before downloading it from the extension.")
+    application, job, version = result
+    if format == "pdf":
+        body = resume_export_service.build_pdf(version, job)
+        media_type = "application/pdf"
+    else:
+        body = resume_export_service.build_docx(version, job)
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="resume_downloaded_for_upload",
+            metadata_={"format": format, "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{download_filename(job, format)}"'},
+    )
+
+
 async def saved_applications_by_job(session: AsyncSession, user_id: UUID, job_ids: list[UUID]) -> dict[UUID, Application]:
     if not job_ids:
         return {}
