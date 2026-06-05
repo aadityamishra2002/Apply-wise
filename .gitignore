@@ -13,3 +13,4 @@ storage/
 *.log
 *.tsbuildinfo
 *.db
+apply-wise-demo/
