@@ -305,6 +305,7 @@ export default function ApplicationsPage() {
                     <div className="rounded-lg bg-[#f6f8f5] p-3 text-[11px] text-[#65736f]" key={event.id}>
                       <p className="font-bold capitalize">{event.event_type.replace("_", " ")}</p>
                       <p className="mt-1">{event.from_status && event.to_status ? `${event.from_status} -> ${event.to_status}` : "Application note updated"}</p>
+                      {eventSummary(event) ? <p className="mt-1 text-[#71807c]">{eventSummary(event)}</p> : null}
                     </div>
                   )) : <p className="text-[12px] text-[#91a09c]">No activity recorded yet.</p>}
                 </div>
@@ -417,6 +418,19 @@ export default function ApplicationsPage() {
       ) : null}
     </AppShell>
   );
+}
+
+function eventSummary(event: ApplicationEvent): string {
+  const metadata = event.metadata ?? {};
+  if (event.event_type === "autofill_previewed") return `Reviewed ${String(metadata.field_count ?? 0)} suggested fields.`;
+  if (event.event_type === "autofill_attempted") {
+    const filled = Array.isArray(metadata.filled) ? metadata.filled.length : 0;
+    const skipped = Array.isArray(metadata.skipped) ? metadata.skipped.length : 0;
+    return `${filled} field(s) filled, ${skipped} left for manual review. Final submission remains manual.`;
+  }
+  if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
+  if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
+  return "";
 }
 
 function WorkflowStep({ label, ready, detail }: { label: string; ready: boolean; detail: string }) {

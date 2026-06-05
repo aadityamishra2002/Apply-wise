@@ -314,6 +314,19 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     )
     assert captured.status_code == 201
     assert captured.json()["source"] == "manual"
+    assert captured.json()["application_id"]
+    plan = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/autofill-plan", headers=extension_headers)
+    assert plan.status_code == 200
+    fields = {field["field_key"]: field for field in plan.json()["fields"]}
+    assert fields["email"]["value"] == "extension-owner@example.com"
+    assert fields["email"]["requires_review"] is True
+    assert fields["skills"]["confidence"] >= 0.75
+    event = client.post(
+        f"/api/v1/extension/applications/{captured.json()['application_id']}/events",
+        headers=extension_headers,
+        json={"event_type": "autofill_attempted", "metadata": {"filled": [{"field_key": "skills"}], "skipped": []}},
+    )
+    assert event.status_code == 201
     assert client.get("/api/v1/applications", headers=extension_headers).status_code == 401
     assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
 

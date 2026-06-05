@@ -1,6 +1,6 @@
 # Apply Wise Chrome Extension MVP
 
-This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It can also inspect common application-form fields locally. It does not autofill forms or submit applications.
+This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It can inspect common application-form fields and fill user-approved fields from an Apply Wise autofill plan. It never submits applications.
 
 ## Install Locally
 
@@ -11,7 +11,7 @@ This unpacked Manifest V3 extension captures a visible job page and sends review
 5. In Apply Wise Settings, generate a one-time pairing code.
 6. Open the extension popup and enter that code.
 
-Pairing codes expire after 10 minutes and can only be used once. The extension receives a capture-only token; it cannot read the user's Apply Wise workspace.
+Pairing codes expire after 10 minutes and can only be used once. The extension receives a scoped token for job capture, autofill planning, and assisted-application audit events. It cannot browse the user's full Apply Wise workspace.
 
 After changing extension files, click **Reload** for the unpacked extension in `chrome://extensions` or `brave://extensions`.
 
@@ -22,9 +22,15 @@ After changing extension files, click **Reload** for the unpacked extension in `
 3. Review the extracted title, company, location, URL, and description.
 4. Review **Capture readiness**. Fix any field marked **Needs review** or click **Re-extract current page** after opening the full job description.
 5. Click **Send to Apply Wise**.
-6. Open Apply Wise job discovery to continue reviewing the role.
+6. Open Apply Wise, prepare the application materials, and review the generated resume and cover letter.
+7. Return to the employer application page, click **Inspect application form**, then click **Load autofill plan**.
+8. Review every suggested field. Sensitive or low-confidence fields are unchecked by default.
+9. Select only the fields you approve and click **Fill reviewed fields**.
+10. Attach the tailored resume manually if the page has a resume upload field, then manually submit only after your own final review.
 
-On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, and work authorization. Detection stays in the browser and does not fill or submit anything.
+On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, GitHub, portfolio, skills, education, salary expectation, notice period, and work authorization.
+
+Autofill is review-gated. Apply Wise only fills fields selected in the popup. It does not click final submit buttons and does not bypass employer-site validation. Browser security prevents extensions from setting a local file path on file inputs, so resume uploads are detected and logged, then shown as a manual attachment step.
 
 If capture fails, the popup shows the API reason. Common causes are an expired pairing token, no master resume uploaded in Apply Wise, a short or empty description, an invalid URL, or a protected page where the extension cannot read the full job text.
 
