@@ -32,7 +32,7 @@ export type JobRecommendation = {
   saved: boolean; application_id: string | null;
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string; applied_at: string | null };
-export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; occurred_at: string };
+export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; metadata: Record<string, unknown>; occurred_at: string };
 export type InterviewRecord = { id: string; interview_round: string; scheduled_at: string; notes: string | null };
 export type AssistedApplicationChecklist = {
   application_id: string;
