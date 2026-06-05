@@ -429,6 +429,7 @@ function eventSummary(event: ApplicationEvent): string {
     return `${filled} field(s) filled, ${skipped} left for manual review. Final submission remains manual.`;
   }
   if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
+  if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";
 }

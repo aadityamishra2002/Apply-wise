@@ -60,7 +60,8 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 38. Request and confirm password resets with one-time tokens and session revocation.
 39. Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.
 40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, and fill only approved fields.
-41. Track extension autofill previews, fill attempts, resume-upload assistance attempts, and captured-job events in the application timeline.
+41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms.
+42. Track extension autofill previews, fill attempts, tailored-resume downloads, resume-upload assistance attempts, and captured-job events in the application timeline.
 
 ## Truthfulness Rules
 
@@ -94,7 +95,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add per-job approval controls before preparing or applying | Done | Jobs can be approved or dismissed before preparation. |
 | Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
 | Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
-| Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields and logs manual upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
+| Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Pending | No automated external application flow yet. |
 | Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, and extension autofill audit events exist; broader backend retry policies remain pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
