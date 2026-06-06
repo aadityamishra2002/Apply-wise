@@ -67,7 +67,17 @@ export type ApplicationAutomationPlan = {
   manual_final_submission_required: boolean;
 };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
-export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
+export type ApplicationMaterials = {
+  application: ApplicationRecord;
+  resume_version_id: string;
+  ats_score: number;
+  resume_content: Record<string, unknown>;
+  cover_letter_id: string;
+  cover_letter: string;
+  provenance: string;
+  generation_status: string;
+  retry_attempts: number;
+};
 export type CoverLetterRecord = { id: string; content: string; created_at: string };
 export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
 export type ResumeExperienceDraft = { title: string; company: string; description: string };

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
+from app.application.retry import RetryPolicy, run_with_retries
 from app.application.resumes.service import ResumeProfile
 from app.infrastructure.db.models import Job
 
@@ -18,22 +19,38 @@ class TailoredMaterials:
     resume_content: dict
     cover_letter: str
     provenance: str
+    generation_status: str
+    retry_attempts: int = 1
 
 
 class GeminiTailoringService:
-    def __init__(self, api_key: str = "", model: str = "gemini-2.5-flash", timeout_seconds: float = 20) -> None:
+    def __init__(
+        self,
+        api_key: str = "",
+        model: str = "gemini-2.5-flash",
+        timeout_seconds: float = 20,
+        retry_policy: RetryPolicy | None = None,
+    ) -> None:
         self._api_key = api_key
         self._model = model
         self._timeout_seconds = timeout_seconds
+        self._retry_policy = retry_policy or RetryPolicy()
 
     def prepare(self, job: Job, profile: ResumeProfile) -> TailoredMaterials:
         fallback = build_fallback_materials(job, profile)
         if not self._api_key:
             return fallback
-        try:
-            generated = self._generate(job, profile)
-        except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError, json.JSONDecodeError):
-            return fallback
+        retryable_errors = (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError, json.JSONDecodeError)
+        result = run_with_retries(lambda: self._generate(job, profile), retryable_errors, self._retry_policy)
+        if result.value is None:
+            return TailoredMaterials(
+                resume_content=fallback.resume_content,
+                cover_letter=fallback.cover_letter,
+                provenance=fallback.provenance,
+                generation_status="fallback_after_retry",
+                retry_attempts=result.attempts,
+            )
+        generated = result.value
         resume_content = dict(fallback.resume_content)
         resume_content["professional_summary"] = generated.professional_summary
         resume_content["draft_type"] = "gemini_evidence_grounded"
@@ -41,6 +58,8 @@ class GeminiTailoringService:
             resume_content=resume_content,
             cover_letter=generated.cover_letter,
             provenance="gemini_evidence_grounded",
+            generation_status="generated",
+            retry_attempts=result.attempts,
         )
 
     def _generate(self, job: Job, profile: ResumeProfile) -> GeneratedDraft:
@@ -86,6 +105,7 @@ def build_fallback_materials(job: Job, profile: ResumeProfile) -> TailoredMateri
         },
         cover_letter=build_cover_letter(job, profile),
         provenance="deterministic_evidence_grounded",
+        generation_status="fallback_no_provider",
     )
 
 

@@ -119,6 +119,7 @@ for item in [
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
     "Download tailored resumes from the extension for manual attachment on employer forms.",
     "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
+    "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

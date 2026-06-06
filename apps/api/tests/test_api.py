@@ -460,6 +460,8 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert body["resume_version_id"]
     assert body["cover_letter_id"]
     assert body["provenance"] == "deterministic_evidence_grounded"
+    assert body["generation_status"] == "fallback_no_provider"
+    assert body["retry_attempts"] == 1
     versions = client.get("/api/v1/resume-versions", headers=headers)
     assert versions.status_code == 200
     assert versions.json()[0]["id"] == body["resume_version_id"]

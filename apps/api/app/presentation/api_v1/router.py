@@ -20,6 +20,7 @@ from app.application.exports.service import ResumeExportService, download_filena
 from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
+from app.application.retry import RetryPolicy
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
@@ -54,6 +55,11 @@ tailoring_service = GeminiTailoringService(
     api_key=settings.gemini_api_key,
     model=settings.gemini_model,
     timeout_seconds=settings.gemini_timeout_seconds,
+    retry_policy=RetryPolicy(
+        max_attempts=settings.gemini_retry_attempts,
+        base_delay_seconds=settings.gemini_retry_base_delay_seconds,
+        max_delay_seconds=settings.gemini_retry_max_delay_seconds,
+    ),
 )
 resume_export_service = ResumeExportService()
 
@@ -186,6 +192,8 @@ class ApplicationMaterialsResponse(BaseModel):
     cover_letter_id: str
     cover_letter: str
     provenance: str
+    generation_status: str
+    retry_attempts: int
 
 
 class CoverLetterResponse(BaseModel):
@@ -1113,6 +1121,8 @@ async def prepare_application(
         cover_letter_id=str(cover_letter.id),
         cover_letter=cover_letter.content,
         provenance=materials.provenance,
+        generation_status=materials.generation_status,
+        retry_attempts=materials.retry_attempts,
     )
 
 
