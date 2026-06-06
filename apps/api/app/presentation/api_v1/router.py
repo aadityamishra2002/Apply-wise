@@ -20,7 +20,7 @@ from app.application.exports.service import ResumeExportService, download_filena
 from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
-from app.application.retry import RetryPolicy
+from app.application.retry import RetryPolicy, run_with_retries
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.quality import find_unsupported_claims
 from app.application.tailoring.service import GeminiTailoringService
@@ -63,6 +63,11 @@ tailoring_service = GeminiTailoringService(
     ),
 )
 resume_export_service = ResumeExportService()
+export_retry_policy = RetryPolicy(
+    max_attempts=settings.export_retry_attempts,
+    base_delay_seconds=settings.export_retry_base_delay_seconds,
+    max_delay_seconds=settings.export_retry_max_delay_seconds,
+)
 
 
 class JobResponse(BaseModel):
@@ -805,12 +810,17 @@ async def download_resume_version(
                 "quality_warnings": quality_warnings,
             },
         )
-    if format == "pdf":
-        body = resume_export_service.build_pdf(version, job)
-        media_type = "application/pdf"
-    else:
-        body = resume_export_service.build_docx(version, job)
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    body, media_type, attempts = build_resume_export(version, job, format)
+    application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.resume_version_id == version.id))
+    if application:
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="resume_export_downloaded",
+                metadata_={"format": format, "retry_attempts": attempts, "manual_final_submission_required": True},
+            )
+        )
+        await session.commit()
     return Response(
         body,
         media_type=media_type,
@@ -1297,6 +1307,22 @@ def automation_capability_response(capability) -> AutomationCapabilityResponse:
     )
 
 
+def build_resume_export(version: ResumeVersion, job: Job, format: str) -> tuple[bytes, str, int]:
+    def operation() -> tuple[bytes, str]:
+        if format == "pdf":
+            return resume_export_service.build_pdf(version, job), "application/pdf"
+        return (
+            resume_export_service.build_docx(version, job),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+    result = run_with_retries(operation, (Exception,), export_retry_policy)
+    if result.value is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not build resume export. Please try again.")
+    body, media_type = result.value
+    return body, media_type, result.attempts
+
+
 def subscription_features(plan: str) -> list[str]:
     if plan in {"owner", "pro"}:
         return ["unlimited_job_discovery", "gemini_tailoring", "resume_exports", "application_tracking", "analytics"]
@@ -1469,17 +1495,12 @@ async def extension_download_application_resume(
     if not result:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Prepare a tailored resume before downloading it from the extension.")
     application, job, version = result
-    if format == "pdf":
-        body = resume_export_service.build_pdf(version, job)
-        media_type = "application/pdf"
-    else:
-        body = resume_export_service.build_docx(version, job)
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    body, media_type, attempts = build_resume_export(version, job, format)
     session.add(
         ApplicationEvent(
             application_id=application.id,
             event_type="resume_downloaded_for_upload",
-            metadata_={"format": format, "manual_final_submission_required": True},
+            metadata_={"format": format, "retry_attempts": attempts, "manual_final_submission_required": True},
         )
     )
     await session.commit()

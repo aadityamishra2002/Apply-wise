@@ -523,6 +523,7 @@ function eventSummary(event: ApplicationEvent): string {
   }
   if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
   if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;
+  if (event.event_type === "resume_export_downloaded") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} exported in ${String(metadata.retry_attempts ?? 1)} attempt(s).`;
   if (event.event_type === "automation_dry_run_planned") return `Dry-run plan created for ${String(metadata.site_key ?? "career site")}.`;
   if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";

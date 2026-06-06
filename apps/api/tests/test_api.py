@@ -474,6 +474,9 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
     assert pdf.content.startswith(b"%PDF")
+    export_events = client.get(f"/api/v1/applications/{application['id']}/events", headers=headers)
+    assert export_events.status_code == 200
+    assert any(event["event_type"] == "resume_export_downloaded" and event["metadata"]["retry_attempts"] == 1 for event in export_events.json())
     version_detail = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}", headers=headers)
     assert version_detail.status_code == 200
     edited_content = dict(version_detail.json()["resume_content"])

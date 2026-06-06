@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     provider_retry_attempts: int = 2
     provider_retry_base_delay_seconds: float = 0.2
     provider_retry_max_delay_seconds: float = 1
+    export_retry_attempts: int = 2
+    export_retry_base_delay_seconds: float = 0.1
+    export_retry_max_delay_seconds: float = 0.5
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 20
