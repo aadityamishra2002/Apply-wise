@@ -617,6 +617,45 @@ def test_application_automation_runs_are_tracked_and_guarded() -> None:
     assert client.post(f"/api/v1/applications/{saved['id']}/automation-runs", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
 
 
+def test_prepare_runs_track_background_material_generation() -> None:
+    token = register_user("prepare-run-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Async Prep Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://jobs.lever.co/example/123",
+            "description": "Build Python and FastAPI services with React dashboards and PostgreSQL.",
+        },
+    )
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers).json()
+    queued = client.post(f"/api/v1/applications/{saved['id']}/prepare-runs", headers=headers)
+    assert queued.status_code == 202
+    assert queued.json()["job_type"] == "prepare_application_materials"
+    assert queued.json()["status"] in {"queued", "running", "succeeded"}
+
+    job = client.get(f"/api/v1/background-jobs/{queued.json()['id']}", headers=headers)
+    assert job.status_code == 200
+    assert job.json()["status"] == "succeeded"
+    assert job.json()["result"]["resume_version_id"]
+    assert job.json()["result"]["cover_letter_id"]
+
+    jobs = client.get(f"/api/v1/applications/{saved['id']}/prepare-runs", headers=headers)
+    assert jobs.status_code == 200
+    assert jobs.json()[0]["id"] == queued.json()["id"]
+    events = client.get(f"/api/v1/applications/{saved['id']}/events", headers=headers).json()
+    assert any(event["event_type"] == "prepare_job_queued" for event in events)
+    assert any(event["event_type"] == "prepare_job_succeeded" for event in events)
+
+    outsider = register_user("prepare-run-outsider@example.com")["tokens"]["access_token"]
+    assert client.get(f"/api/v1/background-jobs/{queued.json()['id']}", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+    assert client.get(f"/api/v1/applications/{saved['id']}/prepare-runs", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+
+
 def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     token = register_user("review-before-apply@example.com")["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

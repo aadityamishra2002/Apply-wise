@@ -7,7 +7,7 @@ from uuid import UUID
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
@@ -27,8 +27,8 @@ from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, AutomationRun, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
-from app.infrastructure.db.session import get_session
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
+from app.infrastructure.db.session import get_session, session_factory
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
 from app.domain.identity.entities import UserRecord
@@ -379,6 +379,19 @@ class AutomationRunResponse(BaseModel):
     manual_final_submission_required: bool
     created_at: str
     updated_at: str
+
+
+class BackgroundJobResponse(BaseModel):
+    id: str
+    job_type: str
+    status: str
+    attempts: int
+    payload: dict
+    result: dict
+    error_message: str | None
+    created_at: str
+    updated_at: str
+    completed_at: str | None
 
 
 class ReviewBeforeApplyResponse(BaseModel):
@@ -1274,30 +1287,98 @@ async def prepare_application(
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ApplicationMaterialsResponse:
+    return await prepare_application_materials(session, application_id, user.id)
+
+
+@router.post("/applications/{application_id}/prepare-runs", response_model=BackgroundJobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def create_prepare_run(
+    application_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BackgroundJobResponse:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    job = BackgroundJob(
+        user_id=user.id,
+        application_id=application.id,
+        job_type="prepare_application_materials",
+        status="queued",
+        payload={"application_id": str(application.id), "manual_final_submission_required": True},
+        result={},
+    )
+    session.add(job)
+    await session.flush()
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="prepare_job_queued",
+            metadata_={"background_job_id": str(job.id), "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    background_tasks.add_task(run_prepare_job, job.id, application.id, user.id)
+    return background_job_response(job)
+
+
+@router.get("/applications/{application_id}/prepare-runs", response_model=list[BackgroundJobResponse])
+async def list_prepare_runs(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[BackgroundJobResponse]:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    jobs = (
+        await session.scalars(
+            select(BackgroundJob)
+            .where(BackgroundJob.application_id == application.id, BackgroundJob.user_id == user.id, BackgroundJob.job_type == "prepare_application_materials")
+            .order_by(BackgroundJob.created_at.desc())
+            .limit(10)
+        )
+    ).all()
+    return [background_job_response(job) for job in jobs]
+
+
+@router.get("/background-jobs/{job_id}", response_model=BackgroundJobResponse)
+async def get_background_job(
+    job_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BackgroundJobResponse:
+    job = await session.scalar(select(BackgroundJob).where(BackgroundJob.id == job_id, BackgroundJob.user_id == user.id))
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Background job not found.")
+    return background_job_response(job)
+
+
+async def prepare_application_materials(session: AsyncSession, application_id: UUID, user_id: UUID) -> ApplicationMaterialsResponse:
     row = await session.execute(
         select(Application, Job)
         .join(Job, Application.job_id == Job.id)
-        .where(Application.id == application_id, Application.user_id == user.id)
+        .where(Application.id == application_id, Application.user_id == user_id)
     )
     result = row.one_or_none()
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job = result
-    profile = await ResumeService(session).get_active(user.id)
+    profile = await ResumeService(session).get_active(user_id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before preparing an application.")
     materials = tailoring_service.prepare(job, profile)
-    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
+    stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user_id, JobMatch.job_id == job.id))
     resume_content = materials.resume_content
     resume_version = ResumeVersion(
-        user_id=user.id,
+        user_id=user_id,
         job_id=job.id,
         master_resume_id=profile.id,
         ats_score=stored_match.ats_score if stored_match else 0,
         resume_content=resume_content,
     )
     cover_letter = CoverLetter(
-        user_id=user.id,
+        user_id=user_id,
         job_id=job.id,
         content=materials.cover_letter,
     )
@@ -1439,6 +1520,71 @@ def automation_run_response(run: AutomationRun) -> AutomationRunResponse:
         created_at=created_at.isoformat(),
         updated_at=updated_at.isoformat(),
     )
+
+
+def background_job_response(job: BackgroundJob) -> BackgroundJobResponse:
+    created_at = job.created_at
+    updated_at = job.updated_at
+    completed_at = job.completed_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    if completed_at and completed_at.tzinfo is None:
+        completed_at = completed_at.replace(tzinfo=timezone.utc)
+    return BackgroundJobResponse(
+        id=str(job.id),
+        job_type=job.job_type,
+        status=job.status,
+        attempts=job.attempts,
+        payload=job.payload or {},
+        result=job.result or {},
+        error_message=job.error_message,
+        created_at=created_at.isoformat(),
+        updated_at=updated_at.isoformat(),
+        completed_at=completed_at.isoformat() if completed_at else None,
+    )
+
+
+async def run_prepare_job(job_id: UUID, application_id: UUID, user_id: UUID) -> None:
+    async with session_factory() as session:
+        job = await session.get(BackgroundJob, job_id)
+        if not job:
+            return
+        job.status = "running"
+        job.attempts += 1
+        job.error_message = None
+        await session.commit()
+        try:
+            materials = await prepare_application_materials(session, application_id, user_id)
+        except Exception as error:
+            await session.rollback()
+            job = await session.get(BackgroundJob, job_id)
+            if job:
+                job.status = "failed"
+                job.error_message = str(error)[:500] or error.__class__.__name__
+                job.completed_at = datetime.now(timezone.utc)
+                session.add(ApplicationEvent(application_id=application_id, event_type="prepare_job_failed", metadata_={"background_job_id": str(job_id)}))
+                await session.commit()
+            return
+        job = await session.get(BackgroundJob, job_id)
+        if job:
+            job.status = "succeeded"
+            job.result = {
+                "resume_version_id": materials.resume_version_id,
+                "cover_letter_id": materials.cover_letter_id,
+                "generation_status": materials.generation_status,
+                "retry_attempts": materials.retry_attempts,
+            }
+            job.completed_at = datetime.now(timezone.utc)
+            session.add(
+                ApplicationEvent(
+                    application_id=application_id,
+                    event_type="prepare_job_succeeded",
+                    metadata_={"background_job_id": str(job_id), "resume_version_id": materials.resume_version_id, "cover_letter_id": materials.cover_letter_id},
+                )
+            )
+            await session.commit()
 
 
 def build_resume_export(version: ResumeVersion, job: Job, format: str) -> tuple[bytes, str, int]:

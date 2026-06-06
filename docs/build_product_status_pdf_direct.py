@@ -126,6 +126,7 @@ for item in [
     "Require explicit confirmation before downloading resumes with unresolved unsupported-claim warnings.",
     "Retry resume export generation and record export download attempts in the application timeline.",
     "Start tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit events.",
+    "Queue material-preparation runs with visible status, attempts, results, and timeline events.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -163,7 +164,7 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Background jobs", "Worker execution for longer AI, search, and export tasks"),
+            ("1", "Dedicated workers", "Celery/Railway worker execution for longer AI, search, and export tasks"),
             ("2", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
             ("3", "Payment activation", "Checkout, verified webhooks, and paid-plan activation after provider approval"),
         ],

@@ -78,6 +78,18 @@ export type AutomationRun = {
   created_at: string;
   updated_at: string;
 };
+export type BackgroundJob = {
+  id: string;
+  job_type: string;
+  status: string;
+  attempts: number;
+  payload: Record<string, unknown>;
+  result: Record<string, unknown>;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
 export type ReviewAutofillField = {
   field_key: string;
   label: string;
@@ -372,6 +384,24 @@ export async function createAutomationRun(applicationId: string, accessToken: st
     throw new Error(body?.detail ?? "Could not start assisted run.");
   }
   return (await response.json()) as AutomationRun;
+}
+
+export async function loadPrepareRuns(applicationId: string, accessToken: string): Promise<BackgroundJob[]> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/prepare-runs`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load preparation runs.");
+  return (await response.json()) as BackgroundJob[];
+}
+
+export async function createPrepareRun(applicationId: string, accessToken: string): Promise<BackgroundJob> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/prepare-runs`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not queue material preparation.");
+  }
+  return (await response.json()) as BackgroundJob;
 }
 
 export async function loadReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {

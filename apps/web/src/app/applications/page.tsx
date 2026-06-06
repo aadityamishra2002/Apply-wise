@@ -18,6 +18,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import {
   createAutomationRun,
+  createPrepareRun,
   createInterview,
   deleteInterview,
   downloadCoverLetter,
@@ -31,6 +32,7 @@ import {
   loadCoverLetter,
   loadInterviews,
   loadReviewBeforeApply,
+  loadPrepareRuns,
   loadResumeVersion,
   prepareApplication,
   saveCoverLetter,
@@ -43,6 +45,7 @@ import {
   type ApplicationRecord,
   type AssistedApplicationChecklist,
   type AutomationRun,
+  type BackgroundJob,
   type CoverLetterRecord,
   type ResumeContentDraft,
   type ResumeVersionDetail,
@@ -68,6 +71,7 @@ export default function ApplicationsPage() {
   const [checklist, setChecklist] = useState<AssistedApplicationChecklist | null>(null);
   const [automationPlan, setAutomationPlan] = useState<ApplicationAutomationPlan | null>(null);
   const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
+  const [prepareRuns, setPrepareRuns] = useState<BackgroundJob[]>([]);
   const [reviewBeforeApply, setReviewBeforeApply] = useState<ReviewBeforeApply | null>(null);
   const [coverLetter, setCoverLetter] = useState<CoverLetterRecord | null>(null);
   const [coverLetterDraft, setCoverLetterDraft] = useState("");
@@ -99,9 +103,10 @@ export default function ApplicationsPage() {
       loadInterviews(application.id, token),
       loadAssistedApplicationChecklist(application.id, token),
     ]);
-    const [loadedAutomationPlan, loadedAutomationRuns] = await Promise.all([
+    const [loadedAutomationPlan, loadedAutomationRuns, loadedPrepareRuns] = await Promise.all([
       loadApplicationAutomationPlan(application.id, token).catch(() => null),
       loadAutomationRuns(application.id, token).catch(() => []),
+      loadPrepareRuns(application.id, token).catch(() => []),
     ]);
     const loadedReviewBeforeApply = await loadReviewBeforeApply(application.id, token).catch(() => null);
     setEvents(loadedEvents);
@@ -109,6 +114,7 @@ export default function ApplicationsPage() {
     setChecklist(loadedChecklist);
     setAutomationPlan(loadedAutomationPlan);
     setAutomationRuns(loadedAutomationRuns);
+    setPrepareRuns(loadedPrepareRuns);
     setReviewBeforeApply(loadedReviewBeforeApply);
     setCoverLetterSaved(false);
     setResumeSaved(false);
@@ -224,6 +230,22 @@ export default function ApplicationsPage() {
   async function markApplied() {
     if (!selected) return;
     await changeStatus(selected.id, "applied");
+  }
+
+  async function queuePrepareRun() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setUpdating(selected.id);
+    try {
+      const run = await createPrepareRun(selected.id, token);
+      const refreshedRuns = await loadPrepareRuns(selected.id, token).catch(() => [run]);
+      setPrepareRuns(refreshedRuns);
+      const refreshedEvents = await loadApplicationEvents(selected.id, token);
+      setEvents(refreshedEvents);
+      await inspect(selected);
+    } finally {
+      setUpdating(null);
+    }
   }
 
   async function startAutomationRun() {
@@ -376,11 +398,28 @@ export default function ApplicationsPage() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void prepare(selected.id)}><WandSparkles size={13} />Prepare materials</button>
+            <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={updating === selected.id} onClick={() => void queuePrepareRun()}><Clock3 size={13} />Queue prepare run</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("docx")}><Download size={13} />Resume DOCX</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("pdf")}><Download size={13} />Resume PDF</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedCoverLetterId} onClick={() => downloadPreparedCoverLetter()}><Download size={13} />Cover letter TXT</button>
             <a className="inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={checklist.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page</a>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f] disabled:opacity-50" disabled={selectedIsApplied || updating === selected.id} onClick={() => void markApplied()}><CheckCircle2 size={13} />Mark applied</button>
+          </div>
+          <div className="mt-4 rounded-xl bg-[#f6f8f5] p-3">
+            <h3 className="text-[12px] font-bold">Preparation run history</h3>
+            <div className="mt-2 space-y-2">
+              {prepareRuns.length ? prepareRuns.slice(0, 3).map((run) => (
+                <div className="rounded-lg bg-white p-3" key={run.id}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold capitalize">{run.status.replaceAll("_", " ")}</p>
+                    <span className="text-[10px] font-bold text-[#71807c]">{run.attempts} attempt{run.attempts === 1 ? "" : "s"}</span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-[#71807c]">{new Date(run.created_at).toLocaleString()}</p>
+                  {typeof run.result.generation_status === "string" ? <p className="mt-1 text-[11px] font-bold text-[#176b5b]">{run.result.generation_status.replaceAll("_", " ")}</p> : null}
+                  {run.error_message ? <p className="mt-1 text-[11px] font-bold text-[#a34f3f]">{run.error_message}</p> : null}
+                </div>
+              )) : <p className="text-[11px] text-[#71807c]">No queued preparation runs yet.</p>}
+            </div>
           </div>
           <p className="mt-3 text-[11px] font-bold text-[#a34f3f]">Manual final submission required. Review every employer field before submitting.</p>
         </section>
@@ -570,6 +609,9 @@ function eventSummary(event: ApplicationEvent): string {
   if (event.event_type === "resume_export_downloaded") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} exported in ${String(metadata.retry_attempts ?? 1)} attempt(s).`;
   if (event.event_type === "automation_dry_run_planned") return `Dry-run plan created for ${String(metadata.site_key ?? "career site")}.`;
   if (event.event_type === "automation_run_created") return `Assisted run ${String(metadata.run_status ?? "created")} for ${String(metadata.site_key ?? "career site")} with ${String(metadata.warning_count ?? 0)} warning(s).`;
+  if (event.event_type === "prepare_job_queued") return `Material preparation job queued: ${String(metadata.background_job_id ?? "")}.`;
+  if (event.event_type === "prepare_job_succeeded") return "Queued material preparation completed successfully.";
+  if (event.event_type === "prepare_job_failed") return "Queued material preparation failed; retry from the workflow panel.";
   if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";

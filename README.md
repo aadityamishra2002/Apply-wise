@@ -35,6 +35,7 @@ The maintained product guide is available in two formats:
 - Dry-run automation adapter registry for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages
 - Application-level dry-run plans with per-site capability flags and a hard stop before final submit
 - Tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit timeline events
+- Queued material-preparation run tracking with visible status, attempts, results, and timeline events
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
@@ -120,7 +121,7 @@ For the current beta push, changes are going directly to `main` after local test
 
 ## Next Changes
 
-1. Background-worker execution for longer AI/search/export tasks
+1. Dedicated Celery/Railway worker execution for longer AI/search/export tasks
 2. Real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review
 3. Payment gateway checkout, webhook verification, and paid-plan activation after provider approval
 
