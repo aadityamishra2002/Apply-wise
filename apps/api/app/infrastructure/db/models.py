@@ -270,6 +270,22 @@ class ApplicationEvent(Base):
     application: Mapped[Application] = relationship(back_populates="events")
 
 
+class AutomationRun(Base):
+    __tablename__ = "automation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    application_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("applications.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    site_key: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="planned", index=True)
+    current_step: Mapped[str | None] = mapped_column(String(120))
+    warnings: Mapped[list] = mapped_column(JSON_TYPE, default=list)
+    result: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    manual_final_submission_required: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
 class Interview(Base):
     __tablename__ = "interviews"
 

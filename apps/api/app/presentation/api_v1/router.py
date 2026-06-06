@@ -27,7 +27,7 @@ from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
+from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, AutomationRun, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
 from app.infrastructure.db.session import get_session
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
@@ -366,6 +366,19 @@ class ApplicationAutomationPlanResponse(BaseModel):
     steps: list[AutomationDryRunStepResponse]
     warnings: list[str]
     manual_final_submission_required: bool = True
+
+
+class AutomationRunResponse(BaseModel):
+    id: str
+    application_id: str
+    site_key: str
+    status: str
+    current_step: str | None
+    warnings: list[str]
+    result: dict
+    manual_final_submission_required: bool
+    created_at: str
+    updated_at: str
 
 
 class ReviewBeforeApplyResponse(BaseModel):
@@ -1032,6 +1045,91 @@ async def application_automation_plan(
     )
 
 
+@router.get("/applications/{application_id}/automation-runs", response_model=list[AutomationRunResponse])
+async def list_application_automation_runs(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[AutomationRunResponse]:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    runs = (
+        await session.scalars(
+            select(AutomationRun)
+            .where(AutomationRun.application_id == application.id, AutomationRun.user_id == user.id)
+            .order_by(AutomationRun.created_at.desc())
+            .limit(10)
+        )
+    ).all()
+    return [automation_run_response(run) for run in runs]
+
+
+@router.post("/applications/{application_id}/automation-runs", response_model=AutomationRunResponse, status_code=status.HTTP_201_CREATED)
+async def create_application_automation_run(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AutomationRunResponse:
+    row = await session.execute(
+        select(Application, Job, ResumeVersion, CoverLetter)
+        .join(Job, Application.job_id == Job.id)
+        .outerjoin(ResumeVersion, Application.resume_version_id == ResumeVersion.id)
+        .outerjoin(CoverLetter, Application.cover_letter_id == CoverLetter.id)
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job, resume_version, cover_letter = result
+    profile = await ResumeService(session).get_active(user.id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before starting an assisted run.")
+    capability = capability_for_url(job.url)
+    quality_warnings = [
+        warning.message
+        for warning in find_unsupported_claims(
+            resume_version.resume_content if resume_version else None,
+            cover_letter.content if cover_letter else None,
+            profile,
+        )
+    ]
+    warnings = automation_run_warnings(application, capability, quality_warnings)
+    blocked = bool(warnings)
+    run = AutomationRun(
+        application_id=application.id,
+        user_id=user.id,
+        site_key=capability.site_key,
+        status="blocked" if blocked else "ready_for_user_review",
+        current_step="resolve_readiness_warnings" if blocked else "open_employer_page",
+        warnings=warnings,
+        result={
+            "target_url": job.url,
+            "capability": capability.site_key,
+            "quality_warning_count": len(quality_warnings),
+            "next_action": "Resolve warnings before assisted autofill." if blocked else "Open the employer page and use the reviewed extension autofill flow.",
+        },
+        manual_final_submission_required=True,
+    )
+    session.add_all(
+        [
+            run,
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="automation_run_created",
+                metadata_={
+                    "run_status": run.status,
+                    "site_key": capability.site_key,
+                    "warning_count": len(warnings),
+                    "manual_final_submission_required": True,
+                },
+            ),
+        ]
+    )
+    await session.commit()
+    return automation_run_response(run)
+
+
 @router.get("/applications/{application_id}/review-before-apply", response_model=ReviewBeforeApplyResponse)
 async def review_before_apply(
     application_id: UUID,
@@ -1304,6 +1402,42 @@ def automation_capability_response(capability) -> AutomationCapabilityResponse:
         resume_upload_supported=capability.resume_upload_supported,
         dry_run_supported=capability.dry_run_supported,
         manual_submit_required=capability.manual_submit_required,
+    )
+
+
+def automation_run_warnings(application: Application, capability, quality_warnings: list[str]) -> list[str]:
+    warnings: list[str] = []
+    if not capability.dry_run_supported:
+        warnings.append("This site does not currently support assisted dry-run automation.")
+    if not capability.autofill_supported:
+        warnings.append("This site requires manual form entry because assisted autofill is not supported yet.")
+    if not application.resume_version_id:
+        warnings.append("Prepare a tailored resume before starting an assisted run.")
+    if not application.cover_letter_id:
+        warnings.append("Prepare a cover letter before starting an assisted run.")
+    if quality_warnings:
+        warnings.append("Review unsupported generated claims before using assisted application support.")
+    return warnings
+
+
+def automation_run_response(run: AutomationRun) -> AutomationRunResponse:
+    created_at = run.created_at
+    updated_at = run.updated_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return AutomationRunResponse(
+        id=str(run.id),
+        application_id=str(run.application_id),
+        site_key=run.site_key,
+        status=run.status,
+        current_step=run.current_step,
+        warnings=[str(warning) for warning in (run.warnings or [])],
+        result=run.result or {},
+        manual_final_submission_required=run.manual_final_submission_required,
+        created_at=created_at.isoformat(),
+        updated_at=updated_at.isoformat(),
     )
 
 

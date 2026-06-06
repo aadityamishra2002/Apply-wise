@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 5, 2026
+**Last updated:** June 6, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -69,6 +69,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 47. Retry transient job-provider failures with configurable backoff and show sanitized retry/error status in provider health.
 48. Require explicit confirmation before downloading a tailored resume with unresolved unsupported-claim warnings.
 49. Retry resume export generation and record export download attempts in the application timeline.
+50. Start and review tracked assisted-application dry-run records with blocked/ready status, warnings, next action, and audit timeline events.
 
 ## Truthfulness Rules
 
@@ -103,14 +104,14 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
 | Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
 | Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
-| Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities and application plans exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages. Real browser-control execution is still deferred. |
-| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, Gemini generation retries, provider retries, and export retries exist; background job retry visibility remains pending. |
+| Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities, application plans, and tracked assisted-run records exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages. Real browser-control execution is still deferred. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, Gemini generation retries, provider retries, export retries, and assisted-run status tracking exist; background worker execution remains pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 
 ## Next Delivery Slices
 
-1. Add long-running job status tracking.
+1. Add background-worker execution for longer AI/search/export tasks.
 2. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
 3. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
 

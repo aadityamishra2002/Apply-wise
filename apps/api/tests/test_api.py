@@ -577,6 +577,46 @@ def test_application_automation_plan_is_dry_run_and_owner_scoped() -> None:
     assert client.get(f"/api/v1/applications/{saved['id']}/automation-plan", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
 
 
+def test_application_automation_runs_are_tracked_and_guarded() -> None:
+    token = register_user("automation-run-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Greenhouse Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://boards.greenhouse.io/example/jobs/123",
+            "description": "Build Python and FastAPI services with React dashboards and PostgreSQL.",
+        },
+    )
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers).json()
+    blocked = client.post(f"/api/v1/applications/{saved['id']}/automation-runs", headers=headers)
+    assert blocked.status_code == 201
+    assert blocked.json()["status"] == "blocked"
+    assert "Prepare a tailored resume" in " ".join(blocked.json()["warnings"])
+    assert blocked.json()["manual_final_submission_required"] is True
+
+    runs = client.get(f"/api/v1/applications/{saved['id']}/automation-runs", headers=headers)
+    assert runs.status_code == 200
+    assert runs.json()[0]["id"] == blocked.json()["id"]
+
+    assert client.post(f"/api/v1/applications/{saved['id']}/prepare", headers=headers).status_code == 201
+    ready = client.post(f"/api/v1/applications/{saved['id']}/automation-runs", headers=headers)
+    assert ready.status_code == 201
+    assert ready.json()["status"] == "ready_for_user_review"
+    assert ready.json()["warnings"] == []
+    assert ready.json()["result"]["next_action"].startswith("Open the employer page")
+
+    events = client.get(f"/api/v1/applications/{saved['id']}/events", headers=headers).json()
+    assert any(event["event_type"] == "automation_run_created" for event in events)
+    outsider = register_user("automation-run-outsider@example.com")["tokens"]["access_token"]
+    assert client.get(f"/api/v1/applications/{saved['id']}/automation-runs", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+    assert client.post(f"/api/v1/applications/{saved['id']}/automation-runs", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+
+
 def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     token = register_user("review-before-apply@example.com")["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

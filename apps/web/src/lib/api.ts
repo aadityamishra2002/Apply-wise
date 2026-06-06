@@ -66,6 +66,18 @@ export type ApplicationAutomationPlan = {
   warnings: string[];
   manual_final_submission_required: boolean;
 };
+export type AutomationRun = {
+  id: string;
+  application_id: string;
+  site_key: string;
+  status: string;
+  current_step: string | null;
+  warnings: string[];
+  result: Record<string, unknown>;
+  manual_final_submission_required: boolean;
+  created_at: string;
+  updated_at: string;
+};
 export type ReviewAutofillField = {
   field_key: string;
   label: string;
@@ -342,6 +354,24 @@ export async function loadApplicationAutomationPlan(applicationId: string, acces
   const response = await fetch(`${apiUrl}/applications/${applicationId}/automation-plan`, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) throw new Error("Could not load automation plan.");
   return (await response.json()) as ApplicationAutomationPlan;
+}
+
+export async function loadAutomationRuns(applicationId: string, accessToken: string): Promise<AutomationRun[]> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/automation-runs`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load assisted run history.");
+  return (await response.json()) as AutomationRun[];
+}
+
+export async function createAutomationRun(applicationId: string, accessToken: string): Promise<AutomationRun> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/automation-runs`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not start assisted run.");
+  }
+  return (await response.json()) as AutomationRun;
 }
 
 export async function loadReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {

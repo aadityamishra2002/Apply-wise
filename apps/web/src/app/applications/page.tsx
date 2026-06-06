@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import {
+  createAutomationRun,
   createInterview,
   deleteInterview,
   downloadCoverLetter,
@@ -26,6 +27,7 @@ import {
   loadApplicationAutomationPlan,
   loadApplications,
   loadAssistedApplicationChecklist,
+  loadAutomationRuns,
   loadCoverLetter,
   loadInterviews,
   loadReviewBeforeApply,
@@ -40,6 +42,7 @@ import {
   type ApplicationMaterials,
   type ApplicationRecord,
   type AssistedApplicationChecklist,
+  type AutomationRun,
   type CoverLetterRecord,
   type ResumeContentDraft,
   type ResumeVersionDetail,
@@ -64,6 +67,7 @@ export default function ApplicationsPage() {
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<AssistedApplicationChecklist | null>(null);
   const [automationPlan, setAutomationPlan] = useState<ApplicationAutomationPlan | null>(null);
+  const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
   const [reviewBeforeApply, setReviewBeforeApply] = useState<ReviewBeforeApply | null>(null);
   const [coverLetter, setCoverLetter] = useState<CoverLetterRecord | null>(null);
   const [coverLetterDraft, setCoverLetterDraft] = useState("");
@@ -95,12 +99,16 @@ export default function ApplicationsPage() {
       loadInterviews(application.id, token),
       loadAssistedApplicationChecklist(application.id, token),
     ]);
-    const loadedAutomationPlan = await loadApplicationAutomationPlan(application.id, token).catch(() => null);
+    const [loadedAutomationPlan, loadedAutomationRuns] = await Promise.all([
+      loadApplicationAutomationPlan(application.id, token).catch(() => null),
+      loadAutomationRuns(application.id, token).catch(() => []),
+    ]);
     const loadedReviewBeforeApply = await loadReviewBeforeApply(application.id, token).catch(() => null);
     setEvents(loadedEvents);
     setInterviews(loadedInterviews);
     setChecklist(loadedChecklist);
     setAutomationPlan(loadedAutomationPlan);
+    setAutomationRuns(loadedAutomationRuns);
     setReviewBeforeApply(loadedReviewBeforeApply);
     setCoverLetterSaved(false);
     setResumeSaved(false);
@@ -216,6 +224,20 @@ export default function ApplicationsPage() {
   async function markApplied() {
     if (!selected) return;
     await changeStatus(selected.id, "applied");
+  }
+
+  async function startAutomationRun() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setUpdating(selected.id);
+    try {
+      const run = await createAutomationRun(selected.id, token);
+      setAutomationRuns((current) => [run, ...current].slice(0, 10));
+      const refreshedEvents = await loadApplicationEvents(selected.id, token);
+      setEvents(refreshedEvents);
+    } finally {
+      setUpdating(null);
+    }
   }
 
   function downloadPrepared(format: "docx" | "pdf") {
@@ -437,6 +459,28 @@ export default function ApplicationsPage() {
             ))}
           </div>
           {automationPlan.warnings.length ? <div className="mt-4 space-y-1">{automationPlan.warnings.map((warning) => <p className="text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}</div> : null}
+          <div className="mt-4 border-t border-[#edf0ed] pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-[13px] font-bold">Assisted run tracking</h3>
+                <p className="mt-1 text-[11px] leading-5 text-[#71807c]">Creates an auditable dry-run record. It blocks on missing materials, unsupported adapters, or quality warnings.</p>
+              </div>
+              <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void startAutomationRun()}>Start assisted dry run</button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {automationRuns.length ? automationRuns.map((run) => (
+                <div className="rounded-xl bg-[#f6f8f5] p-3" key={run.id}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[12px] font-bold capitalize">{run.status.replaceAll("_", " ")}</p>
+                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-[#176b5b]">{run.site_key}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-[#71807c]">Step: {run.current_step?.replaceAll("_", " ") ?? "Not started"} / {new Date(run.created_at).toLocaleString()}</p>
+                  {typeof run.result.next_action === "string" ? <p className="mt-1 text-[11px] font-bold text-[#176b5b]">{run.result.next_action}</p> : null}
+                  {run.warnings.length ? <div className="mt-2 space-y-1">{run.warnings.map((warning) => <p className="text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}</div> : null}
+                </div>
+              )) : <p className="rounded-xl bg-[#f6f8f5] p-3 text-[11px] text-[#71807c]">No assisted runs recorded yet.</p>}
+            </div>
+          </div>
         </section>
         </>
       ) : null}
@@ -525,6 +569,7 @@ function eventSummary(event: ApplicationEvent): string {
   if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;
   if (event.event_type === "resume_export_downloaded") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} exported in ${String(metadata.retry_attempts ?? 1)} attempt(s).`;
   if (event.event_type === "automation_dry_run_planned") return `Dry-run plan created for ${String(metadata.site_key ?? "career site")}.`;
+  if (event.event_type === "automation_run_created") return `Assisted run ${String(metadata.run_status ?? "created")} for ${String(metadata.site_key ?? "career site")} with ${String(metadata.warning_count ?? 0)} warning(s).`;
   if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";
