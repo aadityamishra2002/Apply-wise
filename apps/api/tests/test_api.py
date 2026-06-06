@@ -616,6 +616,11 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     assert warned_review.status_code == 200
     assert any("Kubernetes" in warning for warning in warned_review.json()["quality_warnings"])
     assert any("Acme Corp" in warning for warning in warned_review.json()["quality_warnings"])
+    blocked_download = client.get(f"/api/v1/resume-versions/{version_id}/download?format=pdf", headers=headers)
+    assert blocked_download.status_code == 409
+    assert "quality_warnings" in blocked_download.json()["detail"]
+    acknowledged_download = client.get(f"/api/v1/resume-versions/{version_id}/download?format=pdf&acknowledge_quality_warnings=true", headers=headers)
+    assert acknowledged_download.status_code == 200
 
     outsider = register_user("review-outsider@example.com")["tokens"]["access_token"]
     assert client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404

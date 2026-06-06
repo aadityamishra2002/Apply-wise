@@ -193,11 +193,19 @@ export async function saveResumeVersion(versionId: string, resumeContent: Resume
   return (await response.json()) as ResumeVersionDetail;
 }
 
-export async function downloadResumeVersion(versionId: string, format: "docx" | "pdf", accessToken: string): Promise<void> {
-  const response = await fetch(`${apiUrl}/resume-versions/${versionId}/download?format=${format}`, {
+export async function downloadResumeVersion(versionId: string, format: "docx" | "pdf", accessToken: string, acknowledgeQualityWarnings = false): Promise<void> {
+  const params = new URLSearchParams({ format, acknowledge_quality_warnings: String(acknowledgeQualityWarnings) });
+  const response = await fetch(`${apiUrl}/resume-versions/${versionId}/download?${params.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok) throw new Error("Could not download this resume version.");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const detail = body?.detail;
+    if (typeof detail?.message === "string" && Array.isArray(detail.quality_warnings)) {
+      throw new Error(`${detail.message}\n${detail.quality_warnings.join("\n")}`);
+    }
+    throw new Error("Could not download this resume version.");
+  }
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `tailored-resume.${format}`;
   const url = URL.createObjectURL(await response.blob());

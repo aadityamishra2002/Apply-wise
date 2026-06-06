@@ -793,8 +793,18 @@ async def download_resume_version(
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
     format: Annotated[str, Query(pattern="^(docx|pdf)$")] = "docx",
+    acknowledge_quality_warnings: bool = False,
 ) -> Response:
     version, job = await get_owned_resume_version_row(session, version_id, user.id)
+    quality_warnings = await quality_warnings_for_resume_version(session, version, user.id)
+    if quality_warnings and not acknowledge_quality_warnings:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Review and acknowledge unsupported-claim warnings before downloading this resume.",
+                "quality_warnings": quality_warnings,
+            },
+        )
     if format == "pdf":
         body = resume_export_service.build_pdf(version, job)
         media_type = "application/pdf"
@@ -1311,6 +1321,13 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
         seen.add(normalized)
         result.append(value)
     return result
+
+
+async def quality_warnings_for_resume_version(session: AsyncSession, version: ResumeVersion, user_id: UUID) -> list[str]:
+    profile = await ResumeService(session).get_active(user_id)
+    if not profile:
+        return []
+    return [warning.message for warning in find_unsupported_claims(version.resume_content, None, profile)]
 
 
 async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest, create_application: bool = False) -> JobResponse:

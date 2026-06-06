@@ -67,6 +67,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 45. Use a consolidated "Review Before Applying" panel with materials readiness, autofill confidence, manual-attention fields, warnings, and no-auto-submit guardrails.
 46. Flag unsupported generated claims for skills, companies, titles, and metrics against the uploaded master resume before applying.
 47. Retry transient job-provider failures with configurable backoff and show sanitized retry/error status in provider health.
+48. Require explicit confirmation before downloading a tailored resume with unresolved unsupported-claim warnings.
 
 ## Truthfulness Rules
 
@@ -110,7 +111,7 @@ Generated application drafts use stored resume evidence only. The current implem
 
 1. Add broader retry visibility for exports and long-running jobs.
 2. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
-3. Add stronger download-time blocking or confirmation for unresolved unsupported-claim warnings.
+3. Add export retry visibility and long-running job status tracking.
 4. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
 
 ## Deployment Note

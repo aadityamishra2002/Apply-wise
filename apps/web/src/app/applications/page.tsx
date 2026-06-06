@@ -221,7 +221,13 @@ export default function ApplicationsPage() {
   function downloadPrepared(format: "docx" | "pdf") {
     const token = getAccessToken();
     const versionId = materials?.resume_version_id ?? checklist?.resume_version_id;
-    if (token && versionId) void downloadResumeVersion(versionId, format, token);
+    if (!token || !versionId) return;
+    const warnings = reviewBeforeApply?.quality_warnings ?? [];
+    const acknowledged = warnings.length
+      ? window.confirm(`This resume has unsupported-claim warnings:\n\n${warnings.join("\n")}\n\nDownload anyway after reviewing?`)
+      : false;
+    if (warnings.length && !acknowledged) return;
+    void downloadResumeVersion(versionId, format, token, acknowledged);
   }
 
   function downloadPreparedCoverLetter() {
