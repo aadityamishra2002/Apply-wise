@@ -394,6 +394,12 @@ export default function ApplicationsPage() {
                 <div className="mt-2 space-y-2">
                   {reviewBeforeApply.missing_fields.length ? reviewBeforeApply.missing_fields.map((field) => <p className="rounded-xl bg-[#fff4ef] p-3 text-[11px] font-bold text-[#a34f3f]" key={field}>{field}</p>) : <p className="rounded-xl bg-[#e8f4ef] p-3 text-[11px] font-bold text-[#176b5b]">No missing review fields detected.</p>}
                 </div>
+                {reviewBeforeApply.quality_warnings.length ? <>
+                  <h3 className="mt-4 text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Unsupported claim warnings</h3>
+                  <div className="mt-2 space-y-2">
+                    {reviewBeforeApply.quality_warnings.map((warning) => <p className="rounded-xl bg-[#fff4ef] p-3 text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}
+                  </div>
+                </> : null}
                 <div className="mt-3 space-y-1">
                   {reviewBeforeApply.warnings.map((warning) => <p className="text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}
                 </div>

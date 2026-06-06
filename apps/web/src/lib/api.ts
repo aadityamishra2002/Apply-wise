@@ -84,6 +84,7 @@ export type ReviewBeforeApply = {
   cover_letter_prepared: boolean;
   autofill_fields: ReviewAutofillField[];
   missing_fields: string[];
+  quality_warnings: string[];
   warnings: string[];
   manual_final_submission_required: boolean;
 };

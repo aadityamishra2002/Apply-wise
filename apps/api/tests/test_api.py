@@ -603,6 +603,19 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     assert prepared_review.json()["resume_prepared"] is True
     assert prepared_review.json()["cover_letter_prepared"] is True
     assert "Tailored resume" not in prepared_review.json()["missing_fields"]
+    version_id = client.get(f"/api/v1/applications/{saved['id']}/assisted-checklist", headers=headers).json()["resume_version_id"]
+    version = client.get(f"/api/v1/resume-versions/{version_id}", headers=headers).json()
+    edited_content = dict(version["resume_content"])
+    edited_content["skills"] = [*edited_content["skills"], "Kubernetes"]
+    edited_content["experience"] = [
+        *edited_content["experience"],
+        {"title": "Principal Engineer", "company": "Acme Corp", "description": "Improved reliability by 45%."},
+    ]
+    assert client.patch(f"/api/v1/resume-versions/{version_id}", headers=headers, json={"resume_content": edited_content}).status_code == 200
+    warned_review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
+    assert warned_review.status_code == 200
+    assert any("Kubernetes" in warning for warning in warned_review.json()["quality_warnings"])
+    assert any("Acme Corp" in warning for warning in warned_review.json()["quality_warnings"])
 
     outsider = register_user("review-outsider@example.com")["tokens"]["access_token"]
     assert client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404

@@ -22,6 +22,7 @@ from app.application.automation.adapters import build_dry_run_steps, capability_
 from app.application.identity.service import is_expired
 from app.application.retry import RetryPolicy
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
+from app.application.tailoring.quality import find_unsupported_claims
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
@@ -369,6 +370,7 @@ class ReviewBeforeApplyResponse(BaseModel):
     cover_letter_prepared: bool
     autofill_fields: list[AutofillFieldResponse]
     missing_fields: list[str]
+    quality_warnings: list[str]
     warnings: list[str]
     manual_final_submission_required: bool = True
 
@@ -1030,6 +1032,14 @@ async def review_before_apply(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
     fields = build_autofill_plan(user=db_user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter)
+    quality_warnings = [
+        warning.message
+        for warning in find_unsupported_claims(
+            resume_version.resume_content if resume_version else None,
+            cover_letter.content if cover_letter else None,
+            profile,
+        )
+    ]
     missing_fields = [field.label for field in fields if not field.value or field.requires_review or field.confidence < 0.75]
     if not resume_version:
         missing_fields.append("Tailored resume")
@@ -1041,11 +1051,13 @@ async def review_before_apply(
     ]
     if missing_fields:
         warnings.append("Some fields need manual confirmation before employer-page submission.")
+    if quality_warnings:
+        warnings.append("Unsupported generated claims need review before download or employer submission.")
     session.add(
         ApplicationEvent(
             application_id=application.id,
             event_type="review_before_apply_opened",
-            metadata_={"missing_field_count": len(missing_fields), "manual_final_submission_required": True},
+            metadata_={"missing_field_count": len(missing_fields), "quality_warning_count": len(quality_warnings), "manual_final_submission_required": True},
         )
     )
     await session.commit()
@@ -1058,6 +1070,7 @@ async def review_before_apply(
         cover_letter_prepared=cover_letter is not None,
         autofill_fields=[AutofillFieldResponse(**field.__dict__) for field in fields],
         missing_fields=dedupe_preserve_order(missing_fields),
+        quality_warnings=quality_warnings,
         warnings=warnings,
     )
 
