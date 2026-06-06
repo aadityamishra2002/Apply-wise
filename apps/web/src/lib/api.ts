@@ -404,6 +404,18 @@ export async function createPrepareRun(applicationId: string, accessToken: strin
   return (await response.json()) as BackgroundJob;
 }
 
+export async function retryBackgroundJob(jobId: string, accessToken: string): Promise<BackgroundJob> {
+  const response = await fetch(`${apiUrl}/background-jobs/${jobId}/retry`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not retry this background job.");
+  }
+  return (await response.json()) as BackgroundJob;
+}
+
 export async function loadReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {
   const response = await fetch(`${apiUrl}/applications/${applicationId}/review-before-apply`, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) throw new Error("Could not load review before applying.");

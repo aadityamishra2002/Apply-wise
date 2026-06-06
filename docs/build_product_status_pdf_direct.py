@@ -126,7 +126,7 @@ for item in [
     "Require explicit confirmation before downloading resumes with unresolved unsupported-claim warnings.",
     "Retry resume export generation and record export download attempts in the application timeline.",
     "Start tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit events.",
-    "Queue material-preparation runs with visible status, attempts, results, and timeline events.",
+    "Queue material-preparation runs with visible status, attempts, results, failed-run retry controls, and timeline events.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

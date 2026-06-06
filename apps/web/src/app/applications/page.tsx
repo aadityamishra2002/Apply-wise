@@ -35,6 +35,7 @@ import {
   loadPrepareRuns,
   loadResumeVersion,
   prepareApplication,
+  retryBackgroundJob,
   saveCoverLetter,
   saveResumeVersion,
   updateApplication,
@@ -248,6 +249,22 @@ export default function ApplicationsPage() {
     }
   }
 
+  async function retryPrepareRun(jobId: string) {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setUpdating(selected.id);
+    try {
+      await retryBackgroundJob(jobId, token);
+      const refreshedRuns = await loadPrepareRuns(selected.id, token);
+      setPrepareRuns(refreshedRuns);
+      const refreshedEvents = await loadApplicationEvents(selected.id, token);
+      setEvents(refreshedEvents);
+      await inspect(selected);
+    } finally {
+      setUpdating(null);
+    }
+  }
+
   async function startAutomationRun() {
     const token = getAccessToken();
     if (!token || !selected) return;
@@ -417,6 +434,7 @@ export default function ApplicationsPage() {
                   <p className="mt-1 text-[10px] text-[#71807c]">{new Date(run.created_at).toLocaleString()}</p>
                   {typeof run.result.generation_status === "string" ? <p className="mt-1 text-[11px] font-bold text-[#176b5b]">{run.result.generation_status.replaceAll("_", " ")}</p> : null}
                   {run.error_message ? <p className="mt-1 text-[11px] font-bold text-[#a34f3f]">{run.error_message}</p> : null}
+                  {run.status === "failed" ? <button className="mt-2 rounded-lg bg-[#fff4ef] px-3 py-2 text-[11px] font-bold text-[#a34f3f]" onClick={() => void retryPrepareRun(run.id)}>Retry run</button> : null}
                 </div>
               )) : <p className="text-[11px] text-[#71807c]">No queued preparation runs yet.</p>}
             </div>
@@ -612,6 +630,7 @@ function eventSummary(event: ApplicationEvent): string {
   if (event.event_type === "prepare_job_queued") return `Material preparation job queued: ${String(metadata.background_job_id ?? "")}.`;
   if (event.event_type === "prepare_job_succeeded") return "Queued material preparation completed successfully.";
   if (event.event_type === "prepare_job_failed") return "Queued material preparation failed; retry from the workflow panel.";
+  if (event.event_type === "prepare_job_retried") return `Material preparation job retried after ${String(metadata.attempts ?? 0)} previous attempt(s).`;
   if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";

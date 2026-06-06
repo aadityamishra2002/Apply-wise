@@ -650,6 +650,8 @@ def test_prepare_runs_track_background_material_generation() -> None:
     events = client.get(f"/api/v1/applications/{saved['id']}/events", headers=headers).json()
     assert any(event["event_type"] == "prepare_job_queued" for event in events)
     assert any(event["event_type"] == "prepare_job_succeeded" for event in events)
+    retry_succeeded = client.post(f"/api/v1/background-jobs/{queued.json()['id']}/retry", headers=headers)
+    assert retry_succeeded.status_code == 409
 
     outsider = register_user("prepare-run-outsider@example.com")["tokens"]["access_token"]
     assert client.get(f"/api/v1/background-jobs/{queued.json()['id']}", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404

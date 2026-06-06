@@ -1354,6 +1354,39 @@ async def get_background_job(
     return background_job_response(job)
 
 
+@router.post("/background-jobs/{job_id}/retry", response_model=BackgroundJobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def retry_background_job(
+    job_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BackgroundJobResponse:
+    job = await session.scalar(select(BackgroundJob).where(BackgroundJob.id == job_id, BackgroundJob.user_id == user.id))
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Background job not found.")
+    if job.job_type != "prepare_application_materials" or not job.application_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This background job type cannot be retried from the app.")
+    if job.status not in {"failed", "queued"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only failed or queued preparation jobs can be retried.")
+    application = await session.scalar(select(Application).where(Application.id == job.application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    job.status = "queued"
+    job.error_message = None
+    job.result = {}
+    job.completed_at = None
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="prepare_job_retried",
+            metadata_={"background_job_id": str(job.id), "attempts": job.attempts, "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    background_tasks.add_task(run_prepare_job, job.id, application.id, user.id)
+    return background_job_response(job)
+
+
 async def prepare_application_materials(session: AsyncSession, application_id: UUID, user_id: UUID) -> ApplicationMaterialsResponse:
     row = await session.execute(
         select(Application, Job)
