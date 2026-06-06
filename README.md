@@ -32,6 +32,8 @@ The maintained product guide is available in two formats:
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
 - Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
+- Dry-run automation adapter registry for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages
+- Application-level dry-run plans with per-site capability flags and a hard stop before final submit
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
@@ -51,17 +53,18 @@ The maintained product guide is available in two formats:
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
-- Local extension form inspector for common employer application fields, without autofill or submission
-- Greenhouse, Lever, and LinkedIn extension extractors with a generic career-page fallback
+- Local extension form inspector and review-gated autofill for common employer application fields
+- Extension tailored-resume PDF/DOCX download for manual upload on employer forms
+- Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic career-page extractors
 - Extension capture-readiness diagnostics with re-extract support before sending
 - Public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages
 
 ## Current Limitations
 
-- Adzuna and Remotive are connected; LinkedIn, Indeed, Naukri, and company-career-page adapters are not connected yet.
+- Adzuna and Remotive are connected; deeper direct company-career-page job-provider integrations remain future work.
 - Resume parsing is deterministic and requires user review.
 - Gemini enhancement depends on configured API quota; deterministic grounded drafts remain available as a fallback.
-- Automatic submission and browser autofill remain intentionally deferred.
+- Automatic final submission remains intentionally deferred. Assisted autofill is review-gated and manual-submit only.
 - Payment checkout and webhook processing are not connected yet.
 
 ## Architecture
@@ -112,20 +115,14 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Release Process
 
-Production is protected by a three-branch flow:
-
-```text
-QA -> STAGE -> main
-```
-
-`main` is the stable user-facing branch. Future work should start on `QA`, promote to `STAGE` after testing, and reach `main` only after STAGE validation. See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+For the current beta push, changes are going directly to `main` after local tests and CI checks to save deployment time. The `QA -> STAGE -> main` process is documented in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) and can be re-enabled when beta traffic or team size requires stricter promotion gates.
 
 ## Next Changes
 
-1. Payment gateway checkout, webhook verification, and paid-plan activation
-2. Additional compliant job provider adapters and deeper remote-role filtering
-3. Site-specific extension extractors and assisted autofill design
+1. Full web "Review Before Applying" screen that mirrors extension autofill data and warnings
+2. Broader retry policies for provider calls, AI generation, exports, and long-running jobs
+3. Payment gateway checkout, webhook verification, and paid-plan activation after provider approval
 
 ## Chrome Extension MVP
 
-Load the unpacked extension from [`apps/extension`](apps/extension) and follow its [local installation guide](apps/extension/README.md). The extension uses one-time pairing codes from Apply Wise Settings and receives a capture-only token.
+Load the unpacked extension from [`apps/extension`](apps/extension) and follow its [local installation guide](apps/extension/README.md). The extension uses one-time pairing codes from Apply Wise Settings and receives a scoped token for capture, autofill planning, and assisted-application audit events.

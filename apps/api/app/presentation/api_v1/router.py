@@ -18,6 +18,7 @@ from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.jobs.ats import AtsAnalysisService, AtsWeights
 from app.application.exports.service import ResumeExportService, download_filename
 from app.application.applications.autofill import build_autofill_plan
+from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.service import GeminiTailoringService
@@ -322,6 +323,35 @@ class ExtensionApplicationEventRequest(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class AutomationCapabilityResponse(BaseModel):
+    site_key: str
+    site_name: str
+    domains: list[str]
+    capture_supported: bool
+    autofill_supported: bool
+    resume_upload_supported: bool
+    dry_run_supported: bool
+    manual_submit_required: bool
+
+
+class AutomationDryRunStepResponse(BaseModel):
+    order: int
+    action: str
+    description: str
+    requires_user_review: bool
+
+
+class ApplicationAutomationPlanResponse(BaseModel):
+    application_id: str
+    job_title: str
+    company: str
+    target_url: str
+    capability: AutomationCapabilityResponse
+    steps: list[AutomationDryRunStepResponse]
+    warnings: list[str]
+    manual_final_submission_required: bool = True
+
+
 async def get_extension_user_id(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -377,6 +407,11 @@ def provider_health() -> list[ProviderHealthResponse]:
         )
         for item in provider.health()
     ]
+
+
+@router.get("/automation/capabilities", response_model=list[AutomationCapabilityResponse])
+def automation_capabilities() -> list[AutomationCapabilityResponse]:
+    return [automation_capability_response(capability) for capability in list_capabilities()]
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
@@ -900,6 +935,56 @@ async def assisted_application_checklist(
     )
 
 
+@router.get("/applications/{application_id}/automation-plan", response_model=ApplicationAutomationPlanResponse)
+async def application_automation_plan(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ApplicationAutomationPlanResponse:
+    row = await session.execute(
+        select(Application, Job)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job = result
+    capability = capability_for_url(job.url)
+    steps = build_dry_run_steps(
+        capability,
+        has_resume=application.resume_version_id is not None,
+        has_cover_letter=application.cover_letter_id is not None,
+    )
+    warnings = [
+        "This is a dry-run/manual-submit plan. Apply Wise must stop before final submission.",
+        "Review every field on the employer site before submitting manually.",
+    ]
+    if not capability.autofill_supported:
+        warnings.append("This site currently requires manual field entry because assisted autofill is not enabled for the adapter.")
+    if not application.resume_version_id:
+        warnings.append("Prepare a tailored resume before using resume attachment assistance.")
+    if not application.cover_letter_id:
+        warnings.append("Prepare a cover letter before using cover-letter assistance.")
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="automation_dry_run_planned",
+            metadata_={"site_key": capability.site_key, "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    return ApplicationAutomationPlanResponse(
+        application_id=str(application.id),
+        job_title=job.title,
+        company=job.company,
+        target_url=job.url,
+        capability=automation_capability_response(capability),
+        steps=[AutomationDryRunStepResponse(**step.__dict__) for step in steps],
+        warnings=warnings,
+    )
+
+
 @router.get("/applications/{application_id}/interviews", response_model=list[InterviewResponse])
 async def list_interviews(
     application_id: UUID,
@@ -1090,6 +1175,19 @@ def job_preference_response(preferences: JobPreference) -> JobPreferenceResponse
         role_keywords=preferences.role_keywords,
         location=preferences.location,
         remote_only=preferences.remote_only,
+    )
+
+
+def automation_capability_response(capability) -> AutomationCapabilityResponse:
+    return AutomationCapabilityResponse(
+        site_key=capability.site_key,
+        site_name=capability.site_name,
+        domains=list(capability.domains),
+        capture_supported=capability.capture_supported,
+        autofill_supported=capability.autofill_supported,
+        resume_upload_supported=capability.resume_upload_supported,
+        dry_run_supported=capability.dry_run_supported,
+        manual_submit_required=capability.manual_submit_required,
     )
 
 

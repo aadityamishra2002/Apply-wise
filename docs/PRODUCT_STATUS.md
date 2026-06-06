@@ -62,6 +62,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, and fill only approved fields.
 41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms.
 42. Track extension autofill previews, fill attempts, tailored-resume downloads, resume-upload assistance attempts, and captured-job events in the application timeline.
+43. Review per-site dry-run automation capability flags and manual-submit steps for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages.
 
 ## Truthfulness Rules
 
@@ -84,7 +85,7 @@ Generated application drafts use stored resume evidence only. The current implem
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Payment checkout, webhook processing, and paid-plan activation are not connected.
-- Assisted autofill is beta-safe and review-gated; direct resume-file upload into external sites and Playwright application automation remain future work.
+- Assisted autofill is beta-safe and review-gated; direct resume-file upload into external sites and real Playwright browser control remain future work.
 
 ## Pending Work Status
 
@@ -96,7 +97,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
 | Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
 | Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
-| Add Playwright automation adapters for selected job sites | Pending | No automated external application flow yet. |
+| Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities and application plans exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages. Real browser-control execution is still deferred. |
 | Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, and extension autofill audit events exist; broader backend retry policies remain pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
@@ -105,9 +106,9 @@ Generated application drafts use stored resume evidence only. The current implem
 
 1. Add a full web "Review Before Applying" screen that mirrors extension autofill data, warnings, missing fields, and final manual-submit instructions.
 2. Add broader backend retry policies for external provider calls and generation workflows.
-3. Add Playwright automation adapters for selected job sites in dry-run/manual-submit mode.
+3. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
 4. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
 
 ## Deployment Note
 
-The product is live for public account registration. The Railway backend currently depends on the selected Railway plan and usage allowance. Check Railway usage regularly before the trial window ends.
+The product is live for public account registration. For the current beta push, changes are going directly to `main` after local tests and CI checks to save deployment time. The Railway backend currently depends on the selected Railway plan and usage allowance. Check Railway usage regularly before the trial window ends.

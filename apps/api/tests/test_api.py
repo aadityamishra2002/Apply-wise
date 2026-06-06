@@ -38,6 +38,17 @@ def test_provider_health_is_public_and_non_secret() -> None:
     assert "app_key" not in response.text
 
 
+def test_automation_capabilities_are_public_and_manual_submit_only() -> None:
+    response = client.get("/api/v1/automation/capabilities")
+    assert response.status_code == 200
+    capabilities = {item["site_key"]: item for item in response.json()}
+    assert capabilities["linkedin"]["capture_supported"] is True
+    assert capabilities["linkedin"]["dry_run_supported"] is True
+    assert capabilities["linkedin"]["manual_submit_required"] is True
+    assert capabilities["workday"]["autofill_supported"] is True
+    assert capabilities["generic"]["autofill_supported"] is False
+
+
 def test_local_browser_origin_is_allowed() -> None:
     response = client.options(
         "/api/v1/auth/register",
@@ -527,6 +538,38 @@ def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -
     assert prepared["cover_letter_prepared"] is True
     assert prepared["cover_letter_id"]
     assert prepared["manual_final_submission_required"] is True
+
+
+def test_application_automation_plan_is_dry_run_and_owner_scoped() -> None:
+    token = register_user("automation-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "LinkedIn Easy Apply Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://www.linkedin.com/jobs/view/123",
+            "description": "Build Python and FastAPI services with React dashboards and PostgreSQL.",
+        },
+    )
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers).json()
+    plan = client.get(f"/api/v1/applications/{saved['id']}/automation-plan", headers=headers)
+    assert plan.status_code == 200
+    assert plan.json()["capability"]["site_key"] == "linkedin"
+    assert plan.json()["manual_final_submission_required"] is True
+    assert plan.json()["steps"][-1]["action"] == "stop_before_submit"
+    assert "Prepare a tailored resume" in " ".join(plan.json()["warnings"])
+
+    assert client.post(f"/api/v1/applications/{saved['id']}/prepare", headers=headers).status_code == 201
+    prepared_plan = client.get(f"/api/v1/applications/{saved['id']}/automation-plan", headers=headers)
+    assert prepared_plan.status_code == 200
+    assert "Prepare a tailored resume" not in " ".join(prepared_plan.json()["warnings"])
+
+    outsider = register_user("automation-outsider@example.com")["tokens"]["access_token"]
+    assert client.get(f"/api/v1/applications/{saved['id']}/automation-plan", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
 
 
 def test_resume_download_is_scoped_to_its_owner() -> None:

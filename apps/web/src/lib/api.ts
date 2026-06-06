@@ -45,6 +45,27 @@ export type AssistedApplicationChecklist = {
   target_url: string;
   manual_final_submission_required: boolean;
 };
+export type AutomationCapability = {
+  site_key: string;
+  site_name: string;
+  domains: string[];
+  capture_supported: boolean;
+  autofill_supported: boolean;
+  resume_upload_supported: boolean;
+  dry_run_supported: boolean;
+  manual_submit_required: boolean;
+};
+export type AutomationDryRunStep = { order: number; action: string; description: string; requires_user_review: boolean };
+export type ApplicationAutomationPlan = {
+  application_id: string;
+  job_title: string;
+  company: string;
+  target_url: string;
+  capability: AutomationCapability;
+  steps: AutomationDryRunStep[];
+  warnings: string[];
+  manual_final_submission_required: boolean;
+};
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = { application: ApplicationRecord; resume_version_id: string; ats_score: number; resume_content: Record<string, unknown>; cover_letter_id: string; cover_letter: string; provenance: string };
 export type CoverLetterRecord = { id: string; content: string; created_at: string };
@@ -275,6 +296,12 @@ export async function loadAssistedApplicationChecklist(applicationId: string, ac
   const response = await fetch(`${apiUrl}/applications/${applicationId}/assisted-checklist`, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) throw new Error("Could not load application readiness.");
   return (await response.json()) as AssistedApplicationChecklist;
+}
+
+export async function loadApplicationAutomationPlan(applicationId: string, accessToken: string): Promise<ApplicationAutomationPlan> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/automation-plan`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load automation plan.");
+  return (await response.json()) as ApplicationAutomationPlan;
 }
 
 export async function loadInterviews(applicationId: string, accessToken: string): Promise<InterviewRecord[]> {

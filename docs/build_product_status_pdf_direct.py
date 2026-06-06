@@ -68,7 +68,7 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated June 3, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Updated June 6, 2026  |  Live: https://apply-wise-1.vercel.app", small),
     Spacer(1, 4),
     para("What is live", heading),
     para("Apply Wise is a deployed web product for resume-aware job discovery, truthful application preparation, and pipeline tracking. Users can register publicly and maintain private workspaces."),
@@ -103,8 +103,8 @@ for item in [
     "Pair an unpacked Chrome extension and review job pages before scoring.",
     "Review ATS-readiness breakdowns and approve or dismiss roles in the 80+ queue.",
     "Review duplicate protection and draft readiness before opening the employer page for manual submission.",
-    "Inspect common employer application fields locally from the extension without filling or submitting them.",
-    "Capture cleaner Greenhouse, Lever, and LinkedIn job pages through site-aware extension adapters.",
+    "Inspect common employer application fields locally from the extension and fill only user-approved fields.",
+    "Capture cleaner Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and common career pages.",
     "Discover remote roles through the Remotive provider with short-lived API caching and visible attribution.",
     "Search by role and location directly from the Jobs page while still falling back to saved preferences.",
     "Follow a guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking.",
@@ -117,6 +117,8 @@ for item in [
     "Review extension capture readiness and re-extract the current page before sending a job.",
     "Request and confirm password resets with one-time tokens and session revocation.",
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
+    "Download tailored resumes from the extension for manual attachment on employer forms.",
+    "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -142,11 +144,11 @@ for item in [
     story.append(Paragraph(item, bullet, bulletText="•"))
 story.append(para("Current limitations", heading))
 for item in [
-    "Adzuna and Remotive are connected; LinkedIn, Indeed, Naukri, and direct company-career-page adapters remain future work.",
+    "Adzuna and Remotive are connected; deeper direct company-career-page provider integrations remain future work.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Payment checkout, webhooks, and paid-plan activation are not connected.",
-    "Additional site-specific extractors, assisted autofill, and Playwright automation remain future work.",
+    "Assisted autofill is review-gated; direct file upload and real Playwright browser control remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -154,14 +156,14 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Payment gateway billing", "Checkout, webhooks, and paid activation"),
-            ("2", "Provider adapters", "More compliant listing sources and deeper remote-role filtering"),
-            ("3", "Extension extractors", "Site-specific capture and autofill plan"),
+            ("1", "Review Before Applying", "Web review screen for autofill data, warnings, and missing fields"),
+            ("2", "Retry policies", "Safe retry visibility for providers, AI generation, exports, and long jobs"),
+            ("3", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),
     para("Repository practice", heading),
-    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. Secrets remain outside the repository."),
+    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. During the current beta push, changes go directly to main after local validation and CI checks. Secrets remain outside the repository."),
     para("Repository: https://github.com/aadityamishra2002/Apply-wise", small),
 ]
 doc.build(story)
