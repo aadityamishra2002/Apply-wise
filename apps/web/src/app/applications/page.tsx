@@ -28,6 +28,7 @@ import {
   loadAssistedApplicationChecklist,
   loadCoverLetter,
   loadInterviews,
+  loadReviewBeforeApply,
   loadResumeVersion,
   prepareApplication,
   saveCoverLetter,
@@ -43,6 +44,7 @@ import {
   type ResumeContentDraft,
   type ResumeVersionDetail,
   type InterviewRecord,
+  type ReviewBeforeApply,
 } from "@/lib/api";
 
 const statuses = ["saved", "preparing", "applied", "interview", "rejected", "offer", "withdrawn"];
@@ -62,6 +64,7 @@ export default function ApplicationsPage() {
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<AssistedApplicationChecklist | null>(null);
   const [automationPlan, setAutomationPlan] = useState<ApplicationAutomationPlan | null>(null);
+  const [reviewBeforeApply, setReviewBeforeApply] = useState<ReviewBeforeApply | null>(null);
   const [coverLetter, setCoverLetter] = useState<CoverLetterRecord | null>(null);
   const [coverLetterDraft, setCoverLetterDraft] = useState("");
   const [coverLetterSaved, setCoverLetterSaved] = useState(false);
@@ -93,10 +96,12 @@ export default function ApplicationsPage() {
       loadAssistedApplicationChecklist(application.id, token),
     ]);
     const loadedAutomationPlan = await loadApplicationAutomationPlan(application.id, token).catch(() => null);
+    const loadedReviewBeforeApply = await loadReviewBeforeApply(application.id, token).catch(() => null);
     setEvents(loadedEvents);
     setInterviews(loadedInterviews);
     setChecklist(loadedChecklist);
     setAutomationPlan(loadedAutomationPlan);
+    setReviewBeforeApply(loadedReviewBeforeApply);
     setCoverLetterSaved(false);
     setResumeSaved(false);
     if (loadedChecklist.resume_version_id) {
@@ -354,6 +359,49 @@ export default function ApplicationsPage() {
       ) : null}
 
       {selected && automationPlan ? (
+        <>
+        {reviewBeforeApply ? (
+          <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[16px] font-bold">Review before applying</h2>
+                <p className="mt-1 text-[12px] text-[#71807c]">One final safety pass for {reviewBeforeApply.job_title} at {reviewBeforeApply.company} before you open the employer form.</p>
+              </div>
+              <span className="rounded-full bg-[#fff4ef] px-3 py-1 text-[11px] font-bold text-[#a34f3f]">No auto-submit</span>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <WorkflowStep label="Resume ready" ready={reviewBeforeApply.resume_prepared} detail="Download or attach the latest tailored resume." />
+              <WorkflowStep label="Cover letter ready" ready={reviewBeforeApply.cover_letter_prepared} detail="Review tone and employer-specific details." />
+              <WorkflowStep label="Manual submit" ready={reviewBeforeApply.manual_final_submission_required} detail="You must submit on the employer site yourself." />
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Autofill review</h3>
+                <div className="mt-2 space-y-2">
+                  {reviewBeforeApply.autofill_fields.slice(0, 10).map((field) => (
+                    <div className="rounded-xl bg-[#f6f8f5] p-3" key={field.field_key}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[12px] font-bold">{field.label}</p>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${field.requires_review ? "bg-[#fff4ef] text-[#a34f3f]" : "bg-[#e8f4ef] text-[#176b5b]"}`}>{Math.round(field.confidence * 100)}%</span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-[11px] text-[#71807c]">{field.value || "Manual value required"} · {field.source}{field.sensitive ? " · Sensitive" : ""}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Needs manual attention</h3>
+                <div className="mt-2 space-y-2">
+                  {reviewBeforeApply.missing_fields.length ? reviewBeforeApply.missing_fields.map((field) => <p className="rounded-xl bg-[#fff4ef] p-3 text-[11px] font-bold text-[#a34f3f]" key={field}>{field}</p>) : <p className="rounded-xl bg-[#e8f4ef] p-3 text-[11px] font-bold text-[#176b5b]">No missing review fields detected.</p>}
+                </div>
+                <div className="mt-3 space-y-1">
+                  {reviewBeforeApply.warnings.map((warning) => <p className="text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}
+                </div>
+              </div>
+            </div>
+            <a className="mt-4 inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={reviewBeforeApply.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page after review</a>
+          </section>
+        ) : null}
         <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -378,6 +426,7 @@ export default function ApplicationsPage() {
           </div>
           {automationPlan.warnings.length ? <div className="mt-4 space-y-1">{automationPlan.warnings.map((warning) => <p className="text-[11px] font-bold text-[#a34f3f]" key={warning}>{warning}</p>)}</div> : null}
         </section>
+        </>
       ) : null}
 
       {resumeDraft ? (
@@ -463,6 +512,7 @@ function eventSummary(event: ApplicationEvent): string {
   if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
   if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;
   if (event.event_type === "automation_dry_run_planned") return `Dry-run plan created for ${String(metadata.site_key ?? "career site")}.`;
+  if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";
 }

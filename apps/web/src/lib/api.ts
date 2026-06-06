@@ -66,6 +66,27 @@ export type ApplicationAutomationPlan = {
   warnings: string[];
   manual_final_submission_required: boolean;
 };
+export type ReviewAutofillField = {
+  field_key: string;
+  label: string;
+  value: string;
+  confidence: number;
+  source: string;
+  sensitive: boolean;
+  requires_review: boolean;
+};
+export type ReviewBeforeApply = {
+  application_id: string;
+  job_title: string;
+  company: string;
+  target_url: string;
+  resume_prepared: boolean;
+  cover_letter_prepared: boolean;
+  autofill_fields: ReviewAutofillField[];
+  missing_fields: string[];
+  warnings: string[];
+  manual_final_submission_required: boolean;
+};
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
 export type ApplicationMaterials = {
   application: ApplicationRecord;
@@ -312,6 +333,12 @@ export async function loadApplicationAutomationPlan(applicationId: string, acces
   const response = await fetch(`${apiUrl}/applications/${applicationId}/automation-plan`, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) throw new Error("Could not load automation plan.");
   return (await response.json()) as ApplicationAutomationPlan;
+}
+
+export async function loadReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/review-before-apply`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load review before applying.");
+  return (await response.json()) as ReviewBeforeApply;
 }
 
 export async function loadInterviews(applicationId: string, accessToken: string): Promise<InterviewRecord[]> {

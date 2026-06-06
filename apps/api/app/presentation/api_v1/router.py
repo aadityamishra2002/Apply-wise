@@ -360,6 +360,19 @@ class ApplicationAutomationPlanResponse(BaseModel):
     manual_final_submission_required: bool = True
 
 
+class ReviewBeforeApplyResponse(BaseModel):
+    application_id: str
+    job_title: str
+    company: str
+    target_url: str
+    resume_prepared: bool
+    cover_letter_prepared: bool
+    autofill_fields: list[AutofillFieldResponse]
+    missing_fields: list[str]
+    warnings: list[str]
+    manual_final_submission_required: bool = True
+
+
 async def get_extension_user_id(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -993,6 +1006,62 @@ async def application_automation_plan(
     )
 
 
+@router.get("/applications/{application_id}/review-before-apply", response_model=ReviewBeforeApplyResponse)
+async def review_before_apply(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ReviewBeforeApplyResponse:
+    row = await session.execute(
+        select(Application, Job, ResumeVersion, CoverLetter)
+        .join(Job, Application.job_id == Job.id)
+        .outerjoin(ResumeVersion, Application.resume_version_id == ResumeVersion.id)
+        .outerjoin(CoverLetter, Application.cover_letter_id == CoverLetter.id)
+        .where(Application.id == application_id, Application.user_id == user.id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    application, job, resume_version, cover_letter = result
+    profile = await ResumeService(session).get_active(user.id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before reviewing an application.")
+    db_user = await session.get(User, user.id)
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
+    fields = build_autofill_plan(user=db_user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter)
+    missing_fields = [field.label for field in fields if not field.value or field.requires_review or field.confidence < 0.75]
+    if not resume_version:
+        missing_fields.append("Tailored resume")
+    if not cover_letter:
+        missing_fields.append("Cover letter")
+    warnings = [
+        "Review every generated claim and employer form field before applying.",
+        "Apply Wise does not submit the application automatically.",
+    ]
+    if missing_fields:
+        warnings.append("Some fields need manual confirmation before employer-page submission.")
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="review_before_apply_opened",
+            metadata_={"missing_field_count": len(missing_fields), "manual_final_submission_required": True},
+        )
+    )
+    await session.commit()
+    return ReviewBeforeApplyResponse(
+        application_id=str(application.id),
+        job_title=job.title,
+        company=job.company,
+        target_url=job.url,
+        resume_prepared=resume_version is not None,
+        cover_letter_prepared=cover_letter is not None,
+        autofill_fields=[AutofillFieldResponse(**field.__dict__) for field in fields],
+        missing_fields=dedupe_preserve_order(missing_fields),
+        warnings=warnings,
+    )
+
+
 @router.get("/applications/{application_id}/interviews", response_model=list[InterviewResponse])
 async def list_interviews(
     application_id: UUID,
@@ -1213,6 +1282,18 @@ def recommendation_reason(skill: str, counts: dict[str, int]) -> str:
     if counts["high_fit"]:
         return f"{skill} appears in high-ATS roles that are close to your profile."
     return f"{skill} appears repeatedly in matched roles but is missing from your resume evidence."
+
+
+def dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        normalized = value.strip().lower()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(value)
+    return result
 
 
 async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest, create_application: bool = False) -> JobResponse:

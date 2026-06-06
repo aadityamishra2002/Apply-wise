@@ -574,6 +574,40 @@ def test_application_automation_plan_is_dry_run_and_owner_scoped() -> None:
     assert client.get(f"/api/v1/applications/{saved['id']}/automation-plan", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
 
 
+def test_review_before_apply_packages_materials_and_manual_attention() -> None:
+    token = register_user("review-before-apply@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Review Engineer",
+            "company": "Example",
+            "location": "Remote",
+            "url": "https://boards.greenhouse.io/example/jobs/123",
+            "description": "Build Python and FastAPI services with React dashboards and PostgreSQL.",
+        },
+    )
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers).json()
+    review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
+    assert review.status_code == 200
+    assert review.json()["manual_final_submission_required"] is True
+    assert review.json()["resume_prepared"] is False
+    assert "Tailored resume" in review.json()["missing_fields"]
+    assert "Apply Wise does not submit" in " ".join(review.json()["warnings"])
+
+    assert client.post(f"/api/v1/applications/{saved['id']}/prepare", headers=headers).status_code == 201
+    prepared_review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
+    assert prepared_review.status_code == 200
+    assert prepared_review.json()["resume_prepared"] is True
+    assert prepared_review.json()["cover_letter_prepared"] is True
+    assert "Tailored resume" not in prepared_review.json()["missing_fields"]
+
+    outsider = register_user("review-outsider@example.com")["tokens"]["access_token"]
+    assert client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+
+
 def test_resume_download_is_scoped_to_its_owner() -> None:
     owner_token = register_user("owner-download@example.com")["tokens"]["access_token"]
     owner_headers = {"Authorization": f"Bearer {owner_token}"}

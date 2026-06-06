@@ -64,6 +64,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 42. Track extension autofill previews, fill attempts, tailored-resume downloads, resume-upload assistance attempts, and captured-job events in the application timeline.
 43. Review per-site dry-run automation capability flags and manual-submit steps for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages.
 44. Retry transient AI generation failures with configurable exponential backoff and show generation fallback/attempt metadata in the application workspace.
+45. Use a consolidated "Review Before Applying" panel with materials readiness, autofill confidence, manual-attention fields, warnings, and no-auto-submit guardrails.
 
 ## Truthfulness Rules
 
@@ -105,9 +106,9 @@ Generated application drafts use stored resume evidence only. The current implem
 
 ## Next Delivery Slices
 
-1. Add a full web "Review Before Applying" screen that mirrors extension autofill data, warnings, missing fields, and final manual-submit instructions.
-2. Add broader retry visibility for external job providers, exports, and long-running jobs.
-3. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
+1. Add broader retry visibility for external job providers, exports, and long-running jobs.
+2. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
+3. Add stronger AI unsupported-claim checks before download/apply.
 4. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
 
 ## Deployment Note

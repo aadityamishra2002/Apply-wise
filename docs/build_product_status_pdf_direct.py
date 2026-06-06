@@ -120,6 +120,7 @@ for item in [
     "Download tailored resumes from the extension for manual attachment on employer forms.",
     "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
     "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
+    "Use a consolidated Review Before Applying panel with readiness, autofill confidence, warnings, and manual-submit guardrails.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -157,9 +158,9 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Review Before Applying", "Web review screen for autofill data, warnings, and missing fields"),
-            ("2", "Retry policies", "Safe retry visibility for providers, AI generation, exports, and long jobs"),
-            ("3", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
+            ("1", "Retry policies", "Safe retry visibility for providers, exports, and long jobs"),
+            ("2", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
+            ("3", "AI quality controls", "Unsupported-claim checks before download or apply"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),
