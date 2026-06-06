@@ -1,4 +1,5 @@
 from app.core.config import Settings
+from app.application.retry import RetryPolicy
 from app.infrastructure.providers.aggregate_jobs import AggregateJobProvider
 from app.infrastructure.providers.adzuna_jobs import AdzunaJobProvider
 from app.infrastructure.providers.mock_jobs import MockJobProvider
@@ -27,4 +28,11 @@ def create_job_provider(settings: Settings) -> AggregateJobProvider:
         )
     if not providers:
         providers = [MockJobProvider()]
-    return AggregateJobProvider(providers)
+    return AggregateJobProvider(
+        providers,
+        retry_policy=RetryPolicy(
+            max_attempts=settings.provider_retry_attempts,
+            base_delay_seconds=settings.provider_retry_base_delay_seconds,
+            max_delay_seconds=settings.provider_retry_max_delay_seconds,
+        ),
+    )

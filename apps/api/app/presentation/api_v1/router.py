@@ -305,6 +305,8 @@ class ProviderHealthResponse(BaseModel):
     status: str
     last_checked_at: str | None
     last_result_count: int | None
+    retry_attempts: int = 0
+    last_error: str | None = None
 
 
 class AutofillFieldResponse(BaseModel):
@@ -427,6 +429,8 @@ def provider_health() -> list[ProviderHealthResponse]:
             status=item.status,
             last_checked_at=item.last_checked_at.isoformat() if item.last_checked_at else None,
             last_result_count=item.last_result_count,
+            retry_attempts=item.retry_attempts,
+            last_error=item.last_error,
         )
         for item in provider.health()
     ]

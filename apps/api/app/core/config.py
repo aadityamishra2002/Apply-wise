@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     remotive_results_limit: int = 20
     remotive_timeout_seconds: float = 10
     remotive_cache_minutes: int = 15
+    provider_retry_attempts: int = 2
+    provider_retry_base_delay_seconds: float = 0.2
+    provider_retry_max_delay_seconds: float = 1
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_seconds: float = 20

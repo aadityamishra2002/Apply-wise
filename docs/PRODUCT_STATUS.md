@@ -66,6 +66,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 44. Retry transient AI generation failures with configurable exponential backoff and show generation fallback/attempt metadata in the application workspace.
 45. Use a consolidated "Review Before Applying" panel with materials readiness, autofill confidence, manual-attention fields, warnings, and no-auto-submit guardrails.
 46. Flag unsupported generated claims for skills, companies, titles, and metrics against the uploaded master resume before applying.
+47. Retry transient job-provider failures with configurable backoff and show sanitized retry/error status in provider health.
 
 ## Truthfulness Rules
 
@@ -101,13 +102,13 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
 | Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities and application plans exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages. Real browser-control execution is still deferred. |
-| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, and Gemini generation retries exist; provider/export/background retry visibility remains pending. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, Gemini generation retries, and provider retries exist; export/background retry visibility remains pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 
 ## Next Delivery Slices
 
-1. Add broader retry visibility for external job providers, exports, and long-running jobs.
+1. Add broader retry visibility for exports and long-running jobs.
 2. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
 3. Add stronger download-time blocking or confirmation for unresolved unsupported-claim warnings.
 4. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.

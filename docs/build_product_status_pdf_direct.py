@@ -122,6 +122,7 @@ for item in [
     "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
     "Use a consolidated Review Before Applying panel with readiness, autofill confidence, warnings, and manual-submit guardrails.",
     "Flag unsupported generated skills, companies, titles, and metrics against the master resume before applying.",
+    "Retry transient job-provider failures with configurable backoff and visible sanitized provider health.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -159,7 +160,7 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Retry policies", "Safe retry visibility for providers, exports, and long jobs"),
+            ("1", "Retry policies", "Safe retry visibility for exports and long jobs"),
             ("2", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
             ("3", "Download confirmations", "Require confirmation when unresolved unsupported-claim warnings remain"),
         ],
