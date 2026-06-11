@@ -127,6 +127,7 @@ for item in [
     "Retry resume export generation and record export download attempts in the application timeline.",
     "Start tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit events.",
     "Queue material-preparation runs with visible status, attempts, results, failed-run retry controls, and timeline events.",
+    "Present compliance-focused public pages with INR pricing, Razorpay trust text, digital delivery terms, refund rules, support details, FAQ, and third-party disclaimers.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

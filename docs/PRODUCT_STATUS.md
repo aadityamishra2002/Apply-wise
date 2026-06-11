@@ -44,7 +44,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 22. Capture cleaner Greenhouse, Lever, LinkedIn, Indeed, Naukri, and common company-career job-page details through site-aware extension adapters with a generic fallback.
 23. Change the logged-in account password from Settings and revoke existing refresh sessions.
 24. Review skill recommendations learned from missing skills across matched and approved roles.
-25. Review public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages.
+25. Review public About, Pricing, Terms, Privacy, Refund/Cancellation, Shipping/Delivery, and Contact pages for SaaS/payment-gateway review.
 26. See already-saved jobs reflected in recommendations and manual capture results.
 27. Track the first applied date when an application is marked Applied.
 28. Discover remote roles through the Remotive provider with short-lived API caching and visible source attribution.
@@ -71,6 +71,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 49. Retry resume export generation and record export download attempts in the application timeline.
 50. Start and review tracked assisted-application dry-run records with blocked/ready status, warnings, next action, and audit timeline events.
 51. Queue material-preparation runs with visible queued/running/succeeded/failed status, attempts, results, retry controls for failed runs, and timeline events.
+52. Present compliance-focused public copy with INR pricing, Razorpay trust text, digital SaaS delivery terms, refund rules, support details, FAQ, and third-party job-board disclaimers.
 
 ## Truthfulness Rules
 

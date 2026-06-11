@@ -59,7 +59,7 @@ The maintained product guide is available in two formats:
 - Extension tailored-resume PDF/DOCX download for manual upload on employer forms
 - Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic career-page extractors
 - Extension capture-readiness diagnostics with re-extract support before sending
-- Public Terms, Privacy, Refund Policy, Contact, and free-beta pricing pages
+- Public About, Pricing, Terms, Privacy, Refund/Cancellation, Shipping/Delivery, and Contact pages for SaaS/payment-gateway review
 
 ## Current Limitations
 

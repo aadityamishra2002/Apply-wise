@@ -1,21 +1,18 @@
-import Link from "next/link";
-
-import { Logo } from "@/components/logo";
+import { PolicyLayout } from "@/components/policy-layout";
 
 export default function ContactPage() {
   return (
-    <main className="min-h-screen bg-[#fbfcf9] px-5 py-10 text-[#23312e]">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-[#e4e8e3] bg-white p-6 small-shadow md:p-8">
-        <Logo />
-        <p className="mt-8 text-[11px] font-bold uppercase tracking-[0.14em] text-[#91a09c]">Contact</p>
-        <h1 className="mt-3 text-[34px] font-bold tracking-[-0.06em]">Contact Apply Wise</h1>
-        <p className="mt-4 text-[13px] leading-6 text-[#65736f]">For support, privacy, billing, or product questions, email <a className="font-bold text-[#176b5b]" href="mailto:aadityamishra1063@gmail.com">aadityamishra1063@gmail.com</a>.</p>
-        <div className="mt-8 rounded-2xl bg-[#f6f8f5] p-5 text-[13px] leading-6 text-[#53645f]">
-          <p className="font-bold text-[#23312e]">Product note for reviewers</p>
-          <p className="mt-2">Apply Wise is a user-reviewed resume tailoring, job-fit analysis, and application tracking platform. It does not automatically submit job applications or fabricate resume claims.</p>
-        </div>
-        <Link className="mt-8 inline-flex rounded-full bg-[#176b5b] px-5 py-3 text-[13px] font-bold text-white" href="/">Back home</Link>
-      </section>
-    </main>
+    <PolicyLayout
+      eyebrow="Contact"
+      title="Contact Apply Wise"
+      description="For support, privacy, billing, refund, or product questions, use the contact details below. A contact form will be added later."
+    >
+      {/* TODO: Replace placeholder business/founder details before final payment gateway review. */}
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Support email</h2><p className="mt-2"><a className="font-bold text-[#176b5b]" href="mailto:support@applywise.app">support@applywise.app</a></p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Business/founder name</h2><p className="mt-2">TODO: Replace with legal business name or founder name.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Location</h2><p className="mt-2">India</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Response time</h2><p className="mt-2">We aim to respond within 24-48 business hours.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Reviewer note</h2><p className="mt-2">Apply Wise is a digital SaaS product for AI-assisted resume analysis, ATS scoring, job matching, resume tailoring, cover-letter drafting, and application tracking. The product uses assisted workflows and requires manual review before job submission.</p></section>
+    </PolicyLayout>
   );
 }

@@ -1,24 +1,18 @@
-import Link from "next/link";
-
-import { Logo } from "@/components/logo";
+import { PolicyLayout } from "@/components/policy-layout";
 
 export default function RefundPolicyPage() {
   return (
-    <main className="min-h-screen bg-[#fbfcf9] px-5 py-10 text-[#23312e]">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-[#e4e8e3] bg-white p-6 small-shadow md:p-8">
-        <Logo />
-        <p className="mt-8 text-[11px] font-bold uppercase tracking-[0.14em] text-[#91a09c]">Refund and Cancellation Policy</p>
-        <h1 className="mt-3 text-[34px] font-bold tracking-[-0.06em]">Current Billing Status</h1>
-        <p className="mt-4 text-[13px] leading-6 text-[#65736f]">Last updated June 3, 2026. Apply Wise is currently in free beta and does not collect subscription payments inside the product.</p>
-
-        <div className="mt-8 space-y-6 text-[13px] leading-6 text-[#53645f]">
-          <section><h2 className="text-[17px] font-bold text-[#23312e]">Free beta</h2><p className="mt-2">Because paid checkout is not active, there are currently no paid subscriptions to cancel and no paid charges to refund.</p></section>
-          <section><h2 className="text-[17px] font-bold text-[#23312e]">Future paid plans</h2><p className="mt-2">If paid plans are introduced, pricing, renewal terms, cancellation rules, and refund eligibility will be shown before purchase.</p></section>
-          <section><h2 className="text-[17px] font-bold text-[#23312e]">Support</h2><p className="mt-2">For billing questions, contact <a className="font-bold text-[#176b5b]" href="mailto:aadityamishra1063@gmail.com">aadityamishra1063@gmail.com</a>.</p></section>
-        </div>
-
-        <Link className="mt-8 inline-flex rounded-full bg-[#176b5b] px-5 py-3 text-[13px] font-bold text-white" href="/">Back home</Link>
-      </section>
-    </main>
+    <PolicyLayout
+      eyebrow="Refund and Cancellation Policy"
+      title="Refunds for Apply Wise Digital SaaS Plans"
+      description="Last updated June 11, 2026. Apply Wise is a digital SaaS product. This policy applies when paid plans are active."
+    >
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Refund window</h2><p className="mt-2">Users may request a refund within 7 days of payment only if no substantial usage has occurred.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Non-refundable usage</h2><p className="mt-2">Refunds are not available after resume generation or download, ATS report generation, cover-letter generation, active use of paid features, or other substantial product usage.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Subscription cancellation</h2><p className="mt-2">Users may cancel a subscription to stop future billing. Cancellation does not automatically refund previous charges unless the refund eligibility criteria above are met.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Processing timeline</h2><p className="mt-2">Approved refunds are processed to the original payment method according to Razorpay/payment gateway, bank, and card-network timelines.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Current billing status</h2><p className="mt-2">Paid checkout may be unavailable during beta or payment-provider review. Pricing and billing terms will be shown before purchase when payments are active.</p></section>
+      <section><h2 className="text-[17px] font-bold text-[#23312e]">Contact</h2><p className="mt-2">For cancellation or refund requests, email <a className="font-bold text-[#176b5b]" href="mailto:support@applywise.app">support@applywise.app</a> from your registered account email.</p></section>
+    </PolicyLayout>
   );
 }

@@ -17,6 +17,7 @@ import {
 
 import { AuthGuard } from "@/components/auth-guard";
 import { Logo } from "@/components/logo";
+import { PublicFooter } from "@/components/public-footer";
 import { logout, type CurrentUser } from "@/lib/api";
 
 const items = [
@@ -115,6 +116,9 @@ function AuthenticatedShell({
           </div>
         </header>
         <div className="mx-auto max-w-[1450px] p-5 md:p-8">{children}</div>
+        <div className="pb-20 lg:pb-0">
+          <PublicFooter />
+        </div>
       </main>
       <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-2xl border border-[#e4e8e3] bg-white/95 p-2 shadow-lg backdrop-blur lg:hidden">
         {items.slice(0, 4).map((item) => {
