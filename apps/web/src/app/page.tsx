@@ -157,13 +157,13 @@ export default function Home() {
           <div className="rounded-2xl border border-[#e4e8e3] bg-white p-6 small-shadow">
             <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Current plan</p>
             <h3 className="mt-3 text-[24px] font-bold tracking-[-0.05em]">Free beta</h3>
-            <p className="mt-2 text-[34px] font-bold tracking-[-0.07em] text-[#176b5b]">₹0</p>
+            <p className="mt-2 text-[34px] font-bold tracking-[-0.07em] text-[#176b5b]">INR 0</p>
             <p className="mt-3 text-[13px] leading-6 text-[#70807c]">Resume upload, job discovery, ATS-aware scoring, user-reviewed drafts, and application tracking.</p>
           </div>
           <div className="rounded-2xl border border-dashed border-[#b8d4cc] bg-[#f6fbf9] p-6">
             <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Planned</p>
             <h3 className="mt-3 text-[24px] font-bold tracking-[-0.05em]">Pro workspace</h3>
-            <p className="mt-2 text-[13px] leading-6 text-[#70807c]">Planned from ₹499/month. Paid features will launch only after payment-provider approval, with clear cancellation and refund terms.</p>
+            <p className="mt-2 text-[13px] leading-6 text-[#70807c]">Planned from INR 499/month. Paid features will launch only after payment-provider approval, with clear cancellation and refund terms.</p>
           </div>
         </div>
         <div className="mt-8 text-center">

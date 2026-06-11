@@ -5,19 +5,19 @@ import { PolicyLayout } from "@/components/policy-layout";
 const plans = [
   {
     name: "Free",
-    price: "₹0",
+    price: "INR 0",
     cycle: "Free beta access",
     features: ["Resume upload and parsing", "Basic ATS insights", "Application tracker", "Manual job capture"],
   },
   {
     name: "Pro",
-    price: "₹499",
+    price: "INR 499",
     cycle: "per month",
     features: ["Everything in Free", "More resume tailoring credits", "Cover-letter drafts", "Review-before-apply workflow", "Priority feature access"],
   },
   {
     name: "Power User",
-    price: "₹999",
+    price: "INR 999",
     cycle: "per month",
     features: ["Everything in Pro", "Higher monthly usage limits", "Advanced application tracking", "Extension-assisted workflow", "Priority support"],
   },
