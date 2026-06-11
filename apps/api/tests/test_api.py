@@ -677,6 +677,12 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
     assert review.status_code == 200
     assert review.json()["manual_final_submission_required"] is True
+    assert review.json()["job_id"] == captured.json()["id"]
+    assert review.json()["job_title"] == "Review Engineer"
+    assert review.json()["company"] == "Example"
+    assert review.json()["match_score"] is not None
+    assert review.json()["ats_score"] is not None
+    assert review.json()["review_confirmed"] is False
     assert review.json()["resume_prepared"] is False
     assert "Tailored resume" in review.json()["missing_fields"]
     assert "Apply Wise does not submit" in " ".join(review.json()["warnings"])
@@ -686,7 +692,16 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     assert prepared_review.status_code == 200
     assert prepared_review.json()["resume_prepared"] is True
     assert prepared_review.json()["cover_letter_prepared"] is True
+    assert prepared_review.json()["resume_version_id"]
+    assert prepared_review.json()["cover_letter_id"]
+    assert prepared_review.json()["resume_summary"]
+    assert prepared_review.json()["cover_letter_preview"]
     assert "Tailored resume" not in prepared_review.json()["missing_fields"]
+    confirmed_review = client.post(f"/api/v1/applications/{saved['id']}/review-before-apply/confirm", headers=headers)
+    assert confirmed_review.status_code == 200
+    assert confirmed_review.json()["review_confirmed"] is True
+    reloaded_review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
+    assert reloaded_review.json()["review_confirmed"] is True
     version_id = client.get(f"/api/v1/applications/{saved['id']}/assisted-checklist", headers=headers).json()["resume_version_id"]
     version = client.get(f"/api/v1/resume-versions/{version_id}", headers=headers).json()
     edited_content = dict(version["resume_content"])
@@ -708,6 +723,7 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
 
     outsider = register_user("review-outsider@example.com")["tokens"]["access_token"]
     assert client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
+    assert client.post(f"/api/v1/applications/{saved['id']}/review-before-apply/confirm", headers={"Authorization": f"Bearer {outsider}"}).status_code == 404
 
 
 def test_resume_download_is_scoped_to_its_owner() -> None:

@@ -396,15 +396,25 @@ class BackgroundJobResponse(BaseModel):
 
 class ReviewBeforeApplyResponse(BaseModel):
     application_id: str
+    job_id: str
     job_title: str
     company: str
+    location: str
+    source: str
     target_url: str
+    match_score: float | None
+    ats_score: float | None
+    resume_version_id: str | None
+    cover_letter_id: str | None
+    resume_summary: str | None
+    cover_letter_preview: str | None
     resume_prepared: bool
     cover_letter_prepared: bool
     autofill_fields: list[AutofillFieldResponse]
     missing_fields: list[str]
     quality_warnings: list[str]
     warnings: list[str]
+    review_confirmed: bool
     manual_final_submission_required: bool = True
 
 
@@ -1150,16 +1160,17 @@ async def review_before_apply(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ReviewBeforeApplyResponse:
     row = await session.execute(
-        select(Application, Job, ResumeVersion, CoverLetter)
+        select(Application, Job, ResumeVersion, CoverLetter, JobMatch)
         .join(Job, Application.job_id == Job.id)
         .outerjoin(ResumeVersion, Application.resume_version_id == ResumeVersion.id)
         .outerjoin(CoverLetter, Application.cover_letter_id == CoverLetter.id)
+        .outerjoin(JobMatch, (JobMatch.job_id == Job.id) & (JobMatch.user_id == user.id))
         .where(Application.id == application_id, Application.user_id == user.id)
     )
     result = row.one_or_none()
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
-    application, job, resume_version, cover_letter = result
+    application, job, resume_version, cover_letter, job_match = result
     profile = await ResumeService(session).get_active(user.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before reviewing an application.")
@@ -1188,6 +1199,11 @@ async def review_before_apply(
         warnings.append("Some fields need manual confirmation before employer-page submission.")
     if quality_warnings:
         warnings.append("Unsupported generated claims need review before download or employer submission.")
+    review_confirmed = await session.scalar(
+        select(func.count())
+        .select_from(ApplicationEvent)
+        .where(ApplicationEvent.application_id == application.id, ApplicationEvent.event_type == "review_before_apply_confirmed")
+    )
     session.add(
         ApplicationEvent(
             application_id=application.id,
@@ -1198,16 +1214,48 @@ async def review_before_apply(
     await session.commit()
     return ReviewBeforeApplyResponse(
         application_id=str(application.id),
+        job_id=str(job.id),
         job_title=job.title,
         company=job.company,
+        location=job.location,
+        source=job.source,
         target_url=job.url,
+        match_score=job_match.match_score if job_match else None,
+        ats_score=job_match.ats_score if job_match else resume_version.ats_score if resume_version else None,
+        resume_version_id=str(resume_version.id) if resume_version else None,
+        cover_letter_id=str(cover_letter.id) if cover_letter else None,
+        resume_summary=resume_content_summary(resume_version.resume_content) if resume_version else None,
+        cover_letter_preview=cover_letter.content[:700] if cover_letter else None,
         resume_prepared=resume_version is not None,
         cover_letter_prepared=cover_letter is not None,
         autofill_fields=[AutofillFieldResponse(**field.__dict__) for field in fields],
         missing_fields=dedupe_preserve_order(missing_fields),
         quality_warnings=quality_warnings,
         warnings=warnings,
+        review_confirmed=bool(review_confirmed),
     )
+
+
+@router.post("/applications/{application_id}/review-before-apply/confirm", response_model=ReviewBeforeApplyResponse)
+async def confirm_review_before_apply(
+    application_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ReviewBeforeApplyResponse:
+    application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user.id))
+    if not application:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="review_before_apply_confirmed",
+            metadata_={"manual_final_submission_required": True, "autofill_requires_user_approval": True},
+        )
+    )
+    await session.commit()
+    response = await review_before_apply(application_id, user, session)
+    response.review_confirmed = True
+    return response
 
 
 @router.get("/applications/{application_id}/interviews", response_model=list[InterviewResponse])
@@ -1947,6 +1995,24 @@ def validate_resume_version_content(content: dict) -> dict:
     if not cleaned["experience"]:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Resume content must include at least one experience entry.")
     return cleaned
+
+
+def resume_content_summary(content: dict) -> str:
+    summary = str(content.get("professional_summary", "")).strip()
+    skills = content.get("skills") if isinstance(content.get("skills"), list) else []
+    experience = content.get("experience") if isinstance(content.get("experience"), list) else []
+    parts: list[str] = []
+    if summary:
+        parts.append(summary[:280])
+    if skills:
+        parts.append(f"Skills: {', '.join(str(skill) for skill in skills[:8])}")
+    if experience and isinstance(experience[0], dict):
+        first = experience[0]
+        title = str(first.get("title", "")).strip()
+        company = str(first.get("company", "")).strip()
+        description = str(first.get("description", "")).strip()
+        parts.append(f"Experience: {title} at {company}. {description[:220]}".strip())
+    return " ".join(parts)[:900] or "Tailored resume version is prepared. Open the resume editor for full details."
 
 
 def cover_letter_response(cover_letter: CoverLetter) -> CoverLetterResponse:

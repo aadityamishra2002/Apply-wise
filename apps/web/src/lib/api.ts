@@ -101,15 +101,25 @@ export type ReviewAutofillField = {
 };
 export type ReviewBeforeApply = {
   application_id: string;
+  job_id: string;
   job_title: string;
   company: string;
+  location: string;
+  source: string;
   target_url: string;
+  match_score: number | null;
+  ats_score: number | null;
+  resume_version_id: string | null;
+  cover_letter_id: string | null;
+  resume_summary: string | null;
+  cover_letter_preview: string | null;
   resume_prepared: boolean;
   cover_letter_prepared: boolean;
   autofill_fields: ReviewAutofillField[];
   missing_fields: string[];
   quality_warnings: string[];
   warnings: string[];
+  review_confirmed: boolean;
   manual_final_submission_required: boolean;
 };
 export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
@@ -419,6 +429,15 @@ export async function retryBackgroundJob(jobId: string, accessToken: string): Pr
 export async function loadReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {
   const response = await fetch(`${apiUrl}/applications/${applicationId}/review-before-apply`, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) throw new Error("Could not load review before applying.");
+  return (await response.json()) as ReviewBeforeApply;
+}
+
+export async function confirmReviewBeforeApply(applicationId: string, accessToken: string): Promise<ReviewBeforeApply> {
+  const response = await fetch(`${apiUrl}/applications/${applicationId}/review-before-apply/confirm`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not confirm application review.");
   return (await response.json()) as ReviewBeforeApply;
 }
 

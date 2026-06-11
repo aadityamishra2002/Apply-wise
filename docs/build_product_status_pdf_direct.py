@@ -120,7 +120,7 @@ for item in [
     "Download tailored resumes from the extension for manual attachment on employer forms.",
     "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
     "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
-    "Use a consolidated Review Before Applying panel with readiness, autofill confidence, warnings, and manual-submit guardrails.",
+    "Use a consolidated Review Application panel with job details, match/ATS scores, tailored resume version, cover letter preview, required fields, missing information, warnings, manual review confirmation, and manual-submit guardrails.",
     "Flag unsupported generated skills, companies, titles, and metrics against the master resume before applying.",
     "Retry transient job-provider failures with configurable backoff and visible sanitized provider health.",
     "Require explicit confirmation before downloading resumes with unresolved unsupported-claim warnings.",
@@ -128,6 +128,7 @@ for item in [
     "Start tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit events.",
     "Queue material-preparation runs with visible status, attempts, results, failed-run retry controls, and timeline events.",
     "Present compliance-focused public pages with INR pricing, Razorpay trust text, digital delivery terms, refund rules, support details, FAQ, and third-party disclaimers.",
+    "Confirm manual application review before assisted application actions and record the confirmation in the activity timeline.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -165,14 +166,14 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Dedicated workers", "Celery/Railway worker execution for longer AI, search, and export tasks"),
-            ("2", "Playwright dry runs", "Manual-submit browser-control execution after UX and policy review"),
-            ("3", "Payment activation", "Checkout, verified webhooks, and paid-plan activation after provider approval"),
+            ("1", "Autofill coverage", "Expand field mapping for profile, education, experience, links, and skills"),
+            ("2", "Resume upload assistance", "Improve file-input guidance and upload status reporting"),
+            ("3", "Reliability hardening", "Continue retries, graceful failures, and safety controls for assisted actions"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),
     para("Repository practice", heading),
-    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. During the current beta push, changes go directly to main after local validation and CI checks. Secrets remain outside the repository."),
+    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. During the current MVP push, changes go directly to prod after local validation. Secrets remain outside the repository."),
     para("Repository: https://github.com/aadityamishra2002/Apply-wise", small),
 ]
 doc.build(story)

@@ -36,6 +36,7 @@ The maintained product guide is available in two formats:
 - Application-level dry-run plans with per-site capability flags and a hard stop before final submit
 - Tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit timeline events
 - Queued material-preparation run tracking with visible status, attempts, results, failed-run retry controls, and timeline events
+- Review Application workflow with job details, match/ATS scores, tailored resume version, cover letter preview, extracted fields, missing fields, warnings, and manual review confirmation
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
@@ -117,13 +118,13 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configura
 
 ## Release Process
 
-For the current beta push, changes are going directly to `main` after local tests and CI checks to save deployment time. The `QA -> STAGE -> main` process is documented in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) and can be re-enabled when beta traffic or team size requires stricter promotion gates.
+For the current MVP push, changes are going directly to `prod` after local tests to save time. The `QA -> STAGE -> main` process is documented in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) and can be re-enabled later if traffic or team size requires stricter promotion gates.
 
 ## Next Changes
 
-1. Dedicated Celery/Railway worker execution for longer AI/search/export tasks
-2. Real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review
-3. Payment gateway checkout, webhook verification, and paid-plan activation after provider approval
+1. Expand extension autofill mapping coverage for profile, education, experience, links, and skills
+2. Improve resume upload assistance and file-input status reporting in the extension
+3. Continue reliability and safety hardening for assisted application actions
 
 ## Chrome Extension MVP
 

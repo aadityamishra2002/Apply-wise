@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 6, 2026
+**Last updated:** June 11, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -64,7 +64,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 42. Track extension autofill previews, fill attempts, tailored-resume downloads, resume-upload assistance attempts, and captured-job events in the application timeline.
 43. Review per-site dry-run automation capability flags and manual-submit steps for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages.
 44. Retry transient AI generation failures with configurable exponential backoff and show generation fallback/attempt metadata in the application workspace.
-45. Use a consolidated "Review Before Applying" panel with materials readiness, autofill confidence, manual-attention fields, warnings, and no-auto-submit guardrails.
+45. Use a consolidated "Review Application" panel with job details, match/ATS scores, tailored resume version, cover letter preview, required fields, missing information, warnings, manual review confirmation, and no-auto-submit guardrails.
 46. Flag unsupported generated claims for skills, companies, titles, and metrics against the uploaded master resume before applying.
 47. Retry transient job-provider failures with configurable backoff and show sanitized retry/error status in provider health.
 48. Require explicit confirmation before downloading a tailored resume with unresolved unsupported-claim warnings.
@@ -72,6 +72,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 50. Start and review tracked assisted-application dry-run records with blocked/ready status, warnings, next action, and audit timeline events.
 51. Queue material-preparation runs with visible queued/running/succeeded/failed status, attempts, results, retry controls for failed runs, and timeline events.
 52. Present compliance-focused public copy with INR pricing, Razorpay trust text, digital SaaS delivery terms, refund rules, support details, FAQ, and third-party job-board disclaimers.
+53. Confirm manual application review before assisted application actions and record the confirmation in the application activity timeline.
 
 ## Truthfulness Rules
 
@@ -93,7 +94,7 @@ Generated application drafts use stored resume evidence only. The current implem
 - Adzuna and Remotive are connected; more provider integrations and deeper direct company-career-page adapters remain future work.
 - Resume parsing uses deterministic heuristics and still needs user review.
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
-- Payment checkout, webhook processing, and paid-plan activation are not connected.
+- Payment checkout, webhook processing, and paid-plan activation are not connected and are intentionally out of scope for the current product work.
 - Assisted autofill is beta-safe and review-gated; direct resume-file upload into external sites and real Playwright browser control remain future work.
 
 ## Pending Work Status
@@ -103,6 +104,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Build a real ATS evaluation engine that separately scores keywords, formatting, sections, and parsing quality | Done | Implemented as distinct keyword, section, formatting, and parse-readiness scoring. |
 | Add an `80+` score review queue | Done | High-fit jobs appear in the Jobs page review queue. |
 | Add per-job approval controls before preparing or applying | Done | Jobs can be approved or dismissed before preparation. |
+| Add complete Review Application screen | Done | Application workspace now shows job details, match/ATS scores, tailored resume version, cover letter preview, extracted fields, missing required fields, warnings, and manual review confirmation before assisted actions. |
 | Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
 | Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
 | Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
@@ -113,10 +115,31 @@ Generated application drafts use stored resume evidence only. The current implem
 
 ## Next Delivery Slices
 
-1. Add dedicated Celery/Railway worker execution for longer AI/search/export tasks.
-2. Add real Playwright browser-control execution in dry-run/manual-submit mode after policy and UX review.
-3. Add payment gateway checkout, verified webhooks, and paid-plan activation after Razorpay verification.
+1. Expand extension autofill mapping coverage for profile, education, experience, links, and skills.
+2. Improve resume upload assistance and file-input status reporting in the extension.
+3. Continue reliability and safety hardening for assisted application actions.
+
+## Testing Instructions
+
+Run the core checks before shipping:
+
+```powershell
+$env:PYTHONPATH='apps/api'; .\.venv\Scripts\python.exe -m pytest apps/api/tests -q
+cd apps\web
+& 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' '.\node_modules\typescript\bin\tsc' --noEmit
+& 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' '.\node_modules\next\dist\bin\next' build
+```
+
+## Extension Usage Steps
+
+1. Open Settings in Apply Wise and generate a one-time extension pairing code.
+2. Load the unpacked extension from `apps/extension` in Chrome or Brave.
+3. Pair the extension using the code.
+4. Open a job page, review the captured job details, and send it to Apply Wise.
+5. Prepare materials in Apply Wise, open Review Application, and confirm manual review.
+6. Use extension autofill only after previewing and approving fields.
+7. Attach the generated resume manually if the browser blocks file upload automation.
 
 ## Deployment Note
 
-The product is live for public account registration. For the current beta push, changes are going directly to `main` after local tests and CI checks to save deployment time. The Railway backend currently depends on the selected Railway plan and usage allowance. Check Railway usage regularly before the trial window ends.
+The product is live for public account registration. For the current MVP push, changes are going directly to `prod` after local tests to save time. The Railway backend currently depends on the selected Railway plan and usage allowance. Check Railway usage regularly before the trial window ends.

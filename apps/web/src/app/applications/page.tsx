@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import {
+  confirmReviewBeforeApply,
   createAutomationRun,
   createPrepareRun,
   createInterview,
@@ -265,6 +266,20 @@ export default function ApplicationsPage() {
     }
   }
 
+  async function confirmApplicationReview() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setUpdating(selected.id);
+    try {
+      const confirmed = await confirmReviewBeforeApply(selected.id, token);
+      setReviewBeforeApply(confirmed);
+      const refreshedEvents = await loadApplicationEvents(selected.id, token);
+      setEvents(refreshedEvents);
+    } finally {
+      setUpdating(null);
+    }
+  }
+
   async function startAutomationRun() {
     const token = getAccessToken();
     if (!token || !selected) return;
@@ -449,10 +464,22 @@ export default function ApplicationsPage() {
           <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-[16px] font-bold">Review before applying</h2>
-                <p className="mt-1 text-[12px] text-[#71807c]">One final safety pass for {reviewBeforeApply.job_title} at {reviewBeforeApply.company} before you open the employer form.</p>
+                <h2 className="text-[16px] font-bold">Review application</h2>
+                <p className="mt-1 text-[12px] text-[#71807c]">Confirm the role, scores, generated materials, application fields, and warnings before any assisted apply action.</p>
               </div>
-              <span className="rounded-full bg-[#fff4ef] px-3 py-1 text-[11px] font-bold text-[#a34f3f]">No auto-submit</span>
+              <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${reviewBeforeApply.review_confirmed ? "bg-[#e8f4ef] text-[#176b5b]" : "bg-[#fff4ef] text-[#a34f3f]"}`}>{reviewBeforeApply.review_confirmed ? "Review confirmed" : "Review required"}</span>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_.8fr]">
+              <div className="rounded-xl bg-[#f6f8f5] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#91a09c]">Selected job</p>
+                <h3 className="mt-2 text-[17px] font-bold">{reviewBeforeApply.job_title}</h3>
+                <p className="mt-1 text-[12px] text-[#71807c]">{reviewBeforeApply.company} / {reviewBeforeApply.location} / {reviewBeforeApply.source}</p>
+                <a className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-[#176b5b]" href={reviewBeforeApply.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Employer page</a>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ScoreCard label="Match score" value={reviewBeforeApply.match_score === null ? "--" : `${Math.round(reviewBeforeApply.match_score)}%`} />
+                <ScoreCard label="ATS score" value={reviewBeforeApply.ats_score === null ? "--" : `${Math.round(reviewBeforeApply.ats_score)}%`} />
+              </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <WorkflowStep label="Resume ready" ready={reviewBeforeApply.resume_prepared} detail="Download or attach the latest tailored resume." />
@@ -460,8 +487,20 @@ export default function ApplicationsPage() {
               <WorkflowStep label="Manual submit" ready={reviewBeforeApply.manual_final_submission_required} detail="You must submit on the employer site yourself." />
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-[#edf0ed] p-4">
+                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Tailored resume version</p>
+                <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{reviewBeforeApply.resume_version_id ?? "Not prepared"}</p>
+                <p className="mt-2 line-clamp-6 text-[12px] leading-6 text-[#65736f]">{reviewBeforeApply.resume_summary ?? "Prepare a tailored resume before assisted application."}</p>
+              </div>
+              <div className="rounded-xl border border-[#edf0ed] p-4">
+                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Cover letter</p>
+                <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{reviewBeforeApply.cover_letter_id ?? "Not prepared"}</p>
+                <p className="mt-2 line-clamp-6 whitespace-pre-line text-[12px] leading-6 text-[#65736f]">{reviewBeforeApply.cover_letter_preview ?? "Prepare a cover letter before assisted application."}</p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div>
-                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Autofill review</h3>
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Required application fields</h3>
                 <div className="mt-2 space-y-2">
                   {reviewBeforeApply.autofill_fields.slice(0, 10).map((field) => (
                     <div className="rounded-xl bg-[#f6f8f5] p-3" key={field.field_key}>
@@ -490,7 +529,11 @@ export default function ApplicationsPage() {
                 </div>
               </div>
             </div>
-            <a className="mt-4 inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={reviewBeforeApply.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page after review</a>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#edf0ed] pt-4">
+              <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={reviewBeforeApply.review_confirmed || updating === selected.id} onClick={() => void confirmApplicationReview()}>I reviewed this application</button>
+              <a className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[12px] font-bold ${reviewBeforeApply.review_confirmed ? "bg-[#1c2926] text-white" : "bg-[#f6f8f5] text-[#91a09c]"}`} href={reviewBeforeApply.review_confirmed ? reviewBeforeApply.target_url : undefined} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page after review</a>
+              <p className="text-[11px] font-bold text-[#a34f3f]">Final submit must be clicked manually on the employer site.</p>
+            </div>
           </section>
         ) : null}
         <section className="mt-5 rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
@@ -632,12 +675,22 @@ function eventSummary(event: ApplicationEvent): string {
   if (event.event_type === "prepare_job_failed") return "Queued material preparation failed; retry from the workflow panel.";
   if (event.event_type === "prepare_job_retried") return `Material preparation job retried after ${String(metadata.attempts ?? 0)} previous attempt(s).`;
   if (event.event_type === "review_before_apply_opened") return `Review package opened with ${String(metadata.missing_field_count ?? 0)} field(s) needing attention.`;
+  if (event.event_type === "review_before_apply_confirmed") return "User confirmed manual review before assisted application actions.";
   if (event.event_type === "extension_job_captured" || event.event_type === "extension_job_recaptured") return "Captured from the browser extension.";
   return "";
 }
 
 function CapabilityPill({ label, ready }: { label: string; ready: boolean }) {
   return <p className={`rounded-xl px-3 py-2 text-center text-[11px] font-bold ${ready ? "bg-[#e8f4ef] text-[#176b5b]" : "bg-[#fff4ef] text-[#a34f3f]"}`}>{label}: {ready ? "Supported" : "Manual"}</p>;
+}
+
+function ScoreCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[#e8f4ef] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#71807c]">{label}</p>
+      <p className="mt-2 text-[24px] font-bold tracking-[-0.06em] text-[#176b5b]">{value}</p>
+    </div>
+  );
 }
 
 function WorkflowStep({ label, ready, detail }: { label: string; ready: boolean; detail: string }) {
