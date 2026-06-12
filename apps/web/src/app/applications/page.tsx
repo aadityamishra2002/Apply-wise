@@ -660,12 +660,14 @@ export default function ApplicationsPage() {
 function eventSummary(event: ApplicationEvent): string {
   const metadata = event.metadata ?? {};
   if (event.event_type === "autofill_previewed") return `Reviewed ${String(metadata.field_count ?? 0)} suggested fields.`;
+  if (event.event_type === "autofill_approved") return `Approved ${String(metadata.approved_field_count ?? 0)} field(s) for assisted autofill. Final submission remains manual.`;
   if (event.event_type === "autofill_attempted") {
     const filled = Array.isArray(metadata.filled) ? metadata.filled.length : 0;
     const skipped = Array.isArray(metadata.skipped) ? metadata.skipped.length : 0;
     return `${filled} field(s) filled, ${skipped} left for manual review. Final submission remains manual.`;
   }
   if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
+  if (event.event_type === "resume_upload_failed") return "Resume upload could not be automated in the browser; manual upload is required.";
   if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;
   if (event.event_type === "resume_export_downloaded") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} exported in ${String(metadata.retry_attempts ?? 1)} attempt(s).`;
   if (event.event_type === "automation_dry_run_planned") return `Dry-run plan created for ${String(metadata.site_key ?? "career site")}.`;

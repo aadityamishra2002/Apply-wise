@@ -117,7 +117,7 @@ for item in [
     "Review extension capture readiness and re-extract the current page before sending a job.",
     "Request and confirm password resets with one-time tokens and session revocation.",
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
-    "Download tailored resumes from the extension for manual attachment on employer forms.",
+    "Download tailored resumes from the extension for manual attachment on employer forms with manual-upload-required status.",
     "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
     "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
     "Use a consolidated Review Application panel with job details, match/ATS scores, tailored resume version, cover letter preview, required fields, missing information, warnings, manual review confirmation, and manual-submit guardrails.",
@@ -129,6 +129,8 @@ for item in [
     "Queue material-preparation runs with visible status, attempts, results, failed-run retry controls, and timeline events.",
     "Present compliance-focused public pages with INR pricing, Razorpay trust text, digital delivery terms, refund rules, support details, FAQ, and third-party disclaimers.",
     "Confirm manual application review before assisted application actions and record the confirmation in the activity timeline.",
+    "Map common autofill fields for profile, links, education, experience, skills, cover letter, and resume file assistance.",
+    "Log extension autofill approval and resume upload failed/manual-required events in the activity timeline.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -166,9 +168,9 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Autofill coverage", "Expand field mapping for profile, education, experience, links, and skills"),
-            ("2", "Resume upload assistance", "Improve file-input guidance and upload status reporting"),
-            ("3", "Reliability hardening", "Continue retries, graceful failures, and safety controls for assisted actions"),
+            ("1", "Reliability hardening", "Continue retries, graceful failures, and safety controls for assisted actions"),
+            ("2", "Site-specific selectors", "Add more employer-site-specific field selectors as real users report gaps"),
+            ("3", "Extension UX", "Polish extension flows after live usage feedback"),
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),

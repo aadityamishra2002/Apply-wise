@@ -59,8 +59,8 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 37. Review extension capture readiness and re-extract the current page before sending a job.
 38. Request and confirm password resets with one-time tokens and session revocation.
 39. Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.
-40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, and fill only approved fields.
-41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms.
+40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, approve selected fields, log the approval, and fill only approved fields.
+41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms, with visible manual-upload-required status when browser upload automation is blocked.
 42. Track extension autofill previews, fill attempts, tailored-resume downloads, resume-upload assistance attempts, and captured-job events in the application timeline.
 43. Review per-site dry-run automation capability flags and manual-submit steps for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages.
 44. Retry transient AI generation failures with configurable exponential backoff and show generation fallback/attempt metadata in the application workspace.
@@ -73,6 +73,8 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 51. Queue material-preparation runs with visible queued/running/succeeded/failed status, attempts, results, retry controls for failed runs, and timeline events.
 52. Present compliance-focused public copy with INR pricing, Razorpay trust text, digital SaaS delivery terms, refund rules, support details, FAQ, and third-party job-board disclaimers.
 53. Confirm manual application review before assisted application actions and record the confirmation in the application activity timeline.
+54. Map autofill fields for full name, first name, last name, email, phone, location, LinkedIn, GitHub, portfolio, education, experience, skills, current company, current role, cover letter, and resume file assistance.
+55. Log extension autofill approval and resume upload failure/manual-required events in the user-visible activity timeline.
 
 ## Truthfulness Rules
 
@@ -106,8 +108,8 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add per-job approval controls before preparing or applying | Done | Jobs can be approved or dismissed before preparation. |
 | Add complete Review Application screen | Done | Application workspace now shows job details, match/ATS scores, tailored resume version, cover letter preview, extracted fields, missing required fields, warnings, and manual review confirmation before assisted actions. |
 | Add site-specific Chrome extension extractors for LinkedIn, Naukri, Indeed, and company career pages | In progress | LinkedIn existed; Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic company-career adapters added in the current slice. |
-| Add assisted autofill for application forms | Partially done | Extension can load an API-generated autofill plan, show confidence/source/sensitive warnings, and fill only reviewed fields. Low-confidence and sensitive fields are unchecked by default. |
-| Add resume-file upload support during assisted applications | Partially done | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, and logs upload assistance. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
+| Add assisted autofill for application forms | Done for MVP | Extension loads an API-generated autofill plan, maps common profile/resume fields, shows confidence/source/sensitive warnings, logs approved fields, and fills only user-approved fields. |
+| Add resume-file upload support during assisted applications | Done for MVP | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, shows manual-upload-required status, and logs upload attempted/failed-manual-required events. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities, application plans, and tracked assisted-run records exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages. Real browser-control execution is still deferred. |
 | Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, Gemini generation retries, provider retries, export retries, assisted-run status tracking, and queued material-preparation status/retry controls exist; dedicated Celery worker execution remains pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
@@ -115,9 +117,9 @@ Generated application drafts use stored resume evidence only. The current implem
 
 ## Next Delivery Slices
 
-1. Expand extension autofill mapping coverage for profile, education, experience, links, and skills.
-2. Improve resume upload assistance and file-input status reporting in the extension.
-3. Continue reliability and safety hardening for assisted application actions.
+1. Continue reliability and safety hardening for assisted application actions.
+2. Add more employer-site-specific field selectors as real users report gaps.
+3. Add deeper extension UX polish after live usage feedback.
 
 ## Testing Instructions
 

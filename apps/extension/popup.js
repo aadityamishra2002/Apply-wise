@@ -170,6 +170,8 @@ function renderAutofillPlan(plan) {
     item.append(label, details);
     list.appendChild(item);
   }
+  const resumeField = plan.fields.find((field) => field.field_key === "resume_file");
+  updateUploadStatus(resumeField?.value ? "Prepared tailored resume detected. If this page has a resume upload field, download the generated PDF/DOCX and attach it manually if browser upload is blocked." : "Prepare a tailored resume in Apply Wise before resume upload assistance.");
   document.getElementById("autofill-preview").hidden = false;
 }
 
@@ -179,6 +181,20 @@ async function fillReviewedFields() {
   const approvedKeys = [...document.querySelectorAll("#autofill-fields input[type='checkbox']:checked")].map((input) => input.dataset.fieldKey);
   const approvedFields = autofillPlan.fields.filter((field) => approvedKeys.includes(field.field_key) && field.value);
   if (!approvedFields.length) return message("Select at least one reviewed field to fill.");
+  if (extensionToken) {
+    await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/events`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_type: "autofill_approved",
+        metadata: {
+          approved_field_keys: approvedFields.map((field) => field.field_key),
+          approved_field_count: approvedFields.length,
+          manual_final_submission_required: true,
+        },
+      }),
+    }, { retries: 1 }).catch(() => null);
+  }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
   let result;
@@ -199,9 +215,15 @@ async function fillReviewedFields() {
         headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ event_type: "resume_upload_attempted", metadata: { detected_upload_fields: result.resumeUploadFields, direct_upload_supported: false } }),
       }, { retries: 1 }).catch(() => null);
+      await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/events`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "resume_upload_failed", metadata: { detected_upload_fields: result.resumeUploadFields, reason: "browser_blocked_file_path", manual_upload_required: true } }),
+      }, { retries: 1 }).catch(() => null);
     }
   }
   const uploadHint = result.resumeUploadFields > 0 ? ` Found ${result.resumeUploadFields} resume upload field(s); download the tailored resume from Apply Wise and attach it manually if needed.` : "";
+  if (result.resumeUploadFields > 0) updateUploadStatus(`Manual upload required: found ${result.resumeUploadFields} resume upload field(s). Browser security usually blocks extensions from assigning a local file path, so download the tailored resume and attach it yourself.`);
   message(`Filled ${result.filled.length} field(s). ${result.skipped.length} skipped for manual review.${uploadHint} Final submission is manual.`);
 }
 
@@ -256,6 +278,14 @@ function captureQuality(payload) {
 
 function truncate(value, length) {
   return value && value.length > length ? `${value.slice(0, length)}...` : value;
+}
+
+function updateUploadStatus(value) {
+  const section = document.getElementById("upload-status");
+  const text = document.getElementById("upload-status-message");
+  if (!section || !text) return;
+  text.textContent = value;
+  section.hidden = false;
 }
 
 function extractPage() {
@@ -403,6 +433,8 @@ function detectApplicationFields() {
 function fillApplicationFields(fields) {
   const aliases = {
     full_name: [/full.?name|candidate.?name|applicant.?name/],
+    first_name: [/first.?name|given.?name/],
+    last_name: [/last.?name|family.?name|surname/],
     email: [/e-?mail/],
     phone: [/phone|mobile|telephone/],
     location: [/location|city|address/],

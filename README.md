@@ -56,8 +56,8 @@ The maintained product guide is available in two formats:
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
-- Local extension form inspector and review-gated autofill for common employer application fields
-- Extension tailored-resume PDF/DOCX download for manual upload on employer forms
+- Local extension form inspector and review-gated autofill for common employer application fields, including approved-field audit logging
+- Extension tailored-resume PDF/DOCX download and manual-upload-required status for employer resume upload fields
 - Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic career-page extractors
 - Extension capture-readiness diagnostics with re-extract support before sending
 - Public About, Pricing, Terms, Privacy, Refund/Cancellation, Shipping/Delivery, and Contact pages for SaaS/payment-gateway review
@@ -122,9 +122,9 @@ For the current MVP push, changes are going directly to `prod` after local tests
 
 ## Next Changes
 
-1. Expand extension autofill mapping coverage for profile, education, experience, links, and skills
-2. Improve resume upload assistance and file-input status reporting in the extension
-3. Continue reliability and safety hardening for assisted application actions
+1. Continue reliability and safety hardening for assisted application actions
+2. Add more employer-site-specific field selectors as real users report gaps
+3. Add deeper extension UX polish after live usage feedback
 
 ## Chrome Extension MVP
 

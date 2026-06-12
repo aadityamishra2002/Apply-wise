@@ -331,13 +331,27 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     fields = {field["field_key"]: field for field in plan.json()["fields"]}
     assert fields["email"]["value"] == "extension-owner@example.com"
     assert fields["email"]["requires_review"] is True
+    assert "first_name" in fields
+    assert "last_name" in fields
     assert fields["skills"]["confidence"] >= 0.75
+    approved = client.post(
+        f"/api/v1/extension/applications/{captured.json()['application_id']}/events",
+        headers=extension_headers,
+        json={"event_type": "autofill_approved", "metadata": {"approved_field_keys": ["email", "skills"], "approved_field_count": 2}},
+    )
+    assert approved.status_code == 201
     event = client.post(
         f"/api/v1/extension/applications/{captured.json()['application_id']}/events",
         headers=extension_headers,
         json={"event_type": "autofill_attempted", "metadata": {"filled": [{"field_key": "skills"}], "skipped": []}},
     )
     assert event.status_code == 201
+    upload_failed = client.post(
+        f"/api/v1/extension/applications/{captured.json()['application_id']}/events",
+        headers=extension_headers,
+        json={"event_type": "resume_upload_failed", "metadata": {"reason": "browser_blocked_file_path", "manual_upload_required": True}},
+    )
+    assert upload_failed.status_code == 201
     prepared = client.post(f"/api/v1/applications/{captured.json()['application_id']}/prepare", headers=headers)
     assert prepared.status_code == 201
     downloaded = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/resume-download?format=pdf", headers=extension_headers)

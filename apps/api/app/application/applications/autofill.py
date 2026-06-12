@@ -40,10 +40,15 @@ def build_autofill_plan(
     current_experience = profile.experiences[0] if profile.experiences else None
     education = profile.education[0] if profile.education else None
     full_name = infer_name(text, email)
+    name_parts = full_name.split()
+    first_name = name_parts[0] if name_parts else ""
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
     location = infer_location(text)
 
     mappings = [
         maybe_mapping("full_name", "Full name", full_name, 0.66 if full_name else 0, "resume header"),
+        maybe_mapping("first_name", "First name", first_name, 0.72 if first_name else 0, "resume header"),
+        maybe_mapping("last_name", "Last name", last_name, 0.72 if last_name else 0, "resume header"),
         maybe_mapping("email", "Email", email, 0.98, "account/resume", sensitive=True),
         maybe_mapping("phone", "Phone", phone, 0.86 if phone else 0, "resume", sensitive=True),
         maybe_mapping("location", "Location", location, 0.58 if location else 0, "resume"),
