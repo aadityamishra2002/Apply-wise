@@ -44,6 +44,7 @@ The maintained product guide is available in two formats:
 - Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
 - Saved jobs, application statuses, dashboard metrics, and application analytics
+- Active and archived application views so rejected or withdrawn roles stay out of the working pipeline without losing history
 - Dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events
 - Learning-system MVP with missing-skill recommendations from matched and approved roles
 - Application notes and visible activity timeline

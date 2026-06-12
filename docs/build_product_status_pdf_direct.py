@@ -143,6 +143,7 @@ for item in [
     "Allow the extension popup to save a configurable Apply Wise API URL for backend domain changes.",
     "Scope extension host permissions to Railway subdomains for backend URL changes.",
     "Provide an authenticated account data export from Settings without password hashes, tokens, or payment credentials.",
+    "Separate active and archived application views so rejected or withdrawn roles stop cluttering the working pipeline without deleting history.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

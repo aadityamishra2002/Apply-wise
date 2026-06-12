@@ -81,6 +81,7 @@ export default function ApplicationsPage() {
   const [resumeVersion, setResumeVersion] = useState<ResumeVersionDetail | null>(null);
   const [resumeDraft, setResumeDraft] = useState<ResumeContentDraft | null>(null);
   const [resumeSaved, setResumeSaved] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -353,6 +354,9 @@ export default function ApplicationsPage() {
   const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
   const preparedCoverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
   const selectedIsApplied = selected?.status === "applied" || selected?.status === "interview" || selected?.status === "offer";
+  const archivedStatuses = new Set(["rejected", "withdrawn"]);
+  const visibleApplications = applications.filter((application) => showArchived ? archivedStatuses.has(application.status) : !archivedStatuses.has(application.status));
+  const archivedCount = applications.filter((application) => archivedStatuses.has(application.status)).length;
 
   return (
     <AppShell eyebrow="Application tracker" title="Your pipeline">
@@ -361,9 +365,15 @@ export default function ApplicationsPage() {
       ) : applications.length ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_.9fr]">
           <section className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
-            <h2 className="text-[16px] font-bold">Saved opportunities</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-[16px] font-bold">{showArchived ? "Archived opportunities" : "Saved opportunities"}</h2>
+                <p className="mt-1 text-[12px] text-[#71807c]">{showArchived ? "Rejected and withdrawn roles are kept here for history and learning." : "Active roles you are still reviewing, preparing, or interviewing for."}</p>
+              </div>
+              <button className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" onClick={() => setShowArchived((current) => !current)}>{showArchived ? "Show active" : `Show archived (${archivedCount})`}</button>
+            </div>
             <div className="mt-4 space-y-3">
-              {applications.map((application) => (
+              {visibleApplications.length ? visibleApplications.map((application) => (
                 <div className={`flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 ${selected?.id === application.id ? "border-[#85b7aa]" : "border-[#edf0ed]"}`} key={application.id} onClick={() => void inspect(application)}>
                   <div>
                     <p className="text-[13px] font-bold">{application.title}</p>
@@ -379,7 +389,7 @@ export default function ApplicationsPage() {
                     </select>
                   </div>
                 </div>
-              ))}
+              )) : <p className="rounded-xl border border-dashed border-[#d5dedb] p-5 text-center text-[12px] text-[#91a09c]">{showArchived ? "No archived roles yet." : "No active roles in this view."}</p>}
             </div>
           </section>
 
