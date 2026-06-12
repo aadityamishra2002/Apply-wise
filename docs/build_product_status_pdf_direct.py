@@ -137,6 +137,7 @@ for item in [
     "Detect common data-attribute field labels and include manual-only review coverage for work authorization and pronouns.",
     "Use explicit Jobvite, iCIMS, BambooHR, and Workable adapters for common employer career pages.",
     "Score ATS keywords from provider skills or fallback job-description terms when structured provider data is sparse.",
+    "Harden extension autofill by skipping disabled, read-only, hidden, empty-value, checkbox, and radio controls and matching select options conservatively.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

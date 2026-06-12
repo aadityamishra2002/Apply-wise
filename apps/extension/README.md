@@ -34,6 +34,8 @@ On an employer application page, click **Inspect application form** to preview c
 
 Autofill is review-gated. Apply Wise only fills fields selected in the popup. It does not click final submit buttons and does not bypass employer-site validation. Browser security prevents extensions from setting a local file path on file inputs, so resume uploads are detected, shown as manual upload required, and logged. The extension can download the latest prepared tailored resume for the application so the user can attach it manually.
 
+Autofill skips disabled, read-only, hidden, empty-value, checkbox, and radio controls that need manual confirmation. Select/dropdown fields are filled only when an option clearly matches the reviewed value; otherwise the popup logs the field as skipped.
+
 If capture fails, the popup shows the API reason. Common causes are an expired pairing token, no master resume uploaded in Apply Wise, a short or empty description, an invalid URL, or a protected page where the extension cannot read the full job text.
 
 The extraction logic uses adapters for Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and common company career pages with a general heuristic fallback. Review every extracted field because job-page markup can change over time.

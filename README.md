@@ -61,6 +61,7 @@ The maintained product guide is available in two formats:
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
 - Local extension form inspector and review-gated autofill for common employer application fields, including approved-field audit logging
+- Conservative autofill handling for select/dropdown fields while skipping hidden, disabled, read-only, checkbox, radio, and empty-value controls
 - Extension tailored-resume PDF/DOCX download and manual-upload-required status for employer resume upload fields
 - Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, and generic career-page extractors
 - Extension capture-readiness diagnostics with re-extract support before sending

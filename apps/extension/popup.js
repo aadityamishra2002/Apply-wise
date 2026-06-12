@@ -498,26 +498,57 @@ function fillApplicationFields(fields) {
       skipped.push({ field_key: field.field_key, reason: "Browsers do not allow extensions to set local file paths directly." });
       continue;
     }
-    const element = elements.find((candidate) => candidate.type !== "file" && (aliases[field.field_key] || []).some((pattern) => pattern.test(fieldHaystack(candidate))));
+    if (!String(field.value || "").trim()) {
+      skipped.push({ field_key: field.field_key, reason: "No reviewed value is available; fill manually if required." });
+      continue;
+    }
+    const element = elements.find((candidate) => isFillable(candidate) && (aliases[field.field_key] || []).some((pattern) => pattern.test(fieldHaystack(candidate))));
     if (!element) {
       skipped.push({ field_key: field.field_key, reason: "No matching field detected." });
       continue;
     }
     if (element.tagName === "SELECT") {
-      const matched = [...element.options].find((option) => option.textContent?.toLowerCase().includes(String(field.value).toLowerCase()));
+      const matched = matchSelectOption(element, field.value);
       if (!matched) {
         skipped.push({ field_key: field.field_key, reason: "Select option needs manual choice." });
         continue;
       }
       element.value = matched.value;
+    } else if (["checkbox", "radio"].includes(element.type)) {
+      skipped.push({ field_key: field.field_key, reason: "Checkbox or radio group needs manual confirmation." });
+      continue;
     } else {
-      element.value = field.value;
+      setNativeValue(element, field.value);
     }
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
     filled.push({ field_key: field.field_key, label: field.label });
   }
   return { filled, skipped, resumeUploadFields, manualFinalSubmissionRequired: true };
+}
+
+function isFillable(element) {
+  if (element.type === "file" || element.disabled || element.readOnly) return false;
+  if (element.offsetParent === null && element.tagName !== "SELECT") return false;
+  return true;
+}
+
+function matchSelectOption(element, value) {
+  const expected = normalizeOption(value);
+  return [...element.options].find((option) => normalizeOption(option.value) === expected)
+    || [...element.options].find((option) => normalizeOption(option.textContent) === expected)
+    || [...element.options].find((option) => normalizeOption(option.textContent).includes(expected) && expected.length >= 3);
+}
+
+function normalizeOption(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function setNativeValue(element, value) {
+  const prototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+  descriptor?.set?.call(element, value);
+  if (element.value !== value) element.value = value;
 }
 
 function fieldHaystack(element) {
