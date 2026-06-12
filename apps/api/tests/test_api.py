@@ -326,6 +326,10 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert captured.status_code == 201
     assert captured.json()["source"] == "manual"
     assert captured.json()["application_id"]
+    unreviewed_plan = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/autofill-plan", headers=extension_headers)
+    assert unreviewed_plan.status_code == 409
+    assert "confirm manual review" in unreviewed_plan.json()["detail"]
+    client.post(f"/api/v1/applications/{captured.json()['application_id']}/review-before-apply/confirm", headers=headers)
     plan = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/autofill-plan", headers=extension_headers)
     assert plan.status_code == 200
     fields = {field["field_key"]: field for field in plan.json()["fields"]}
@@ -334,6 +338,10 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert "first_name" in fields
     assert "last_name" in fields
     assert fields["skills"]["confidence"] >= 0.75
+    assert fields["work_authorization"]["requires_review"] is True
+    assert fields["work_authorization"]["sensitive"] is True
+    assert fields["pronouns"]["requires_review"] is True
+    assert fields["pronouns"]["sensitive"] is True
     approved = client.post(
         f"/api/v1/extension/applications/{captured.json()['application_id']}/events",
         headers=extension_headers,

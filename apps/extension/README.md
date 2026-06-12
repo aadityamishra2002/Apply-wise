@@ -23,13 +23,14 @@ After changing extension files, click **Reload** for the unpacked extension in `
 4. Review **Capture readiness**. Fix any field marked **Needs review** or click **Re-extract current page** after opening the full job description.
 5. Click **Send to Apply Wise**.
 6. Open Apply Wise, prepare the application materials, and review the generated resume and cover letter.
-7. Return to the employer application page, click **Inspect application form**, then click **Load autofill plan**.
-8. Review every suggested field. Sensitive or low-confidence fields are unchecked by default.
-9. Select only the fields you approve and click **Fill reviewed fields**. Apply Wise logs the approved field keys before filling.
-10. Review the **Resume upload status** panel. If the page has a resume upload field, download the tailored resume PDF or DOCX from the extension.
-11. Attach the tailored resume manually when the browser blocks direct file assignment, then manually submit only after your own final review.
+7. Open **Review Application** in Apply Wise and click **I reviewed this application**. The extension will not load an autofill plan until this is done.
+8. Return to the employer application page, click **Inspect application form**, then click **Load autofill plan**.
+9. Review every suggested field. Sensitive or low-confidence fields are unchecked by default.
+10. Select only the fields you approve and click **Fill reviewed fields**. Apply Wise logs the approved field keys before filling.
+11. Review the **Resume upload status** panel. If the page has a resume upload field, download the tailored resume PDF or DOCX from the extension.
+12. Attach the tailored resume manually when the browser blocks direct file assignment, then manually submit only after your own final review.
 
-On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, GitHub, portfolio, skills, education, salary expectation, notice period, and work authorization.
+On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, GitHub, portfolio, skills, education, salary expectation, notice period, work authorization, and pronouns.
 
 Autofill is review-gated. Apply Wise only fills fields selected in the popup. It does not click final submit buttons and does not bypass employer-site validation. Browser security prevents extensions from setting a local file path on file inputs, so resume uploads are detected, shown as manual upload required, and logged. The extension can download the latest prepared tailored resume for the application so the user can attach it manually.
 

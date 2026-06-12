@@ -63,6 +63,8 @@ def build_autofill_plan(
         maybe_mapping("cover_letter", "Cover letter", cover_letter.content if cover_letter else "", 0.9 if cover_letter else 0, "prepared cover letter"),
         maybe_mapping("expected_salary", "Expected salary", "", 0, "manual only", sensitive=True),
         maybe_mapping("notice_period", "Notice period", "", 0, "manual only"),
+        maybe_mapping("work_authorization", "Work authorization", "", 0, "manual only", sensitive=True),
+        maybe_mapping("pronouns", "Pronouns", "", 0, "manual only", sensitive=True),
         maybe_mapping("resume_file", "Tailored resume file", str(resume_version.id) if resume_version else "", 0.95 if resume_version else 0, "prepared resume version"),
     ]
     return [mapping for mapping in mappings if mapping is not None]
@@ -78,7 +80,7 @@ def maybe_mapping(
     sensitive: bool = False,
 ) -> AutofillMapping | None:
     value = (value or "").strip()
-    if not value and field_key not in {"expected_salary", "notice_period"}:
+    if not value and field_key not in {"expected_salary", "notice_period", "work_authorization", "pronouns"}:
         return None
     confidence = max(0, min(confidence, 1))
     return AutofillMapping(

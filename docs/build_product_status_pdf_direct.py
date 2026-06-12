@@ -133,6 +133,8 @@ for item in [
     "Log extension autofill approval and resume upload failed/manual-required events in the activity timeline.",
     "Record explicit audit events for tailored resume generation, cover letter generation, and application marked applied.",
     "Show clearer extension recovery messages when a pairing token expires.",
+    "Gate extension autofill plans behind Review Application confirmation so assisted filling cannot start before manual review.",
+    "Detect common data-attribute field labels and include manual-only review coverage for work authorization and pronouns.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -162,7 +164,7 @@ for item in [
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Payment checkout, webhooks, and paid-plan activation are not connected.",
-    "Assisted autofill is review-gated; direct file upload and real Playwright browser control remain future work.",
+    "Assisted autofill is review-gated behind Review Application confirmation; direct file upload and real Playwright browser control remain future work.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

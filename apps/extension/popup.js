@@ -137,7 +137,11 @@ async function loadAutofillPlan() {
   const response = await fetchWithRetry(`${apiUrl}/extension/applications/${lastApplicationId}/autofill-plan`, {
     headers: { Authorization: `Bearer ${extensionToken}` },
   }, { retries: 2 });
-  if (!response.ok) return message(response.status === 401 ? "Autofill failed because the extension pairing expired. Generate a fresh code in Apply Wise Settings and pair again." : `Could not load autofill plan: ${await responseMessage(response)}`);
+  if (!response.ok) {
+    if (response.status === 401) return message("Autofill failed because the extension pairing expired. Generate a fresh code in Apply Wise Settings and pair again.");
+    if (response.status === 409) return message(`Review required: ${await responseMessage(response)}`);
+    return message(`Could not load autofill plan: ${await responseMessage(response)}`);
+  }
   const plan = await response.json();
   await chrome.storage.local.set({ autofillPlan: plan });
   renderAutofillPlan(plan);
@@ -399,7 +403,7 @@ function detectApplicationFields() {
   const classify = (element) => {
     const haystack = [
       element.name, element.id, element.type, element.autocomplete,
-      element.getAttribute("aria-label"), element.placeholder,
+      element.getAttribute("aria-label"), element.getAttribute("data-automation-id"), element.getAttribute("data-qa"), element.getAttribute("data-testid"), element.placeholder,
       element.labels?.[0]?.innerText,
     ].filter(Boolean).join(" ").toLowerCase();
     const rules = [
@@ -421,6 +425,7 @@ function detectApplicationFields() {
       ["current company", /current.?company|employer/],
       ["current role", /current.?role|current.?title|job.?title/],
       ["work authorization", /authori[sz]|sponsor|visa/],
+      ["pronouns", /pronouns?/],
     ];
     return rules.find(([, pattern]) => pattern.test(haystack))?.[0] ?? null;
   };
@@ -448,6 +453,8 @@ function fillApplicationFields(fields) {
     expected_salary: [/expected.?salary|salary.?expectation|ctc/],
     current_company: [/current.?company|employer/],
     current_role: [/current.?role|current.?title|job.?title/],
+    work_authorization: [/authori[sz]|sponsor|visa/],
+    pronouns: [/pronouns?/],
     cover_letter: [/cover.?letter/],
   };
   const filled = [];
@@ -484,7 +491,7 @@ function fillApplicationFields(fields) {
 function fieldHaystack(element) {
   return [
     element.name, element.id, element.type, element.autocomplete,
-    element.getAttribute("aria-label"), element.placeholder,
+    element.getAttribute("aria-label"), element.getAttribute("data-automation-id"), element.getAttribute("data-qa"), element.getAttribute("data-testid"), element.placeholder,
     element.labels?.[0]?.innerText,
   ].filter(Boolean).join(" ").toLowerCase();
 }

@@ -1813,6 +1813,13 @@ async def extension_autofill_plan(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job, resume_version, cover_letter = result
+    review_confirmed = await session.scalar(
+        select(func.count())
+        .select_from(ApplicationEvent)
+        .where(ApplicationEvent.application_id == application.id, ApplicationEvent.event_type == "review_before_apply_confirmed")
+    )
+    if not review_confirmed:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Open Apply Wise, review this application, and confirm manual review before assisted autofill.")
     profile = await ResumeService(session).get_active(user_id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before assisted autofill.")
