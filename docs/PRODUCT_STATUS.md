@@ -85,6 +85,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 63. Add a user-visible dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.
 64. Add in-app Settings privacy guidance with a clear support path for account/data deletion requests.
 65. Add a configurable extension API URL so the browser helper can be repointed when the Railway backend domain changes.
+66. Scope extension host permissions to Railway subdomains so saved backend URL changes continue to work.
 
 ## Truthfulness Rules
 

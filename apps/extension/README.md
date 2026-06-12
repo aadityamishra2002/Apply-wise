@@ -13,7 +13,7 @@ This unpacked Manifest V3 extension captures a visible job page and sends review
 
 Pairing codes expire after 10 minutes and can only be used once. The extension receives a scoped token for job capture, autofill planning, and assisted-application audit events. It cannot browse the user's full Apply Wise workspace.
 
-The popup defaults to the production Railway API URL. If the backend domain changes, paste the new API base URL ending in `/api/v1`, click **Save API URL**, then pair again.
+The popup defaults to the production Railway API URL. If the backend domain changes to another Railway domain, paste the new API base URL ending in `/api/v1`, click **Save API URL**, then pair again. The extension manifest allows Railway subdomains only.
 
 After changing extension files, click **Reload** for the unpacked extension in `chrome://extensions` or `brave://extensions`.
 
