@@ -152,6 +152,43 @@ def test_job_preferences_are_persisted_and_used_for_default_discovery() -> None:
     assert all("remote" in job["location"].lower() for job in overridden.json())
 
 
+def test_application_profile_is_persisted_exported_and_used_for_review_autofill() -> None:
+    token = register_user("profile-autofill@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    empty = client.get("/api/v1/settings/profile", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json()["full_name"] == ""
+
+    saved_profile = client.put(
+        "/api/v1/settings/profile",
+        headers=headers,
+        json={
+            "full_name": "Aaditya Mishra",
+            "phone": "+91 98765 43210",
+            "location": "Bengaluru, India",
+            "linkedin_url": "https://www.linkedin.com/in/aaditya-mishra",
+            "github_url": "https://github.com/aadityamishra2002",
+            "portfolio_url": "https://applywise.app",
+        },
+    )
+    assert saved_profile.status_code == 200
+    assert saved_profile.json()["phone"] == "+91 98765 43210"
+
+    job = client.get("/api/v1/jobs", headers=headers).json()[0]
+    application = client.post(f"/api/v1/jobs/{job['id']}/save", headers=headers).json()
+    review = client.get(f"/api/v1/applications/{application['id']}/review-before-apply", headers=headers)
+    assert review.status_code == 200
+    fields = {field["field_key"]: field for field in review.json()["autofill_fields"]}
+    assert fields["full_name"]["value"] == "Aaditya Mishra"
+    assert fields["phone"]["value"] == "+91 98765 43210"
+    assert fields["linkedin"]["value"] == "https://www.linkedin.com/in/aaditya-mishra"
+
+    export = client.get("/api/v1/account/export", headers=headers)
+    assert export.status_code == 200
+    assert export.json()["application_profile"]["github_url"] == "https://github.com/aadityamishra2002"
+
+
 def test_mock_job_ids_are_stable() -> None:
     token = register_user()["tokens"]["access_token"]
     upload_resume(token)

@@ -91,6 +91,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 69. Add resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application.
 70. Show account data export events clearly in the dashboard activity timeline.
 71. Add resume-aware empty-state guidance on Jobs so users know when to upload a resume, broaden search, or paste a job manually.
+72. Add editable application profile fields in Settings and use them to improve Review Application/autofill mapping.
 
 ## Truthfulness Rules
 

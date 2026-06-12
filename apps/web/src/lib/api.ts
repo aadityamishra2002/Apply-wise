@@ -148,6 +148,7 @@ export type ResumeVersionDetail = ResumeVersionRecord & { resume_content: Resume
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type SkillRecommendation = { skill: string; mention_count: number; approved_role_count: number; high_fit_role_count: number; reason: string };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
+export type UserProfileSettings = { full_name: string; phone: string; location: string; linkedin_url: string; github_url: string; portfolio_url: string };
 export type Subscription = { plan: string; status: string; owner_bypass: boolean; features: string[] };
 export type ProviderHealth = { name: string; status: string; last_checked_at: string | null; last_result_count: number | null; retry_attempts: number; last_error: string | null };
 export type ManualJob = { title: string; company: string; location: string; url: string; description: string };
@@ -543,6 +544,24 @@ export async function saveJobPreferences(preferences: JobPreferences, accessToke
   });
   if (!response.ok) throw new Error("Could not save job preferences.");
   return (await response.json()) as JobPreferences;
+}
+
+export async function loadUserProfileSettings(accessToken: string): Promise<UserProfileSettings> {
+  const response = await fetch(`${apiUrl}/settings/profile`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load application profile.");
+  return (await response.json()) as UserProfileSettings;
+}
+
+export async function saveUserProfileSettings(profile: UserProfileSettings, accessToken: string): Promise<UserProfileSettings> {
+  const response = await fetch(`${apiUrl}/settings/profile`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  if (!response.ok) throw new Error("Could not save application profile.");
+  return (await response.json()) as UserProfileSettings;
 }
 
 export async function loadSubscription(accessToken: string): Promise<Subscription> {

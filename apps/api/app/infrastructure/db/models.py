@@ -43,6 +43,7 @@ class User(Base):
     applications: Mapped[list["Application"]] = relationship(back_populates="user")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
     job_preferences: Mapped["JobPreference | None"] = relationship(back_populates="user", uselist=False)
+    profile: Mapped["UserProfile | None"] = relationship(back_populates="user", uselist=False)
     subscription: Mapped["Subscription | None"] = relationship(back_populates="user", uselist=False)
 
 
@@ -92,6 +93,22 @@ class JobPreference(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     user: Mapped[User] = relationship(back_populates="job_preferences")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(255), default="")
+    phone: Mapped[str] = mapped_column(String(64), default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    linkedin_url: Mapped[str] = mapped_column(String(500), default="")
+    github_url: Mapped[str] = mapped_column(String(500), default="")
+    portfolio_url: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    user: Mapped[User] = relationship(back_populates="profile")
 
 
 class Subscription(Base):

@@ -28,7 +28,7 @@ from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
+from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User, UserProfile
 from app.infrastructure.db.session import get_session, session_factory
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
@@ -280,6 +280,19 @@ class JobPreferenceRequest(BaseModel):
 
 
 class JobPreferenceResponse(JobPreferenceRequest):
+    pass
+
+
+class UserProfileRequest(BaseModel):
+    full_name: str = Field(default="", max_length=255)
+    phone: str = Field(default="", max_length=64)
+    location: str = Field(default="", max_length=255)
+    linkedin_url: str = Field(default="", max_length=500)
+    github_url: str = Field(default="", max_length=500)
+    portfolio_url: str = Field(default="", max_length=500)
+
+
+class UserProfileResponse(UserProfileRequest):
     pass
 
 
@@ -748,6 +761,34 @@ async def update_job_preferences(
     return job_preference_response(preferences)
 
 
+@router.get("/settings/profile", response_model=UserProfileResponse)
+async def get_user_profile(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserProfileResponse:
+    profile = await get_or_create_user_profile(session, user.id)
+    return user_profile_response(profile)
+
+
+@router.put("/settings/profile", response_model=UserProfileResponse)
+async def update_user_profile(
+    payload: UserProfileRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserProfileResponse:
+    profile = await get_or_create_user_profile(session, user.id)
+    profile.full_name = payload.full_name.strip()
+    profile.phone = payload.phone.strip()
+    profile.location = payload.location.strip()
+    profile.linkedin_url = payload.linkedin_url.strip()
+    profile.github_url = payload.github_url.strip()
+    profile.portfolio_url = payload.portfolio_url.strip()
+    await session.commit()
+    log_activity(session, user.id, "profile_updated", {"has_phone": bool(profile.phone), "has_links": bool(profile.linkedin_url or profile.github_url or profile.portfolio_url)})
+    await session.commit()
+    return user_profile_response(profile)
+
+
 @router.get("/billing/subscription", response_model=SubscriptionResponse)
 async def get_subscription(
     user: Annotated[UserRecord, Depends(get_current_user)],
@@ -794,6 +835,7 @@ async def export_account_data(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
     profile = await ResumeService(session).get_active(user.id)
     preferences = await get_or_create_job_preferences(session, user.id)
+    user_profile = await get_or_create_user_profile(session, user.id)
     subscription = await session.scalar(select(Subscription).where(Subscription.user_id == user.id))
     application_rows = (
         await session.execute(
@@ -824,6 +866,7 @@ async def export_account_data(
             "created_at": isoformat(db_user.created_at),
             "updated_at": isoformat(db_user.updated_at),
         },
+        "application_profile": user_profile_response(user_profile).model_dump(),
         "resume_profile": resume_profile_export(profile) if profile else None,
         "job_preferences": {
             "role_keywords": preferences.role_keywords,
@@ -1328,7 +1371,8 @@ async def review_before_apply(
     db_user = await session.get(User, user.id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
-    fields = build_autofill_plan(user=db_user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter)
+    user_profile = await get_or_create_user_profile(session, user.id)
+    fields = build_autofill_plan(user=db_user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter, user_profile=user_profile)
     quality_warnings = [
         warning.message
         for warning in find_unsupported_claims(
@@ -1688,6 +1732,16 @@ async def get_or_create_job_preferences(session: AsyncSession, user_id: UUID) ->
     return preferences
 
 
+async def get_or_create_user_profile(session: AsyncSession, user_id: UUID) -> UserProfile:
+    profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
+    if profile:
+        return profile
+    profile = UserProfile(user_id=user_id)
+    session.add(profile)
+    await session.flush()
+    return profile
+
+
 async def get_owned_application(session: AsyncSession, application_id: UUID, user_id: UUID) -> Application:
     application = await session.scalar(select(Application).where(Application.id == application_id, Application.user_id == user_id))
     if not application:
@@ -1716,6 +1770,17 @@ def job_preference_response(preferences: JobPreference) -> JobPreferenceResponse
         role_keywords=preferences.role_keywords,
         location=preferences.location,
         remote_only=preferences.remote_only,
+    )
+
+
+def user_profile_response(profile: UserProfile) -> UserProfileResponse:
+    return UserProfileResponse(
+        full_name=profile.full_name,
+        phone=profile.phone,
+        location=profile.location,
+        linkedin_url=profile.linkedin_url,
+        github_url=profile.github_url,
+        portfolio_url=profile.portfolio_url,
     )
 
 
@@ -1980,7 +2045,8 @@ async def extension_autofill_plan(
     user = await session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
-    fields = build_autofill_plan(user=user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter)
+    user_profile = await get_or_create_user_profile(session, user_id)
+    fields = build_autofill_plan(user=user, profile=profile, job=job, resume_version=resume_version, cover_letter=cover_letter, user_profile=user_profile)
     warnings = [
         "Review every field before filling. Apply Wise will never submit the application automatically.",
         "Low-confidence and sensitive fields are unchecked by default in the extension.",

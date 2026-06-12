@@ -147,6 +147,7 @@ for item in [
     "Guide users from parsed resume to job matches, saved roles, and Review Application on the Resume page.",
     "Show account data export events clearly in the dashboard activity timeline.",
     "Guide users on the Jobs page when they need to upload a resume, broaden search, or paste a job manually.",
+    "Use editable application profile fields from Settings to improve Review Application and extension autofill mapping.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

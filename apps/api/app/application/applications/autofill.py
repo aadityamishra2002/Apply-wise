@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 
 from app.application.resumes.service import ResumeProfile
-from app.infrastructure.db.models import CoverLetter, Job, ResumeVersion, User
+from app.infrastructure.db.models import CoverLetter, Job, ResumeVersion, User, UserProfile
 
 
 @dataclass(frozen=True)
@@ -30,31 +30,32 @@ def build_autofill_plan(
     job: Job,
     resume_version: ResumeVersion | None,
     cover_letter: CoverLetter | None,
+    user_profile: UserProfile | None = None,
 ) -> list[AutofillMapping]:
     text = profile.extracted_text or ""
     email = first_match(EMAIL_PATTERN, text) or user.email
-    phone = first_match(PHONE_PATTERN, text)
-    linkedin = first_match(LINKEDIN_PATTERN, text)
-    github = first_match(GITHUB_PATTERN, text)
-    portfolio = first_portfolio_url(text, linkedin, github)
+    phone = clean_profile_value(user_profile.phone if user_profile else "") or first_match(PHONE_PATTERN, text)
+    linkedin = clean_profile_value(user_profile.linkedin_url if user_profile else "") or first_match(LINKEDIN_PATTERN, text)
+    github = clean_profile_value(user_profile.github_url if user_profile else "") or first_match(GITHUB_PATTERN, text)
+    portfolio = clean_profile_value(user_profile.portfolio_url if user_profile else "") or first_portfolio_url(text, linkedin, github)
     current_experience = profile.experiences[0] if profile.experiences else None
     education = profile.education[0] if profile.education else None
-    full_name = infer_name(text, email)
+    full_name = clean_profile_value(user_profile.full_name if user_profile else "") or infer_name(text, email)
     name_parts = full_name.split()
     first_name = name_parts[0] if name_parts else ""
     last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-    location = infer_location(text)
+    location = clean_profile_value(user_profile.location if user_profile else "") or infer_location(text)
 
     mappings = [
-        maybe_mapping("full_name", "Full name", full_name, 0.66 if full_name else 0, "resume header"),
-        maybe_mapping("first_name", "First name", first_name, 0.72 if first_name else 0, "resume header"),
-        maybe_mapping("last_name", "Last name", last_name, 0.72 if last_name else 0, "resume header"),
+        maybe_mapping("full_name", "Full name", full_name, 0.95 if user_profile and user_profile.full_name else 0.66 if full_name else 0, "profile/resume header"),
+        maybe_mapping("first_name", "First name", first_name, 0.95 if user_profile and user_profile.full_name else 0.72 if first_name else 0, "profile/resume header"),
+        maybe_mapping("last_name", "Last name", last_name, 0.95 if user_profile and user_profile.full_name else 0.72 if last_name else 0, "profile/resume header"),
         maybe_mapping("email", "Email", email, 0.98, "account/resume", sensitive=True),
-        maybe_mapping("phone", "Phone", phone, 0.86 if phone else 0, "resume", sensitive=True),
-        maybe_mapping("location", "Location", location, 0.58 if location else 0, "resume"),
-        maybe_mapping("linkedin", "LinkedIn", linkedin, 0.9 if linkedin else 0, "resume"),
-        maybe_mapping("github", "GitHub", github, 0.9 if github else 0, "resume"),
-        maybe_mapping("portfolio", "Portfolio", portfolio, 0.74 if portfolio else 0, "resume"),
+        maybe_mapping("phone", "Phone", phone, 0.96 if user_profile and user_profile.phone else 0.86 if phone else 0, "profile/resume", sensitive=True),
+        maybe_mapping("location", "Location", location, 0.9 if user_profile and user_profile.location else 0.58 if location else 0, "profile/resume"),
+        maybe_mapping("linkedin", "LinkedIn", linkedin, 0.96 if user_profile and user_profile.linkedin_url else 0.9 if linkedin else 0, "profile/resume"),
+        maybe_mapping("github", "GitHub", github, 0.96 if user_profile and user_profile.github_url else 0.9 if github else 0, "profile/resume"),
+        maybe_mapping("portfolio", "Portfolio", portfolio, 0.9 if user_profile and user_profile.portfolio_url else 0.74 if portfolio else 0, "profile/resume"),
         maybe_mapping("current_company", "Current company", current_experience.company if current_experience else "", 0.82 if current_experience else 0, "latest resume experience"),
         maybe_mapping("current_role", "Current role", current_experience.title if current_experience else "", 0.82 if current_experience else 0, "latest resume experience"),
         maybe_mapping("work_experience", "Work experience", summarize_experience(profile), 0.84 if profile.experiences else 0, "resume experience"),
@@ -68,6 +69,10 @@ def build_autofill_plan(
         maybe_mapping("resume_file", "Tailored resume file", str(resume_version.id) if resume_version else "", 0.95 if resume_version else 0, "prepared resume version"),
     ]
     return [mapping for mapping in mappings if mapping is not None]
+
+
+def clean_profile_value(value: str | None) -> str:
+    return (value or "").strip()
 
 
 def maybe_mapping(
