@@ -62,6 +62,7 @@ The maintained product guide is available in two formats:
 - Persisted subscription foundation with free-tier status and owner bypass
 - In-app Settings privacy guidance with support path for data deletion requests
 - Authenticated account data export from Settings without exposing password hashes, tokens, or payment credentials
+- Dashboard activity timeline entry for account data exports
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture

@@ -42,5 +42,6 @@ function activitySummary(item: ActivityLog): string {
   if (item.event_type === "resume_parsed") return `Parsed resume evidence: ${String(metadata.skill_count ?? 0)} skills, ${String(metadata.experience_count ?? 0)} experience entries.`;
   if (item.event_type === "job_search_scored") return `Scored ${String(metadata.result_count ?? 0)} jobs${metadata.high_fit_count ? `, including ${String(metadata.high_fit_count)} high-fit roles` : ""}.`;
   if (item.event_type === "job_captured" || item.event_type === "extension_job_captured") return `Captured ${String(metadata.title ?? "a job")} at ${String(metadata.company ?? "the employer")}.`;
+  if (item.event_type === "account_data_exported") return "Downloaded account data export.";
   return item.event_type.replaceAll("_", " ");
 }

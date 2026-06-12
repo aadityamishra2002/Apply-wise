@@ -89,6 +89,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 67. Add authenticated account data export from Settings while excluding password hashes, tokens, and payment credentials.
 68. Add active and archived application views so rejected or withdrawn roles stay out of the working pipeline without deleting history.
 69. Add resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application.
+70. Show account data export events clearly in the dashboard activity timeline.
 
 ## Truthfulness Rules
 
