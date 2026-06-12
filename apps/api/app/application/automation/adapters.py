@@ -31,6 +31,10 @@ CAPABILITIES: tuple[AutomationCapability, ...] = (
     AutomationCapability("lever", "Lever", ("lever.co",), True, True, False, True),
     AutomationCapability("ashby", "Ashby", ("ashbyhq.com",), True, True, False, True),
     AutomationCapability("smartrecruiters", "SmartRecruiters", ("smartrecruiters.com",), True, True, False, True),
+    AutomationCapability("jobvite", "Jobvite", ("jobvite.com",), True, True, False, True),
+    AutomationCapability("icims", "iCIMS", ("icims.com",), True, True, False, True),
+    AutomationCapability("bamboohr", "BambooHR", ("bamboohr.com",), True, True, False, True),
+    AutomationCapability("workable", "Workable", ("workable.com",), True, True, False, True),
     AutomationCapability("generic", "Generic career page", ("",), True, False, False, True),
 )
 

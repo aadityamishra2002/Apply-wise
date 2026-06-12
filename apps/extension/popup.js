@@ -388,6 +388,38 @@ function extractPage() {
     location: firstText(".job-location", "[class*='location']") || base.location,
     description: firstText(".job-description", "#st-job-description", "main") || base.description,
   };
+  if (window.location.hostname.includes("jobvite.com")) return {
+    ...base,
+    extractor: "Jobvite",
+    title: firstText(".jv-job-detail-title", ".job-title", "h1") || base.title,
+    company: firstText(".jv-company-name", "[class*='company']", "header") || base.company,
+    location: firstText(".jv-job-detail-meta", ".jv-job-detail-location", "[class*='location']") || base.location,
+    description: firstText(".jv-job-detail-description", ".job-description", "main") || base.description,
+  };
+  if (window.location.hostname.includes("icims.com")) return {
+    ...base,
+    extractor: "iCIMS",
+    title: firstText(".iCIMS_Header .iCIMS_JobHeader h1", ".iCIMS_JobHeader h1", "h1") || base.title,
+    company: firstText(".iCIMS_CompanyHeader", "[class*='company']", "header") || base.company,
+    location: firstText(".iCIMS_JobHeader-field .iCIMS_JobHeader-fieldValue", "[class*='location']") || base.location,
+    description: firstText(".iCIMS_JobContent", ".iCIMS_JobDescription", "main") || base.description,
+  };
+  if (window.location.hostname.includes("bamboohr.com")) return {
+    ...base,
+    extractor: "BambooHR",
+    title: firstText(".BambooHR-ATS-Jobs-Item h2", ".js-jobs-list .title", "h1") || base.title,
+    company: firstText("[class*='company']", "header") || base.company,
+    location: firstText(".BambooHR-ATS-Department-Location", ".location", "[class*='location']") || base.location,
+    description: firstText(".BambooHR-ATS-board", ".BambooHR-ATS-Job-Description", "main") || base.description,
+  };
+  if (window.location.hostname.includes("workable.com")) return {
+    ...base,
+    extractor: "Workable",
+    title: firstText('[data-ui="job-title"]', ".job-title", "h1") || base.title,
+    company: firstText('[data-ui="company-name"]', "[class*='company']", "header") || base.company,
+    location: firstText('[data-ui="job-location"]', ".job-location", "[class*='location']") || base.location,
+    description: firstText('[data-ui="job-description"]', ".job-description", "main") || base.description,
+  };
   if (/careers|jobs|workfor|recruiting|boards|jobs\\.ashbyhq|jobvite|icims|bamboohr|workable/.test(window.location.hostname + window.location.pathname)) return {
     ...base,
     extractor: "Company career page",

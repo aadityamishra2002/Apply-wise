@@ -118,7 +118,7 @@ for item in [
     "Request and confirm password resets with one-time tokens and session revocation.",
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
     "Download tailored resumes from the extension for manual attachment on employer forms with manual-upload-required status.",
-    "Review dry-run automation capability flags and manual-submit plans for selected job sites.",
+    "Review dry-run automation capability flags and manual-submit plans for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages.",
     "Retry transient AI generation failures with configurable backoff and visible fallback metadata.",
     "Use a consolidated Review Application panel with job details, match/ATS scores, tailored resume version, cover letter preview, required fields, missing information, warnings, manual review confirmation, and manual-submit guardrails.",
     "Flag unsupported generated skills, companies, titles, and metrics against the master resume before applying.",
@@ -135,6 +135,7 @@ for item in [
     "Show clearer extension recovery messages when a pairing token expires.",
     "Gate extension autofill plans behind Review Application confirmation so assisted filling cannot start before manual review.",
     "Detect common data-attribute field labels and include manual-only review coverage for work authorization and pronouns.",
+    "Use explicit Jobvite, iCIMS, BambooHR, and Workable adapters for common employer career pages.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

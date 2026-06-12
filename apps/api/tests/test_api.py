@@ -46,6 +46,10 @@ def test_automation_capabilities_are_public_and_manual_submit_only() -> None:
     assert capabilities["linkedin"]["dry_run_supported"] is True
     assert capabilities["linkedin"]["manual_submit_required"] is True
     assert capabilities["workday"]["autofill_supported"] is True
+    assert capabilities["jobvite"]["autofill_supported"] is True
+    assert capabilities["icims"]["manual_submit_required"] is True
+    assert capabilities["bamboohr"]["capture_supported"] is True
+    assert capabilities["workable"]["dry_run_supported"] is True
     assert capabilities["generic"]["autofill_supported"] is False
 
 
