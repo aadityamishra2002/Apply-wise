@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+import json
 import re
 from secrets import token_urlsafe
 from typing import Annotated
@@ -781,6 +782,110 @@ async def list_activity_logs(
         )
     ).all()
     return [activity_log_response(log) for log in logs]
+
+
+@router.get("/account/export")
+async def export_account_data(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    db_user = await session.get(User, user.id)
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
+    profile = await ResumeService(session).get_active(user.id)
+    preferences = await get_or_create_job_preferences(session, user.id)
+    subscription = await session.scalar(select(Subscription).where(Subscription.user_id == user.id))
+    application_rows = (
+        await session.execute(
+            select(Application, Job)
+            .join(Job, Application.job_id == Job.id)
+            .where(Application.user_id == user.id)
+            .order_by(Application.created_at.desc())
+        )
+    ).all()
+    match_rows = (await session.scalars(select(JobMatch).where(JobMatch.user_id == user.id))).all()
+    resume_version_rows = (await session.scalars(select(ResumeVersion).where(ResumeVersion.user_id == user.id).order_by(ResumeVersion.created_at.desc()))).all()
+    cover_letter_rows = (await session.scalars(select(CoverLetter).where(CoverLetter.user_id == user.id).order_by(CoverLetter.created_at.desc()))).all()
+    activity_rows = (
+        await session.scalars(
+            select(ActivityLog)
+            .where(ActivityLog.user_id == user.id)
+            .order_by(ActivityLog.created_at.desc())
+            .limit(500)
+        )
+    ).all()
+    payload = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "account": {
+            "id": str(db_user.id),
+            "email": db_user.email,
+            "status": db_user.status,
+            "role": db_user.role,
+            "created_at": isoformat(db_user.created_at),
+            "updated_at": isoformat(db_user.updated_at),
+        },
+        "resume_profile": resume_profile_export(profile) if profile else None,
+        "job_preferences": {
+            "role_keywords": preferences.role_keywords,
+            "location": preferences.location,
+            "remote_only": preferences.remote_only,
+        },
+        "subscription": {
+            "plan": "owner" if user.role == "admin" else (subscription.plan if subscription else "free"),
+            "status": subscription.status if subscription else "active",
+            "provider": subscription.provider if subscription else None,
+            "current_period_end": isoformat(subscription.current_period_end) if subscription else None,
+        },
+        "applications": [
+            {
+                **application_response(application, job).model_dump(),
+                "job": job_export(job),
+            }
+            for application, job in application_rows
+        ],
+        "job_matches": [
+            {
+                "job_id": str(match.job_id),
+                "match_score": match.match_score,
+                "ats_score": match.ats_score,
+                "ats_breakdown": match.ats_breakdown,
+                "ats_recommendations": match.ats_recommendations,
+                "approval_status": match.approval_status,
+                "matching_skills": match.matching_skills,
+                "missing_skills": match.missing_skills,
+                "created_at": isoformat(match.created_at),
+            }
+            for match in match_rows
+        ],
+        "resume_versions": [
+            {
+                "id": str(version.id),
+                "job_id": str(version.job_id),
+                "master_resume_id": str(version.master_resume_id),
+                "ats_score": version.ats_score,
+                "resume_content": version.resume_content,
+                "created_at": isoformat(version.created_at),
+            }
+            for version in resume_version_rows
+        ],
+        "cover_letters": [
+            {
+                "id": str(letter.id),
+                "job_id": str(letter.job_id),
+                "content": letter.content,
+                "created_at": isoformat(letter.created_at),
+            }
+            for letter in cover_letter_rows
+        ],
+        "activity_logs": [activity_log_response(log).model_dump() for log in activity_rows],
+    }
+    log_activity(session, user.id, "account_data_exported", {"record_sections": list(payload.keys())})
+    await session.commit()
+    return Response(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        media_type="application/json; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="apply-wise-account-export.json"'},
+    )
 
 
 @router.get("/admin/summary", response_model=AdminSummaryResponse)
@@ -2134,6 +2239,53 @@ def activity_log_response(log: ActivityLog) -> ActivityLogResponse:
         metadata=log.metadata_,
         created_at=created_at.isoformat(),
     )
+
+
+def isoformat(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
+def resume_profile_export(profile: ResumeProfile) -> dict:
+    return {
+        "id": str(profile.id),
+        "original_filename": profile.original_filename,
+        "mime_type": profile.mime_type,
+        "parse_status": profile.parse_status,
+        "extracted_text": profile.extracted_text,
+        "detected_sections": list(profile.detected_sections),
+        "skills": list(profile.skills),
+        "experiences": [
+            {"title": experience.title, "company": experience.company, "description": experience.description}
+            for experience in profile.experiences
+        ],
+        "education": [
+            {"institution": item.institution, "degree": item.degree, "year": item.year}
+            for item in profile.education
+        ],
+        "certifications": [
+            {"name": item.name, "issuer": item.issuer, "year": item.year}
+            for item in profile.certifications
+        ],
+    }
+
+
+def job_export(job: Job) -> dict:
+    return {
+        "id": str(job.id),
+        "source": job.source,
+        "external_id": job.external_id,
+        "title": job.title,
+        "company": job.company,
+        "location": job.location,
+        "salary": job.salary,
+        "url": job.url,
+        "description": job.description,
+        "created_at": isoformat(job.created_at),
+    }
 
 
 @router.post("/resumes/analyze", response_model=ResumeAnalyzeResponse)

@@ -86,6 +86,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 64. Add in-app Settings privacy guidance with a clear support path for account/data deletion requests.
 65. Add a configurable extension API URL so the browser helper can be repointed when the Railway backend domain changes.
 66. Scope extension host permissions to Railway subdomains so saved backend URL changes continue to work.
+67. Add authenticated account data export from Settings while excluding password hashes, tokens, and payment credentials.
 
 ## Truthfulness Rules
 

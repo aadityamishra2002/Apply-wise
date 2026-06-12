@@ -59,6 +59,7 @@ The maintained product guide is available in two formats:
 - Editable cover-letter workspace with authenticated save and download
 - Persisted subscription foundation with free-tier status and owner bypass
 - In-app Settings privacy guidance with support path for data deletion requests
+- Authenticated account data export from Settings without exposing password hashes, tokens, or payment credentials
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture

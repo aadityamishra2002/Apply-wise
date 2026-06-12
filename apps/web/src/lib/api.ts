@@ -496,6 +496,21 @@ export async function loadActivityLogs(accessToken: string): Promise<ActivityLog
   return (await response.json()) as ActivityLog[];
 }
 
+export async function downloadAccountExport(accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/account/export`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not export account data.");
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? "apply-wise-account-export.json";
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 export async function loadAnalyticsSummary(accessToken: string): Promise<AnalyticsSummary> {
   const response = await fetch(`${apiUrl}/analytics/summary`, {
     headers: { Authorization: `Bearer ${accessToken}` },

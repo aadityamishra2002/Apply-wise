@@ -97,6 +97,28 @@ def test_dashboard_summary_starts_empty() -> None:
     }
 
 
+def test_account_export_includes_workspace_data_without_auth_secrets() -> None:
+    token = register_user("export-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    jobs = client.get("/api/v1/jobs", headers=headers)
+    assert jobs.status_code == 200
+    saved = client.post(f"/api/v1/jobs/{jobs.json()[0]['id']}/save", headers=headers)
+    assert saved.status_code == 201
+    exported = client.get("/api/v1/account/export", headers=headers)
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("application/json")
+    body = exported.json()
+    assert body["account"]["email"] == "export-owner@example.com"
+    assert body["resume_profile"]["skills"]
+    assert body["applications"][0]["job"]["title"]
+    assert body["job_matches"]
+    serialized = exported.text.lower()
+    assert "password_hash" not in serialized
+    assert "refresh_token" not in serialized
+    assert "token_hash" not in serialized
+
+
 def test_analytics_summary_starts_empty() -> None:
     token = register_user()["tokens"]["access_token"]
     response = client.get("/api/v1/analytics/summary", headers={"Authorization": f"Bearer {token}"})
