@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Check, CloudUpload, Download, FileText, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -82,6 +83,22 @@ export default function ResumePage() {
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#f3f8e6] p-3 text-[11px] font-bold text-[#66801f]"><Check size={14} /> Extracted and ready for review</div>
+            </div>
+          ) : null}
+
+          {profile ? (
+            <div className="rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Next steps</p>
+              <h2 className="mt-3 text-[16px] font-bold">Turn this resume into applications</h2>
+              <div className="mt-4 space-y-3 text-[12px] leading-5 text-[#65736f]">
+                <p><span className="font-bold text-[#176b5b]">1.</span> Review resume-matched jobs and the 80+ ATS queue.</p>
+                <p><span className="font-bold text-[#176b5b]">2.</span> Save a role, then prepare a tailored resume and cover letter.</p>
+                <p><span className="font-bold text-[#176b5b]">3.</span> Open Review Application before using assisted autofill.</p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white" href="/jobs">Review matches</Link>
+                <Link className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" href="/applications">Open pipeline</Link>
+              </div>
             </div>
           ) : null}
 

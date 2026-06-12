@@ -88,6 +88,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 66. Scope extension host permissions to Railway subdomains so saved backend URL changes continue to work.
 67. Add authenticated account data export from Settings while excluding password hashes, tokens, and payment credentials.
 68. Add active and archived application views so rejected or withdrawn roles stay out of the working pipeline without deleting history.
+69. Add resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application.
 
 ## Truthfulness Rules
 
