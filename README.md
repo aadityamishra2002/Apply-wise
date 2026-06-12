@@ -30,6 +30,7 @@ The maintained product guide is available in two formats:
 - Recommendation explanations showing matched skills, ATS readiness, missing skills, and seniority fit
 - Jobs page filters for high-fit roles, provider source, and remote-only results
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
+- ATS keyword fallback that extracts important skills and job terms from descriptions when provider data is sparse
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
 - Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
 - Dry-run automation adapter registry for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages
