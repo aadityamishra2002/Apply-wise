@@ -83,6 +83,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 61. Improve ATS scoring with job-description keyword fallback when providers do not return structured required skills.
 62. Harden extension autofill for modern forms by skipping disabled/read-only/hidden/manual controls and matching select options conservatively.
 63. Add a user-visible dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.
+64. Add in-app Settings privacy guidance with a clear support path for account/data deletion requests.
 
 ## Truthfulness Rules
 

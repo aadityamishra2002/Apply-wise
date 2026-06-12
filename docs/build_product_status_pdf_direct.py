@@ -139,6 +139,7 @@ for item in [
     "Score ATS keywords from provider skills or fallback job-description terms when structured provider data is sparse.",
     "Harden extension autofill by skipping disabled, read-only, hidden, empty-value, checkbox, and radio controls and matching select options conservatively.",
     "Show a dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.",
+    "Show Settings privacy guidance with a support path for account and data deletion requests.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
