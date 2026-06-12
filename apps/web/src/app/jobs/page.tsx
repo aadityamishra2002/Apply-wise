@@ -8,6 +8,7 @@ import { MatchRing, Pill } from "@/components/ui";
 import {
   captureManualJob,
   getAccessToken,
+  loadResumeProfile,
   loadJobRecommendations,
   saveJob,
   updateJobApproval,
@@ -29,6 +30,8 @@ export default function JobsPage() {
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [showCapture, setShowCapture] = useState(false);
   const [manualJob, setManualJob] = useState(emptyManualJob);
+  const [hasResume, setHasResume] = useState<boolean | null>(null);
+  const [searchAttempted, setSearchAttempted] = useState(false);
 
   const sources = Array.from(new Set(jobs.map((job) => job.source))).sort();
   const visibleJobs = jobs.filter((job) => {
@@ -41,8 +44,9 @@ export default function JobsPage() {
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
-    void loadJobRecommendations(token)
-      .then((items) => {
+    void Promise.all([loadResumeProfile(token).catch(() => null), loadJobRecommendations(token)])
+      .then(([profile, items]) => {
+        setHasResume(Boolean(profile));
         setJobs(items);
         setSelected(items[0] ?? null);
       })
@@ -55,6 +59,7 @@ export default function JobsPage() {
     if (!token) return;
     setLoading(true);
     setError(null);
+    setSearchAttempted(true);
     try {
       const items = await loadJobRecommendations(token, query, location);
       setJobs(items);
@@ -158,7 +163,7 @@ export default function JobsPage() {
                     <p className="text-[12px] font-bold text-[#71807c]">{job.company}</p>
                     <p className="text-[14px] font-bold">{job.title}</p>
                     <p className="mt-1 flex items-center gap-1 text-[11px] text-[#91a09c]"><MapPin size={11} />{job.location}</p>
-                    <p className="mt-1 text-[11px] font-bold text-[#176b5b]">ATS {job.ats_score}% · Match {job.match_score}% · {job.source}</p>
+                    <p className="mt-1 text-[11px] font-bold text-[#176b5b]">ATS {job.ats_score}% / Match {job.match_score}% / {job.source}</p>
                     <p className="mt-1 line-clamp-2 text-[11px] text-[#71807c]">{job.recommendation_summary}</p>
                   </div>
                   <MatchRing score={job.ats_score} small />
@@ -170,11 +175,11 @@ export default function JobsPage() {
             <div className="h-fit rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
               <p className="text-[12px] font-bold text-[#71807c]">{selected.company}</p>
               <h2 className="mt-1 text-[20px] font-bold">{selected.title}</h2>
-              <p className="mt-2 text-[12px] text-[#91a09c]">{selected.location} · {selected.work_mode}</p>
+              <p className="mt-2 text-[12px] text-[#91a09c]">{selected.location} / {selected.work_mode}</p>
               <div className="mt-4 flex flex-wrap gap-2">{selected.matching_skills.map((skill) => <Pill tone="green" key={skill}><Check size={11} />{skill}</Pill>)}</div>
               <div className="mt-4 rounded-xl bg-[#e8f4ef] p-4">
                 <p className="text-[12px] font-bold text-[#176b5b]">Why this role is recommended</p>
-                <div className="mt-2 space-y-1">{selected.recommendation_reasons.map((reason) => <p className="text-[11px] leading-5 text-[#53645f]" key={reason}>• {reason}</p>)}</div>
+                <div className="mt-2 space-y-1">{selected.recommendation_reasons.map((reason) => <p className="text-[11px] leading-5 text-[#53645f]" key={reason}>- {reason}</p>)}</div>
               </div>
               <div className="mt-4 rounded-xl bg-[#f6f8f5] p-4">
                 <p className="text-[12px] font-bold">ATS readiness {selected.ats_score}%</p>
@@ -196,9 +201,18 @@ export default function JobsPage() {
       ) : (
         <section className="rounded-2xl border border-[#e4e8e3] bg-white p-8 text-center small-shadow">
           <Search className="mx-auto text-[#91a09c]" />
-          <h2 className="mt-4 text-[17px] font-bold">Upload your resume first</h2>
-          <p className="mt-2 text-[13px] text-[#71807c]">Recommendations are scored from your persisted resume evidence.</p>
-          <Link className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white" href="/resume"><FileText size={15} />Add resume</Link>
+          <h2 className="mt-4 text-[17px] font-bold">{hasResume ? "No matching jobs found yet" : "Upload your resume first"}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-[13px] text-[#71807c]">
+            {hasResume
+              ? searchAttempted
+                ? "Try a broader role keyword, remove the location filter, or paste a job description from any career page to score it directly."
+                : "Your resume is ready. Search by role, location, or paste a job from a career page to get ATS and match scoring."
+              : "Recommendations are scored from your persisted resume evidence, so upload your master resume before searching."}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Link className="inline-flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white" href={hasResume ? "/jobs" : "/resume"}><FileText size={15} />{hasResume ? "Search again" : "Add resume"}</Link>
+            {hasResume ? <button className="inline-flex items-center gap-2 rounded-xl border border-[#dce7e2] px-4 py-3 text-[12px] font-bold text-[#176b5b]" onClick={() => setShowCapture(true)}><Plus size={15} />Paste a job</button> : null}
+          </div>
         </section>
       )}
       {jobs.some((job) => job.source === "adzuna" || job.source === "remotive") ? <p className="mt-5 text-[11px] font-bold text-[#91a09c]">Listings may be provided by <a className="text-[#176b5b] underline" href="https://www.adzuna.in/" rel="noreferrer" target="_blank">Adzuna</a> and <a className="text-[#176b5b] underline" href="https://remotive.com/remote-jobs" rel="noreferrer" target="_blank">Remotive</a>. Manually captured career-page roles are labeled separately.</p> : null}

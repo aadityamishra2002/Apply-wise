@@ -146,6 +146,7 @@ for item in [
     "Separate active and archived application views so rejected or withdrawn roles stop cluttering the working pipeline without deleting history.",
     "Guide users from parsed resume to job matches, saved roles, and Review Application on the Resume page.",
     "Show account data export events clearly in the dashboard activity timeline.",
+    "Guide users on the Jobs page when they need to upload a resume, broaden search, or paste a job manually.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
