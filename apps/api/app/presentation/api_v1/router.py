@@ -954,6 +954,16 @@ async def update_application(
                 to_status=payload.status.value,
             )
         )
+        if payload.status == ApplicationStatus.APPLIED:
+            session.add(
+                ApplicationEvent(
+                    application_id=application.id,
+                    event_type="application_marked_applied",
+                    from_status=previous_status.value,
+                    to_status=payload.status.value,
+                    metadata_={"manual_final_submission_required": True},
+                )
+            )
     if payload.notes is not None:
         application.notes = payload.notes.strip() or None
         session.add(ApplicationEvent(application_id=application.id, event_type="notes_updated"))
@@ -1477,6 +1487,20 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
             to_status=ApplicationStatus.PREPARING.value,
             metadata_={"resume_version_id": str(resume_version.id), "cover_letter_id": str(cover_letter.id)},
         )
+    )
+    session.add_all(
+        [
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="resume_generated",
+                metadata_={"resume_version_id": str(resume_version.id), "ats_score": resume_version.ats_score},
+            ),
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="cover_letter_generated",
+                metadata_={"cover_letter_id": str(cover_letter.id)},
+            ),
+        ]
     )
     await session.commit()
     return ApplicationMaterialsResponse(

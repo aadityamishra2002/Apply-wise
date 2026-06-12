@@ -659,6 +659,9 @@ export default function ApplicationsPage() {
 
 function eventSummary(event: ApplicationEvent): string {
   const metadata = event.metadata ?? {};
+  if (event.event_type === "resume_generated") return `Tailored resume generated with ATS score ${String(metadata.ats_score ?? "--")}.`;
+  if (event.event_type === "cover_letter_generated") return "Cover letter generated for this application.";
+  if (event.event_type === "application_marked_applied") return "Application marked applied after manual submission.";
   if (event.event_type === "autofill_previewed") return `Reviewed ${String(metadata.field_count ?? 0)} suggested fields.`;
   if (event.event_type === "autofill_approved") return `Approved ${String(metadata.approved_field_count ?? 0)} field(s) for assisted autofill. Final submission remains manual.`;
   if (event.event_type === "autofill_attempted") {

@@ -131,6 +131,8 @@ for item in [
     "Confirm manual application review before assisted application actions and record the confirmation in the activity timeline.",
     "Map common autofill fields for profile, links, education, experience, skills, cover letter, and resume file assistance.",
     "Log extension autofill approval and resume upload failed/manual-required events in the activity timeline.",
+    "Record explicit audit events for tailored resume generation, cover letter generation, and application marked applied.",
+    "Show clearer extension recovery messages when a pairing token expires.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

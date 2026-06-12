@@ -354,6 +354,9 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert upload_failed.status_code == 201
     prepared = client.post(f"/api/v1/applications/{captured.json()['application_id']}/prepare", headers=headers)
     assert prepared.status_code == 201
+    prepared_events = client.get(f"/api/v1/applications/{captured.json()['application_id']}/events", headers=headers).json()
+    assert any(event["event_type"] == "resume_generated" for event in prepared_events)
+    assert any(event["event_type"] == "cover_letter_generated" for event in prepared_events)
     downloaded = client.get(f"/api/v1/extension/applications/{captured.json()['application_id']}/resume-download?format=pdf", headers=extension_headers)
     assert downloaded.status_code == 200
     assert downloaded.headers["content-type"] == "application/pdf"
@@ -377,6 +380,8 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"
     assert applied.json()["applied_at"]
+    events = client.get(f"/api/v1/applications/{application['id']}/events", headers=headers).json()
+    assert any(event["event_type"] == "application_marked_applied" for event in events)
     updated = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "interview"})
     assert updated.status_code == 200
     assert updated.json()["applied_at"] == applied.json()["applied_at"]

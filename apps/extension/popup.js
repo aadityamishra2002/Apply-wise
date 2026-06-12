@@ -64,7 +64,7 @@ async function send() {
     headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   }, { retries: 2 });
-  if (!response.ok) return message(`Capture failed: ${await responseMessage(response)}`);
+  if (!response.ok) return message(response.status === 401 ? "Capture failed because the extension pairing expired. Generate a fresh code in Apply Wise Settings and pair again." : `Capture failed: ${await responseMessage(response)}`);
   const body = await response.json();
   if (body.application_id) await chrome.storage.local.set({ lastApplicationId: body.application_id });
   message(`Captured with a ${body.match_score}% resume match. ${body.application_id ? "You can now load the assisted autofill plan." : "Save this role in Apply Wise before assisted autofill."}`);
@@ -137,7 +137,7 @@ async function loadAutofillPlan() {
   const response = await fetchWithRetry(`${apiUrl}/extension/applications/${lastApplicationId}/autofill-plan`, {
     headers: { Authorization: `Bearer ${extensionToken}` },
   }, { retries: 2 });
-  if (!response.ok) return message(`Could not load autofill plan: ${await responseMessage(response)}`);
+  if (!response.ok) return message(response.status === 401 ? "Autofill failed because the extension pairing expired. Generate a fresh code in Apply Wise Settings and pair again." : `Could not load autofill plan: ${await responseMessage(response)}`);
   const plan = await response.json();
   await chrome.storage.local.set({ autofillPlan: plan });
   renderAutofillPlan(plan);
@@ -234,7 +234,7 @@ async function downloadTailoredResume(format) {
   const response = await fetchWithRetry(`${apiUrl}/extension/applications/${autofillPlan.application_id}/resume-download?format=${format}`, {
     headers: { Authorization: `Bearer ${extensionToken}` },
   }, { retries: 1, timeoutMs: 20000 });
-  if (!response.ok) return message(`Could not download tailored resume: ${await responseMessage(response)}`);
+  if (!response.ok) return message(response.status === 401 ? "Download failed because the extension pairing expired. Generate a fresh code in Apply Wise Settings and pair again." : `Could not download tailored resume: ${await responseMessage(response)}`);
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") || "";
   const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `tailored-resume.${format}`;

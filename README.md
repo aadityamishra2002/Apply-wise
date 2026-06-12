@@ -43,6 +43,7 @@ The maintained product guide is available in two formats:
 - Saved jobs, application statuses, dashboard metrics, and application analytics
 - Learning-system MVP with missing-skill recommendations from matched and approved roles
 - Application notes and visible activity timeline
+- Explicit audit events for generated resume, generated cover letter, review confirmation, autofill approval, upload assistance, and applied status
 - Application date tracking when a role is marked applied
 - Interview-round scheduling inside the application workspace
 - Interview rescheduling, preparation notes, and removal
