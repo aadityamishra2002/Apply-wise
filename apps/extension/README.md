@@ -9,9 +9,11 @@ This unpacked Manifest V3 extension captures a visible job page and sends review
 3. Click **Load unpacked**.
 4. Select this `apps/extension` directory.
 5. In Apply Wise Settings, generate a one-time pairing code.
-6. Open the extension popup and enter that code.
+6. Open the extension popup, confirm the Apply Wise API URL, and enter that code.
 
 Pairing codes expire after 10 minutes and can only be used once. The extension receives a scoped token for job capture, autofill planning, and assisted-application audit events. It cannot browse the user's full Apply Wise workspace.
+
+The popup defaults to the production Railway API URL. If the backend domain changes, paste the new API base URL ending in `/api/v1`, click **Save API URL**, then pair again.
 
 After changing extension files, click **Reload** for the unpacked extension in `chrome://extensions` or `brave://extensions`.
 

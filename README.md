@@ -62,6 +62,7 @@ The maintained product guide is available in two formats:
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
+- Extension API URL setting so the browser helper can be repointed when the backend domain changes
 - Local extension form inspector and review-gated autofill for common employer application fields, including approved-field audit logging
 - Conservative autofill handling for select/dropdown fields while skipping hidden, disabled, read-only, checkbox, radio, and empty-value controls
 - Extension tailored-resume PDF/DOCX download and manual-upload-required status for employer resume upload fields

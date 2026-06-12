@@ -1,7 +1,12 @@
-const apiUrl = "https://jobsearchautomation-production.up.railway.app/api/v1";
+const defaultApiUrl = "https://jobsearchautomation-production.up.railway.app/api/v1";
+let apiUrl = defaultApiUrl;
 const fields = ["title", "company", "location", "url", "description"];
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const stored = await chrome.storage.local.get(["apiUrl", "extensionToken"]);
+  apiUrl = normalizeApiUrl(stored.apiUrl || defaultApiUrl);
+  document.getElementById("api-url").value = apiUrl;
+  document.getElementById("save-api-url").addEventListener("click", saveApiUrl);
   document.getElementById("pair").addEventListener("click", pair);
   document.getElementById("send").addEventListener("click", send);
   document.getElementById("refresh").addEventListener("click", extract);
@@ -12,10 +17,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("download-resume-docx").addEventListener("click", () => downloadTailoredResume("docx"));
   document.getElementById("unpair").addEventListener("click", unpair);
   for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
-  const { extensionToken } = await chrome.storage.local.get("extensionToken");
+  const extensionToken = stored.extensionToken;
   showPaired(Boolean(extensionToken));
   if (extensionToken) await extract();
 });
+
+async function saveApiUrl() {
+  apiUrl = normalizeApiUrl(document.getElementById("api-url").value || defaultApiUrl);
+  document.getElementById("api-url").value = apiUrl;
+  await chrome.storage.local.set({ apiUrl });
+  message("API URL saved. Pair again if you changed environments.");
+}
+
+function normalizeApiUrl(value) {
+  return String(value || defaultApiUrl).trim().replace(/\/+$/, "");
+}
 
 async function pair() {
   const code = document.getElementById("code").value.trim();
