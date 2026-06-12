@@ -79,6 +79,9 @@ def test_jobs_are_ranked() -> None:
     assert any("resume skills" in reason for reason in response.json()[0]["recommendation_reasons"])
     summary = client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"}).json()
     assert summary["average_match_score"] is not None
+    activity = client.get("/api/v1/activity/logs", headers={"Authorization": f"Bearer {token}"}).json()
+    assert activity[0]["event_type"] == "job_search_scored"
+    assert activity[0]["metadata"]["result_count"] == len(response.json())
 
 
 def test_dashboard_summary_starts_empty() -> None:
@@ -188,6 +191,11 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
             "year": "2022",
         }
     ]
+    activity = client.get("/api/v1/activity/logs", headers={"Authorization": f"Bearer {token}"}).json()
+    event_types = [event["event_type"] for event in activity]
+    assert {"resume_parsed", "resume_uploaded"}.issubset(set(event_types))
+    parsed_event = next(event for event in activity if event["event_type"] == "resume_parsed")
+    assert parsed_event["metadata"]["skill_count"] == 7
 
     profile = client.get(
         "/api/v1/resumes/me",

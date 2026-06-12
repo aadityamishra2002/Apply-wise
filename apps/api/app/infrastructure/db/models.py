@@ -109,6 +109,16 @@ class Subscription(Base):
     user: Mapped[User] = relationship(back_populates="subscription")
 
 
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON_TYPE, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
 class MasterResume(Base):
     __tablename__ = "master_resumes"
 

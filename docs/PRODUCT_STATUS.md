@@ -82,6 +82,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 60. Add explicit Jobvite, iCIMS, BambooHR, and Workable capture/autofill capability adapters for common employer career pages.
 61. Improve ATS scoring with job-description keyword fallback when providers do not return structured required skills.
 62. Harden extension autofill for modern forms by skipping disabled/read-only/hidden/manual controls and matching select options conservatively.
+63. Add a user-visible dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.
 
 ## Truthfulness Rules
 
@@ -118,7 +119,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add assisted autofill for application forms | Done for MVP | Extension loads an API-generated autofill plan only after Review Application confirmation, maps common profile/resume fields, shows confidence/source/sensitive warnings, skips risky/manual controls, logs approved fields, and fills only user-approved fields. |
 | Add resume-file upload support during assisted applications | Done for MVP | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, shows manual-upload-required status, and logs upload attempted/failed-manual-required events. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities, application plans, and tracked assisted-run records exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages. Real browser-control execution is still deferred. |
-| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, activity timeline, API rate limiting, extension capture retries, extension autofill audit events, generated-material audit events, applied-status audit events, Gemini generation retries, provider retries, export retries, assisted-run status tracking, and queued material-preparation status/retry controls exist; dedicated Celery worker execution remains pending. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, dashboard activity logs, application timeline, API rate limiting, extension capture retries, extension autofill audit events, generated-material audit events, applied-status audit events, Gemini generation retries, provider retries, export retries, assisted-run status tracking, and queued material-preparation status/retry controls exist; dedicated Celery worker execution remains pending. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 

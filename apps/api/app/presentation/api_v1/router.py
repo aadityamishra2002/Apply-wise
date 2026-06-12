@@ -27,7 +27,7 @@ from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
+from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User
 from app.infrastructure.db.session import get_session, session_factory
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
@@ -188,6 +188,13 @@ class DashboardSummaryResponse(BaseModel):
     saved_jobs: int
     average_match_score: float | None
     weekly_activity: list[int]
+
+
+class ActivityLogResponse(BaseModel):
+    id: str
+    event_type: str
+    metadata: dict
+    created_at: str
 
 
 class ApplicationMaterialsResponse(BaseModel):
@@ -635,6 +642,18 @@ async def search_jobs(
                 )
             )
             approvals[match.job.id] = "review_required"
+    log_activity(
+        session,
+        user.id,
+        "job_search_scored",
+        {
+            "query": effective_query,
+            "location": effective_location,
+            "result_count": len(matches),
+            "high_fit_count": sum(1 for ats in ats_results.values() if ats.score >= settings.ats_high_fit_threshold),
+            "remote_only": preferences.remote_only,
+        },
+    )
     await session.commit()
     applications = await saved_applications_by_job(session, user.id, stored_job_ids)
     return [
@@ -745,6 +764,23 @@ async def get_subscription(
         owner_bypass=owner_bypass,
         features=subscription_features("owner" if owner_bypass else subscription.plan),
     )
+
+
+@router.get("/activity/logs", response_model=list[ActivityLogResponse])
+async def list_activity_logs(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[ActivityLogResponse]:
+    logs = (
+        await session.scalars(
+            select(ActivityLog)
+            .where(ActivityLog.user_id == user.id)
+            .order_by(ActivityLog.created_at.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [activity_log_response(log) for log in logs]
 
 
 @router.get("/admin/summary", response_model=AdminSummaryResponse)
@@ -1791,6 +1827,19 @@ async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, paylo
                 metadata_={"source_url": payload.url.strip(), "manual_final_submission_required": True},
             )
         )
+    log_activity(
+        session,
+        user_id,
+        "job_captured" if not create_application else "extension_job_captured",
+        {
+            "job_id": str(stored_job.id),
+            "title": stored_job.title,
+            "company": stored_job.company,
+            "match_score": match.match_score,
+            "ats_score": ats.score,
+            "created_application": bool(create_application),
+        },
+    )
     await session.commit()
     applications = await saved_applications_by_job(session, user_id, [stored_job.id])
     return job_response(match, ats, stored_match.approval_status if stored_match else "review_required", applications.get(stored_job.id))
@@ -2071,6 +2120,22 @@ async def count_rows(session: AsyncSession, model) -> int:
     return await session.scalar(select(func.count()).select_from(model)) or 0
 
 
+def log_activity(session: AsyncSession, user_id: UUID, event_type: str, metadata: dict | None = None) -> None:
+    session.add(ActivityLog(user_id=user_id, event_type=event_type, metadata_=metadata or {}))
+
+
+def activity_log_response(log: ActivityLog) -> ActivityLogResponse:
+    created_at = log.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return ActivityLogResponse(
+        id=str(log.id),
+        event_type=log.event_type,
+        metadata=log.metadata_,
+        created_at=created_at.isoformat(),
+    )
+
+
 @router.post("/resumes/analyze", response_model=ResumeAnalyzeResponse)
 def analyze_resume(payload: ResumeAnalyzeRequest) -> ResumeAnalyzeResponse:
     text = payload.text.lower()
@@ -2112,6 +2177,30 @@ async def upload_resume(
         )
     except ResumeValidationError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    log_activity(
+        session,
+        user.id,
+        "resume_uploaded",
+        {
+            "resume_id": str(profile.id),
+            "filename": profile.original_filename,
+            "mime_type": profile.mime_type,
+        },
+    )
+    log_activity(
+        session,
+        user.id,
+        "resume_parsed",
+        {
+            "resume_id": str(profile.id),
+            "skill_count": len(profile.skills),
+            "experience_count": len(profile.experiences),
+            "education_count": len(profile.education),
+            "certification_count": len(profile.certifications),
+            "detected_sections": list(profile.detected_sections),
+        },
+    )
+    await session.commit()
     return resume_profile_response(profile)
 
 

@@ -33,6 +33,7 @@ export type JobRecommendation = {
 };
 export type ApplicationRecord = { id: string; job_id: string; company: string; title: string; status: string; notes: string | null; created_at: string; applied_at: string | null };
 export type ApplicationEvent = { id: string; event_type: string; from_status: string | null; to_status: string | null; metadata: Record<string, unknown>; occurred_at: string };
+export type ActivityLog = { id: string; event_type: string; metadata: Record<string, unknown>; created_at: string };
 export type InterviewRecord = { id: string; interview_round: string; scheduled_at: string; notes: string | null };
 export type AssistedApplicationChecklist = {
   application_id: string;
@@ -485,6 +486,14 @@ export async function loadDashboardSummary(accessToken: string): Promise<Dashboa
   });
   if (!response.ok) throw new Error("Could not load dashboard metrics.");
   return (await response.json()) as DashboardSummary;
+}
+
+export async function loadActivityLogs(accessToken: string): Promise<ActivityLog[]> {
+  const response = await fetch(`${apiUrl}/activity/logs`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load activity logs.");
+  return (await response.json()) as ActivityLog[];
 }
 
 export async function loadAnalyticsSummary(accessToken: string): Promise<AnalyticsSummary> {
