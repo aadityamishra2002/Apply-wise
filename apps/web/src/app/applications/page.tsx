@@ -518,7 +518,7 @@ export default function ApplicationsPage() {
                         <p className="text-[12px] font-bold">{field.label}</p>
                         <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${field.requires_review ? "bg-[#fff4ef] text-[#a34f3f]" : "bg-[#e8f4ef] text-[#176b5b]"}`}>{Math.round(field.confidence * 100)}%</span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-[11px] text-[#71807c]">{field.value || "Manual value required"} · {field.source}{field.sensitive ? " · Sensitive" : ""}</p>
+                      <p className="mt-1 line-clamp-2 text-[11px] text-[#71807c]">{field.value || "Manual value required"} / {field.source}{field.sensitive ? " / Sensitive" : ""}</p>
                     </div>
                   ))}
                 </div>
@@ -655,7 +655,7 @@ export default function ApplicationsPage() {
         <section className="mt-5 rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
           <div className="flex items-center gap-2 text-[#176b5b]"><FileText size={17} /><h2 className="text-[16px] font-bold">Evidence-grounded application draft</h2></div>
           <p className="mt-2 text-[12px] text-[#71807c]">Generated from your stored resume only. Edit the letter for tone, detail, and employer context before applying.</p>
-          {materials ? <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{materials.provenance === "gemini_evidence_grounded" ? "Gemini-enhanced grounded draft" : "Safe grounded fallback draft"} · {materials.generation_status.replaceAll("_", " ")} · {materials.retry_attempts} attempt{materials.retry_attempts === 1 ? "" : "s"}</p> : null}
+          {materials ? <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{materials.provenance === "gemini_evidence_grounded" ? "Gemini-enhanced grounded draft" : "Safe grounded fallback draft"} / {materials.generation_status.replaceAll("_", " ")} / {materials.retry_attempts} attempt{materials.retry_attempts === 1 ? "" : "s"}</p> : null}
           <textarea className="mt-4 min-h-80 w-full rounded-xl border border-[#dce7e2] bg-[#fbfcfa] p-4 text-[12px] leading-6 text-[#53645f] outline-none focus:border-[#79b6a8]" onChange={(event) => { setCoverLetterDraft(event.target.value); setCoverLetterSaved(false); }} value={coverLetterDraft} />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={coverLetterDraft.trim().length < 20} onClick={() => void saveCoverLetterDraft()}>Save edited letter</button>
