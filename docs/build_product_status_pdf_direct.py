@@ -149,6 +149,7 @@ for item in [
     "Guide users on the Jobs page when they need to upload a resume, broaden search, or paste a job manually.",
     "Use editable application profile fields from Settings to improve Review Application and extension autofill mapping.",
     "Clean Applications page review/material labels to avoid separator encoding artifacts in production UI.",
+    "Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

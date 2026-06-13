@@ -66,6 +66,7 @@ The maintained product guide is available in two formats:
 - Resume-aware Jobs empty states for upload, broader search, and manual job paste recovery
 - Editable application profile fields used by Review Application and assisted autofill
 - Clean Applications page review/material labels without encoding artifacts
+- Clean extension autofill preview labels and extension version bump for reload clarity
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture

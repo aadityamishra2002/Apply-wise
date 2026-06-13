@@ -186,7 +186,7 @@ function renderAutofillPlan(plan) {
     label.append(checkbox, title);
     const details = document.createElement("p");
     const preview = field.field_key === "resume_file" ? "Resume upload is handled manually if the browser blocks file attachment." : truncate(field.value, 140);
-    details.textContent = `${preview || "Manual value required"} · Source: ${field.source}${field.sensitive ? " · Sensitive" : ""}${field.requires_review ? " · Needs review" : ""}`;
+    details.textContent = `${preview || "Manual value required"} / Source: ${field.source}${field.sensitive ? " / Sensitive" : ""}${field.requires_review ? " / Needs review" : ""}`;
     item.append(label, details);
     list.appendChild(item);
   }
