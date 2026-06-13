@@ -5,12 +5,26 @@ const vm = require("vm");
 
 const popupSource = fs.readFileSync(path.join(__dirname, "..", "popup.js"), "utf8");
 const extractPageSource = extractFunction(popupSource, "extractPage");
+const waitForLinkedInJobContentSource = extractFunction(popupSource, "waitForLinkedInJobContent");
 const captureQualitySource = extractFunction(popupSource, "captureQuality");
 
 function extractFunction(source, name) {
-  const start = source.indexOf(`function ${name}`);
+  const functionStart = source.indexOf(`function ${name}`);
+  const asyncStart = source.lastIndexOf("async ", functionStart);
+  const start = asyncStart >= 0 && source.slice(asyncStart, functionStart) === "async " ? asyncStart : functionStart;
   if (start < 0) throw new Error(`Could not find ${name}`);
-  const firstBrace = source.indexOf("{", start);
+  const openParen = source.indexOf("(", start);
+  let parenDepth = 0;
+  let closeParen = -1;
+  for (let index = openParen; index < source.length; index += 1) {
+    if (source[index] === "(") parenDepth += 1;
+    if (source[index] === ")") parenDepth -= 1;
+    if (parenDepth === 0) {
+      closeParen = index;
+      break;
+    }
+  }
+  const firstBrace = source.indexOf("{", closeParen);
   let depth = 0;
   for (let index = firstBrace; index < source.length; index += 1) {
     const char = source[index];
@@ -32,22 +46,27 @@ function node(text, attrs = {}) {
 function fakeDocument({ selectors = {}, all = {}, bodyText = "", title = "" }) {
   return {
     title,
+    readyState: "complete",
     body: node(bodyText),
     querySelector: (selector) => selectors[selector] ?? null,
-    querySelectorAll: (selector) => all[selector] ?? [],
+    querySelectorAll: (selector) => all[selector] ?? (selectors[selector] ? [selectors[selector]] : []),
   };
 }
 
-function runExtraction(url, documentConfig) {
+async function runExtraction(url, documentConfig) {
   const parsedUrl = new URL(url);
   const context = {
     URL,
+    setTimeout: (callback) => {
+      callback();
+      return 0;
+    },
     document: fakeDocument(documentConfig),
     window: { location: parsedUrl },
     result: null,
   };
   vm.createContext(context);
-  vm.runInContext(`${extractPageSource}; result = extractPage();`, context);
+  await vm.runInContext(`${waitForLinkedInJobContentSource}; ${extractPageSource}; (async () => { result = await extractPage(); })();`, context);
   return context.result;
 }
 
@@ -81,7 +100,8 @@ const linkedInDescription = `
   Senior AI Engineer at Another Company
 `;
 
-const linkedInView = runExtraction("https://www.linkedin.com/jobs/view/4425607893/", {
+async function main() {
+const linkedInView = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", {
   title: "AI Senior Software Engineer | LinkedIn",
   bodyText: "LinkedIn navigation Notifications Premium Similar jobs footer text",
   selectors: {
@@ -103,7 +123,7 @@ assertNoLinkedInNoise(linkedInView.description);
 assert(linkedInView.diagnostics.some((item) => item.field === "title" && item.selector.includes("job-title")));
 assert(linkedInView.diagnostics.some((item) => item.field === "description" && item.selector.includes("jobs-description")));
 
-const linkedInCollection = runExtraction("https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4425607893", {
+const linkedInCollection = await runExtraction("https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4425607893", {
   bodyText: "LinkedIn feed shell and recommendations",
   selectors: {
     ".jobs-unified-top-card__job-title": node("AI Senior Software Engineer"),
@@ -118,7 +138,7 @@ assert.strictEqual(linkedInCollection.company, "Sopra Steria");
 assert.strictEqual(linkedInCollection.location, "Noida, Uttar Pradesh, India");
 assertNoLinkedInNoise(linkedInCollection.description);
 
-const linkedInMissingCompany = runExtraction("https://www.linkedin.com/jobs/view/1/", {
+const linkedInMissingCompany = await runExtraction("https://www.linkedin.com/jobs/view/1/", {
   bodyText: "LinkedIn shell",
   selectors: {
     ".job-details-jobs-unified-top-card__job-title h1": node("AI Engineer"),
@@ -129,7 +149,46 @@ const linkedInMissingCompany = runExtraction("https://www.linkedin.com/jobs/view
 
 assert.strictEqual(linkedInMissingCompany.company, "");
 
-const naukri = runExtraction("https://www.naukri.com/job-listings-ai-engineer-example", {
+const realDomFallbackText = `
+  LinkedIn
+  AI Senior Software Engineer
+  Sopra Steria
+  Noida, Uttar Pradesh, India
+  4 days ago
+  Over 200 applicants
+  About the job
+  Company Description
+  About Sopra Steria
+  Job Description
+  Role Mission
+  Develop and integrate AI-driven capabilities into the QA Evolution platform.
+  Ensure secure, auditable, and governed execution of AI agents.
+  Qualifications
+  Python, Java, LLMs, RAG, embeddings, vector databases, and CI/CD.
+  Seniority level
+  Mid-Senior level
+  Similar jobs
+  Other company role
+`;
+
+const linkedInRealDomFallback = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", {
+  title: "AI Senior Software Engineer | Sopra Steria | LinkedIn",
+  bodyText: realDomFallbackText,
+  selectors: {
+    main: node(realDomFallbackText),
+  },
+});
+
+assert.strictEqual(linkedInRealDomFallback.title, "AI Senior Software Engineer");
+assert.strictEqual(linkedInRealDomFallback.company, "Sopra Steria");
+assert.strictEqual(linkedInRealDomFallback.location, "Noida, Uttar Pradesh, India");
+assert(linkedInRealDomFallback.description.includes("Role Mission"));
+assertNoLinkedInNoise(linkedInRealDomFallback.description);
+assert(linkedInRealDomFallback.diagnostics.some((item) => item.field === "candidate container first 500 chars"));
+assert(linkedInRealDomFallback.diagnostics.some((item) => item.field === "title selector matches"));
+assert(linkedInRealDomFallback.diagnostics.some((item) => item.selector === "candidate text heuristic" || item.selector === "document.title fallback"));
+
+const naukri = await runExtraction("https://www.naukri.com/job-listings-ai-engineer-example", {
   selectors: {
     ".styles_jd-header-title__rZwM1": node("AI Engineer"),
     ".styles_jd-header-comp-name__MvqAI": node("Example Tech"),
@@ -143,7 +202,7 @@ assert.strictEqual(naukri.title, "AI Engineer");
 assert.strictEqual(naukri.company, "Example Tech");
 assert.strictEqual(naukri.location, "Bengaluru");
 
-const workday = runExtraction("https://example.wd3.myworkdayjobs.com/jobs/job/software-engineer", {
+const workday = await runExtraction("https://example.wd3.myworkdayjobs.com/jobs/job/software-engineer", {
   selectors: {
     '[data-automation-id="jobPostingHeader"]': node("Software Engineer"),
     '[data-automation-id="logo"] img': node("", { alt: "Example Workday Co" }),
@@ -157,7 +216,7 @@ assert.strictEqual(workday.title, "Software Engineer");
 assert.strictEqual(workday.company, "Example Workday Co");
 assert.strictEqual(workday.location, "Pune, India");
 
-const genericCareer = runExtraction("https://careers.example.com/jobs/123-ai-platform-engineer", {
+const genericCareer = await runExtraction("https://careers.example.com/jobs/123-ai-platform-engineer", {
   selectors: {
     '[class*="job-title"]': node("AI Platform Engineer"),
     '[class*="company"]': node("Example Careers"),
@@ -187,3 +246,9 @@ assert(blockedLabels.includes("Description has useful detail"));
 assert(blockedLabels.includes("Description is focused on the job"));
 
 console.log("Extension extraction regression tests passed.");
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

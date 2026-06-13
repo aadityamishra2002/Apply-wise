@@ -161,6 +161,7 @@ for item in [
     "Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.",
     "Validate extension syntax and popup element contract in CI alongside backend and web checks.",
     "Fix LinkedIn extraction with scoped job-detail selectors, direct/recommended URL support, selector diagnostics, noisy-description blocking, and no linkedin.com company fallback.",
+    "Harden LinkedIn extraction after real browser regression with dynamic content wait/retry, real-DOM diagnostics, focused candidate-container text fallback, document-title parsing, and selector-count reporting.",
     "Verify extension capture flow in automated tests from LinkedIn payload submission through saved application persistence, ATS/match scoring, tailored resume generation, cover letter generation, and audit events.",
     "Add extraction regression coverage for LinkedIn, Naukri, Workday, one generic company career page, and noisy/missing-field validation.",
 ]:

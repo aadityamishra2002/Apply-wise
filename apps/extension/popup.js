@@ -375,15 +375,31 @@ function updateUploadStatus(value) {
   section.hidden = false;
 }
 
-function extractPage() {
+async function waitForLinkedInJobContent({ attempts = 8, delayMs = 500 } = {}) {
+  const hasContent = () => {
+    const bodyText = String(document.body?.innerText || document.body?.textContent || "");
+    if (document.querySelector(".jobs-description__content, #job-details, .jobs-details, .jobs-search__job-details, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title")) return true;
+    return /about the job|job description|seniority level|employment type|applicants?/i.test(bodyText) && bodyText.length > 500;
+  };
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (hasContent()) return true;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return false;
+}
+
+async function extractPage() {
+  if (window.location.hostname.includes("linkedin.com")) await waitForLinkedInJobContent();
   const text = document.body.innerText;
   const diagnostics = [];
   const meta = (name) => document.querySelector(`meta[property="${name}"],meta[name="${name}"]`)?.content ?? "";
   const clean = (value) => (value ?? "").replace(/\s+/g, " ").trim();
+  const rawNodeText = (node) => node?.innerText || node?.textContent || "";
   const nodeText = (node) => clean(node?.innerText || node?.textContent || "");
   const firstText = (...selectors) => selectors.map((selector) => nodeText(document.querySelector(selector))).find(Boolean) ?? "";
   const firstAttr = (attribute, ...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.getAttribute(attribute))).find(Boolean) ?? "";
   const recordDiagnostic = (field, selector, value, fallback = false) => diagnostics.push({ field, selector, preview: clean(value).slice(0, 180), fallback });
+  const countMatches = (selectors) => selectors.reduce((count, selector) => count + document.querySelectorAll(selector).length, 0);
   const diagnosticText = (field, selectors, { transform = (value) => value, reject = () => false, fallback = false } = {}) => {
     for (const [index, selector] of selectors.entries()) {
       const node = document.querySelector(selector);
@@ -396,7 +412,94 @@ function extractPage() {
     recordDiagnostic(field, "", "", fallback);
     return "";
   };
+  const linkedInTitleSelectors = [
+    ".job-details-jobs-unified-top-card__job-title h1",
+    ".job-details-jobs-unified-top-card__job-title",
+    ".jobs-unified-top-card__job-title h1",
+    ".jobs-unified-top-card__job-title",
+    ".job-details-jobs-unified-top-card__title h1",
+    "[data-test-job-title]",
+    "[data-job-title]",
+    ".top-card-layout__title",
+    "main h1",
+    "h1",
+  ];
+  const linkedInCompanySelectors = [
+    ".job-details-jobs-unified-top-card__company-name a",
+    ".job-details-jobs-unified-top-card__company-name",
+    ".jobs-unified-top-card__company-name a",
+    ".jobs-unified-top-card__company-name",
+    ".job-details-jobs-unified-top-card__primary-description-container a",
+    ".topcard__org-name-link",
+    ".base-main-card__subtitle a",
+    ".sub-nav-cta__optional-url",
+  ];
+  const linkedInLocationSelectors = [
+    ".job-details-jobs-unified-top-card__primary-description-container .tvm__text--low-emphasis",
+    ".job-details-jobs-unified-top-card__primary-description-container span[dir='ltr']",
+    ".job-details-jobs-unified-top-card__primary-description-container",
+    ".jobs-unified-top-card__bullet",
+    ".topcard__flavor--bullet",
+    ".sub-nav-cta__meta-text",
+    "[data-test-job-location]",
+  ];
+  const linkedInDescriptionSelectors = [
+    ".jobs-description__content .jobs-box__html-content",
+    ".jobs-description__content .jobs-description-content__text",
+    ".jobs-description__content .show-more-less-html__markup",
+    ".jobs-description-content__text",
+    ".jobs-box__html-content",
+    "#job-details",
+    ".description__text .show-more-less-html__markup",
+    ".show-more-less-html__markup",
+  ];
+  const linkedInContainerSelectors = [
+    ".jobs-search__job-details--container",
+    ".jobs-search__job-details",
+    ".jobs-details",
+    ".jobs-details__main-content",
+    ".job-view-layout",
+    ".scaffold-layout__detail",
+    ".jobs-search-results-list + div",
+    "main",
+  ];
   const looksLikeLinkedInDomain = (value) => /(^|\.)linkedin\.com|www\.linkedin\.com/i.test(value);
+  const linkedInDocumentTitleParts = () => {
+    const parts = clean(document.title)
+      .replace(/\s+\|\s+LinkedIn.*$/i, "")
+      .replace(/^\(\d+\)\s*/, "")
+      .split(/\s+\|\s+|\s+ at \s+/i)
+      .map((part) => clean(part))
+      .filter(Boolean)
+      .filter((part) => !/^linkedin$/i.test(part));
+    return { title: parts[0] || "", company: parts[1] || "" };
+  };
+  const linkedInLines = (value) => rawLinkedInText(value)
+    .split(/[\n·•]/)
+    .map((line) => clean(line))
+    .filter(Boolean)
+    .filter((line) => !/^(linkedin|jobs|search|home|my network|messaging|notifications|premium|easy apply|save|share)$/i.test(line));
+  const rawLinkedInText = (value) => String(value || "")
+    .replace(/\r/g, "\n")
+    .replace(/\t/g, " ")
+    .replace(/[ \u00a0]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+  const findLinkedInCandidateContainer = () => {
+    const scored = linkedInContainerSelectors
+      .map((selector) => {
+        const node = document.querySelector(selector);
+        const raw = rawNodeText(node);
+        const normalized = clean(raw);
+        const score = normalized.length
+          + (/about the job|job description|qualifications|responsibilities|requirements/i.test(normalized) ? 2000 : 0)
+          - (/similar jobs|recommended jobs|people also viewed|footer|language selector/i.test(normalized) ? 500 : 0);
+        return { selector, node, raw, normalized, score };
+      })
+      .filter((candidate) => candidate.node && candidate.normalized.length >= 80)
+      .sort((a, b) => b.score - a.score);
+    if (scored[0]) return scored[0];
+    return { selector: "body structured visible-text fallback", node: document.body, raw: rawNodeText(document.body), normalized: clean(rawNodeText(document.body)), score: 0 };
+  };
   const parseLinkedInLocation = (value, companyName = "") => {
     const parts = clean(value)
       .split(/[\n·•]/)
@@ -405,6 +508,33 @@ function extractPage() {
       .filter((part) => part.toLowerCase() !== clean(companyName).toLowerCase())
       .filter((part) => !/(applicants?|reposted|promoted|ago|actively recruiting|see who|apply|followers?|connections?)/i.test(part));
     return parts.find((part) => /,|remote|hybrid|on-site|india|united states|united kingdom|canada|germany|france|australia|singapore/i.test(part)) || "";
+  };
+  const parseLinkedInTextFields = (candidateText, docParts) => {
+    const lines = linkedInLines(candidateText).slice(0, 80);
+    const title = docParts.title || lines.find((line) => /engineer|developer|manager|analyst|architect|designer|consultant|lead|specialist|intern/i.test(line)) || "";
+    const titleIndex = lines.findIndex((line) => line === title);
+    const company = docParts.company && !looksLikeLinkedInDomain(docParts.company)
+      ? docParts.company
+      : lines.slice(Math.max(0, titleIndex + 1), titleIndex >= 0 ? titleIndex + 8 : 12)
+        .find((line) => !looksLikeLinkedInDomain(line) && !/\blinkedin\b|applicants?|ago|reposted|promoted|apply|save|share|follow|connections?/i.test(line) && line !== title) || "";
+    const location = lines.find((line) => {
+      if (line === title || line === company) return false;
+      return /,|remote|hybrid|on-site|india|united states|united kingdom|canada|germany|france|australia|singapore/i.test(line)
+        && !/(applicants?|ago|reposted|promoted|apply|save|share|followers?|connections?)/i.test(line);
+    }) || "";
+    return { title, company, location };
+  };
+  const extractLinkedInDescriptionFromText = (candidateText) => {
+    const raw = rawLinkedInText(candidateText);
+    const startPatterns = [/about the job/i, /job description/i, /about this job/i, /role mission/i, /responsibilities/i];
+    const start = startPatterns
+      .map((pattern) => {
+        const match = raw.search(pattern);
+        return match >= 0 ? match : null;
+      })
+      .filter((index) => index !== null)
+      .sort((a, b) => a - b)[0] ?? 0;
+    return cleanLinkedInDescription(raw.slice(start));
   };
   const cleanLinkedInDescription = (value) => {
     let description = clean(value)
@@ -481,41 +611,45 @@ function extractPage() {
   };
   if (window.location.hostname.includes("linkedin.com")) {
     const isLinkedInJobUrl = /\/jobs\/view\/\d+/.test(window.location.pathname) || new URL(window.location.href).searchParams.has("currentJobId");
-    const title = diagnosticText("title", [
-      ".job-details-jobs-unified-top-card__job-title h1",
-      ".job-details-jobs-unified-top-card__job-title",
-      ".jobs-unified-top-card__job-title h1",
-      ".jobs-unified-top-card__job-title",
-      ".top-card-layout__title",
-      "main h1",
-      "h1",
-    ]);
-    const companyName = diagnosticText("company", [
-      ".job-details-jobs-unified-top-card__company-name a",
-      ".job-details-jobs-unified-top-card__company-name",
-      ".jobs-unified-top-card__company-name a",
-      ".jobs-unified-top-card__company-name",
-      ".topcard__org-name-link",
-      ".base-main-card__subtitle a",
-      ".sub-nav-cta__optional-url",
-    ], { reject: looksLikeLinkedInDomain });
-    const rawLocation = diagnosticText("location", [
-      ".job-details-jobs-unified-top-card__primary-description-container .tvm__text--low-emphasis",
-      ".job-details-jobs-unified-top-card__primary-description-container span[dir='ltr']",
-      ".job-details-jobs-unified-top-card__primary-description-container",
-      ".jobs-unified-top-card__bullet",
-      ".topcard__flavor--bullet",
-      ".sub-nav-cta__meta-text",
-    ], { transform: (value) => parseLinkedInLocation(value, companyName) || value });
-    const description = diagnosticText("description", [
-      ".jobs-description__content .jobs-box__html-content",
-      ".jobs-description__content .jobs-description-content__text",
-      ".jobs-description__content .show-more-less-html__markup",
-      ".jobs-description-content__text",
-      "#job-details",
-      ".description__text .show-more-less-html__markup",
-      ".show-more-less-html__markup",
-    ], { transform: cleanLinkedInDescription, reject: isNoisyLinkedInDescription });
+    const candidate = findLinkedInCandidateContainer();
+    const docParts = linkedInDocumentTitleParts();
+    const textFields = parseLinkedInTextFields(candidate.raw, docParts);
+    recordDiagnostic("document.readyState", "document.readyState", document.readyState || "unknown");
+    recordDiagnostic("main job container exists", candidate.node ? candidate.selector : "missing", candidate.node ? "yes" : "no");
+    recordDiagnostic("candidate container selector", candidate.selector || "missing", candidate.selector || "missing");
+    recordDiagnostic("candidate container text length", candidate.selector || "missing", String(candidate.normalized.length));
+    recordDiagnostic("candidate container first 500 chars", candidate.selector || "missing", candidate.normalized.slice(0, 500));
+    recordDiagnostic("title selector matches", "selector count", String(countMatches(linkedInTitleSelectors)));
+    recordDiagnostic("company selector matches", "selector count", String(countMatches(linkedInCompanySelectors)));
+    recordDiagnostic("location selector matches", "selector count", String(countMatches(linkedInLocationSelectors)));
+    recordDiagnostic("description selector matches", "selector count", String(countMatches(linkedInDescriptionSelectors)));
+    let title = diagnosticText("title", linkedInTitleSelectors);
+    if (!title && docParts.title) {
+      title = docParts.title;
+      recordDiagnostic("title", "document.title fallback", title, true);
+    }
+    if (!title && textFields.title) {
+      title = textFields.title;
+      recordDiagnostic("title", "candidate text heuristic", title, true);
+    }
+    let companyName = diagnosticText("company", linkedInCompanySelectors, { reject: looksLikeLinkedInDomain });
+    if (!companyName && textFields.company) {
+      companyName = textFields.company;
+      recordDiagnostic("company", docParts.company ? "document.title fallback" : "candidate text heuristic", companyName, true);
+    }
+    let rawLocation = diagnosticText("location", linkedInLocationSelectors, { transform: (value) => parseLinkedInLocation(value, companyName) || value });
+    if (!rawLocation && textFields.location) {
+      rawLocation = textFields.location;
+      recordDiagnostic("location", "candidate text heuristic", rawLocation, true);
+    }
+    let description = diagnosticText("description", linkedInDescriptionSelectors, { transform: cleanLinkedInDescription, reject: isNoisyLinkedInDescription });
+    if (!description) {
+      const fallbackDescription = extractLinkedInDescriptionFromText(candidate.raw);
+      if (fallbackDescription && !isNoisyLinkedInDescription(fallbackDescription)) {
+        description = fallbackDescription;
+        recordDiagnostic("description", "candidate text heuristic", description, true);
+      }
+    }
     recordDiagnostic("url format", isLinkedInJobUrl ? "LinkedIn job URL supported" : "LinkedIn URL supported with generic adapter path", window.location.href, false);
     return {
       ...base,
