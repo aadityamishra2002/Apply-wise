@@ -57,7 +57,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 35. Edit and save prepared cover letters before downloading or applying.
 36. Edit tailored resume summary, skills, and experience text before DOCX/PDF download.
 37. Review extension capture readiness and re-extract the current page before sending a job.
-38. Request and confirm password resets with one-time tokens and session revocation.
+38. Request and confirm password resets with one-time tokens in local/test environments, revoke sessions after reset, and show a production support recovery path until automated reset email delivery is added.
 39. Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.
 40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, approve selected fields, log the approval, and fill only approved fields.
 41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms, with visible manual-upload-required status when browser upload automation is blocked.

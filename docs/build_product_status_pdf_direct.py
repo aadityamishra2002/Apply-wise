@@ -115,7 +115,7 @@ for item in [
     "Edit and save prepared cover letters before downloading or applying.",
     "Edit tailored resume summary, skills, and experience text before DOCX/PDF download.",
     "Review extension capture readiness and re-extract the current page before sending a job.",
-    "Request and confirm password resets with one-time tokens and session revocation.",
+    "Request and confirm password resets with one-time tokens in local/test environments, revoke sessions after reset, and show a production support recovery path until automated reset email delivery is added.",
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
     "Download tailored resumes from the extension for manual attachment on employer forms with manual-upload-required status.",
     "Review dry-run automation capability flags and manual-submit plans for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages.",

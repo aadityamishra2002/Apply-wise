@@ -1054,6 +1054,18 @@ def test_password_reset_changes_password_and_rejects_token_reuse() -> None:
     assert reused.status_code == 401
 
 
+def test_password_reset_request_has_support_recovery_path_when_reset_url_is_hidden(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+
+    requested = client.post("/api/v1/auth/password-reset/request", json={"email": "support-reset@example.com"})
+
+    assert requested.status_code == 200
+    body = requested.json()
+    assert body["reset_url"] is None
+    assert "support@applywise.app" in body["message"]
+
+
 def test_refresh_token_rotation_detects_reuse() -> None:
     registration = client.post(
         "/api/v1/auth/register",

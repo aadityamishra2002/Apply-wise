@@ -16,7 +16,7 @@ The maintained product guide is available in two formats:
 - Responsive Next.js 15 SaaS interface deployed on Vercel
 - FastAPI backend deployed on Railway with PostgreSQL readiness checks
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
-- Authenticated password change with refresh-session revocation
+- Authenticated password change plus password-reset token flow in local/test environments, with production support recovery guidance until automated email delivery is connected
 - Password reset token flow with dev-mode reset link and session revocation
 - Owner admin allowlist support through Railway environment variables
 - Owner-only admin summary for users, jobs, applications, generated materials, and subscriptions

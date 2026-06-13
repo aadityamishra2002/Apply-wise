@@ -159,8 +159,13 @@ async def request_password_reset(
     token = await service.request_password_reset(str(payload.email))
     settings = get_settings()
     reset_url = f"/reset-password?token={token}" if token and settings.app_env != "production" else None
+    message = (
+        "If an account exists for that email, password reset instructions will be available."
+        if reset_url
+        else "If an account exists for that email, contact support@applywise.app from your registered email for account recovery. Automated reset emails are not enabled yet."
+    )
     return PasswordResetResponse(
-        message="If an account exists for that email, password reset instructions will be available.",
+        message=message,
         reset_url=reset_url,
     )
 
