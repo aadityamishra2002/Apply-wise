@@ -151,6 +151,7 @@ for item in [
     "Clean Applications page review/material labels to avoid separator encoding artifacts in production UI.",
     "Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.",
     "Show a dashboard launch checklist backed by resume, profile, match, application, preparation, and review readiness.",
+    "Require explicit confirmation before marking an application as applied to reinforce manual final submission.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

@@ -183,9 +183,10 @@ export default function ApplicationsPage() {
     void inspect(selected);
   }
 
-  async function changeStatus(applicationId: string, status: string) {
+  async function changeStatus(applicationId: string, status: string, confirmedManualSubmit = false) {
     const token = getAccessToken();
     if (!token) return;
+    if (status === "applied" && !confirmedManualSubmit && !confirmAppliedStatus()) return;
     setUpdating(applicationId);
     try {
       const updated = await updateApplication(applicationId, { status }, token);
@@ -232,7 +233,8 @@ export default function ApplicationsPage() {
 
   async function markApplied() {
     if (!selected) return;
-    await changeStatus(selected.id, "applied");
+    if (!confirmAppliedStatus()) return;
+    await changeStatus(selected.id, "applied", true);
   }
 
   async function queuePrepareRun() {
@@ -665,6 +667,10 @@ export default function ApplicationsPage() {
       ) : null}
     </AppShell>
   );
+}
+
+function confirmAppliedStatus(): boolean {
+  return window.confirm("Mark this role as applied only after you manually clicked submit on the employer site. Apply Wise does not submit applications automatically. Continue?");
 }
 
 function eventSummary(event: ApplicationEvent): string {
