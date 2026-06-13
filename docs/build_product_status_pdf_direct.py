@@ -152,6 +152,7 @@ for item in [
     "Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.",
     "Show a dashboard launch checklist backed by resume, profile, match, application, preparation, and review readiness.",
     "Require explicit confirmation before marking an application as applied to reinforce manual final submission.",
+    "Enforce manual-submission confirmation on the API before accepting an applied status.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

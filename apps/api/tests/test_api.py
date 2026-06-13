@@ -459,7 +459,10 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     assert updated.status_code == 200
     assert updated.json()["status"] == "interview"
     assert updated.json()["applied_at"] is None
-    applied = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "applied"})
+    unconfirmed = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "applied"})
+    assert unconfirmed.status_code == 409
+    assert "manually submitted" in unconfirmed.json()["detail"]
+    applied = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "applied", "manual_submission_confirmed": True})
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"
     assert applied.json()["applied_at"]

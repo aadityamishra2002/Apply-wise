@@ -156,6 +156,7 @@ class ApplicationResponse(BaseModel):
 class ApplicationUpdateRequest(BaseModel):
     status: ApplicationStatus | None = None
     notes: str | None = Field(default=None, max_length=5000)
+    manual_submission_confirmed: bool = False
 
 
 class ApplicationEventResponse(BaseModel):
@@ -1150,6 +1151,8 @@ async def update_application(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job = result
     if payload.status is not None and application.status != payload.status:
+        if payload.status == ApplicationStatus.APPLIED and not payload.manual_submission_confirmed:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Confirm that you manually submitted on the employer site before marking this application applied.")
         previous_status = application.status
         application.status = payload.status
         if payload.status == ApplicationStatus.APPLIED and application.applied_at is None:

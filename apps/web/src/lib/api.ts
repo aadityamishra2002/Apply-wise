@@ -360,7 +360,7 @@ export async function loadApplications(accessToken: string): Promise<Application
   return (await response.json()) as ApplicationRecord[];
 }
 
-export async function updateApplication(applicationId: string, payload: { status?: string; notes?: string }, accessToken: string): Promise<ApplicationRecord> {
+export async function updateApplication(applicationId: string, payload: { status?: string; notes?: string; manual_submission_confirmed?: boolean }, accessToken: string): Promise<ApplicationRecord> {
   const response = await fetch(`${apiUrl}/applications/${applicationId}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },

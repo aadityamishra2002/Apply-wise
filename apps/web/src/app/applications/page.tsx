@@ -189,7 +189,7 @@ export default function ApplicationsPage() {
     if (status === "applied" && !confirmedManualSubmit && !confirmAppliedStatus()) return;
     setUpdating(applicationId);
     try {
-      const updated = await updateApplication(applicationId, { status }, token);
+      const updated = await updateApplication(applicationId, { status, manual_submission_confirmed: status === "applied" && confirmedManualSubmit }, token);
       setApplications((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       if (selected?.id === updated.id) void inspect(updated);
     } finally {
