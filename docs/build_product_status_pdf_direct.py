@@ -159,6 +159,7 @@ for item in [
     "Surface API validation details in Settings when application-profile fields cannot be saved.",
     "Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.",
     "Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.",
+    "Validate extension syntax and popup element contract in CI alongside backend and web checks.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

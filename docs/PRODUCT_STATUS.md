@@ -103,6 +103,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 81. Surface API validation details in Settings when application-profile fields cannot be saved.
 82. Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.
 83. Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.
+84. Validate extension syntax and popup element contract in CI alongside backend and web checks.
 
 ## Truthfulness Rules
 
