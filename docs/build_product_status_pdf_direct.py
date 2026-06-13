@@ -155,6 +155,7 @@ for item in [
     "Enforce manual-submission confirmation on the API before accepting an applied status.",
     "Replace visible compliance-page business placeholders with founder, location, and support details for payment review readiness.",
     "Mark QA/STAGE promotion documentation as paused while MVP work ships directly to prod.",
+    "Validate application-profile URLs server-side before using them for review and autofill mapping.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

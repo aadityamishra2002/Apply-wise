@@ -193,6 +193,24 @@ def test_application_profile_is_persisted_exported_and_used_for_review_autofill(
     assert export.json()["application_profile"]["github_url"] == "https://github.com/aadityamishra2002"
 
 
+def test_application_profile_rejects_partial_urls() -> None:
+    token = register_user("profile-url-validation@example.com")["tokens"]["access_token"]
+    response = client.put(
+        "/api/v1/settings/profile",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "full_name": "Aaditya Mishra",
+            "phone": "",
+            "location": "India",
+            "linkedin_url": "linkedin.com/in/aaditya",
+            "github_url": "",
+            "portfolio_url": "",
+        },
+    )
+    assert response.status_code == 422
+    assert "full URL" in response.text
+
+
 def test_mock_job_ids_are_stable() -> None:
     token = register_user()["tokens"]["access_token"]
     upload_resume(token)

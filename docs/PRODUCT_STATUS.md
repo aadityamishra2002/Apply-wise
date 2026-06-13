@@ -99,6 +99,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 77. Enforce manual-submission confirmation on the API before accepting an applied status.
 78. Replace visible compliance-page business placeholders with founder/location/support details for payment review readiness.
 79. Mark QA/STAGE promotion documentation as paused while MVP work ships directly to `prod`.
+80. Validate application-profile URLs server-side before using them for review/autofill mapping.
 
 ## Truthfulness Rules
 

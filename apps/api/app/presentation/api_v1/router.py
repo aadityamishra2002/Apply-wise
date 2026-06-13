@@ -10,7 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -295,6 +295,14 @@ class UserProfileRequest(BaseModel):
     linkedin_url: str = Field(default="", max_length=500)
     github_url: str = Field(default="", max_length=500)
     portfolio_url: str = Field(default="", max_length=500)
+
+    @field_validator("linkedin_url", "github_url", "portfolio_url")
+    @classmethod
+    def validate_profile_url(cls, value: str) -> str:
+        cleaned = value.strip()
+        if cleaned and not cleaned.startswith(("https://", "http://")):
+            raise ValueError("Enter a full URL starting with https:// or http://.")
+        return cleaned
 
 
 class UserProfileResponse(UserProfileRequest):
