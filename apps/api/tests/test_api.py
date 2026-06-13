@@ -94,6 +94,10 @@ def test_dashboard_summary_starts_empty() -> None:
         "saved_jobs": 0,
         "average_match_score": None,
         "weekly_activity": [0, 0, 0, 0, 0, 0, 0],
+        "has_resume": False,
+        "has_application_profile": False,
+        "prepared_applications": 0,
+        "reviewed_applications": 0,
     }
 
 
@@ -798,6 +802,10 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     confirmed_review = client.post(f"/api/v1/applications/{saved['id']}/review-before-apply/confirm", headers=headers)
     assert confirmed_review.status_code == 200
     assert confirmed_review.json()["review_confirmed"] is True
+    summary = client.get("/api/v1/dashboard/summary", headers=headers).json()
+    assert summary["has_resume"] is True
+    assert summary["prepared_applications"] == 1
+    assert summary["reviewed_applications"] == 1
     reloaded_review = client.get(f"/api/v1/applications/{saved['id']}/review-before-apply", headers=headers)
     assert reloaded_review.json()["review_confirmed"] is True
     version_id = client.get(f"/api/v1/applications/{saved['id']}/assisted-checklist", headers=headers).json()["resume_version_id"]

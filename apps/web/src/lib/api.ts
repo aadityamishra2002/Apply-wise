@@ -123,7 +123,17 @@ export type ReviewBeforeApply = {
   review_confirmed: boolean;
   manual_final_submission_required: boolean;
 };
-export type DashboardSummary = { applications: number; interviews: number; saved_jobs: number; average_match_score: number | null; weekly_activity: number[] };
+export type DashboardSummary = {
+  applications: number;
+  interviews: number;
+  saved_jobs: number;
+  average_match_score: number | null;
+  weekly_activity: number[];
+  has_resume: boolean;
+  has_application_profile: boolean;
+  prepared_applications: number;
+  reviewed_applications: number;
+};
 export type ApplicationMaterials = {
   application: ApplicationRecord;
   resume_version_id: string;

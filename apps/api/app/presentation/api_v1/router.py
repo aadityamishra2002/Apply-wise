@@ -189,6 +189,10 @@ class DashboardSummaryResponse(BaseModel):
     saved_jobs: int
     average_match_score: float | None
     weekly_activity: list[int]
+    has_resume: bool
+    has_application_profile: bool
+    prepared_applications: int
+    reviewed_applications: int
 
 
 class ActivityLogResponse(BaseModel):
@@ -521,6 +525,22 @@ async def dashboard_summary(
             Application.status == ApplicationStatus.SAVED,
         )
     )
+    has_resume = await ResumeService(session).get_active(user.id) is not None
+    user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
+    has_application_profile = bool(user_profile and (user_profile.full_name or user_profile.phone or user_profile.linkedin_url or user_profile.github_url or user_profile.portfolio_url))
+    prepared_applications = await session.scalar(
+        select(func.count()).select_from(Application).where(
+            Application.user_id == user.id,
+            Application.resume_version_id.is_not(None),
+            Application.cover_letter_id.is_not(None),
+        )
+    )
+    reviewed_applications = await session.scalar(
+        select(func.count(func.distinct(ApplicationEvent.application_id)))
+        .select_from(ApplicationEvent)
+        .join(Application, Application.id == ApplicationEvent.application_id)
+        .where(Application.user_id == user.id, ApplicationEvent.event_type == "review_before_apply_confirmed")
+    )
     average_match_score = await session.scalar(select(func.avg(JobMatch.match_score)).where(JobMatch.user_id == user.id))
     today = datetime.now(timezone.utc).date()
     week_start = today - timedelta(days=6)
@@ -541,6 +561,10 @@ async def dashboard_summary(
         saved_jobs=saved_jobs or 0,
         average_match_score=round(float(average_match_score), 1) if average_match_score is not None else None,
         weekly_activity=weekly_activity,
+        has_resume=has_resume,
+        has_application_profile=has_application_profile,
+        prepared_applications=prepared_applications or 0,
+        reviewed_applications=reviewed_applications or 0,
     )
 
 

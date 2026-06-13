@@ -150,6 +150,7 @@ for item in [
     "Use editable application profile fields from Settings to improve Review Application and extension autofill mapping.",
     "Clean Applications page review/material labels to avoid separator encoding artifacts in production UI.",
     "Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.",
+    "Show a dashboard launch checklist backed by resume, profile, match, application, preparation, and review readiness.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

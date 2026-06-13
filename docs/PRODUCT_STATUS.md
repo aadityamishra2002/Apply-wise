@@ -94,6 +94,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 72. Add editable application profile fields in Settings and use them to improve Review Application/autofill mapping.
 73. Clean Applications page review/material labels to avoid separator encoding artifacts in production UI.
 74. Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.
+75. Add dashboard launch checklist backed by resume/profile/match/application/preparation/review readiness.
 
 ## Truthfulness Rules
 
