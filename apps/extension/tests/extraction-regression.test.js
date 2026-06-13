@@ -188,6 +188,44 @@ assert(linkedInRealDomFallback.diagnostics.some((item) => item.field === "candid
 assert(linkedInRealDomFallback.diagnostics.some((item) => item.field === "title selector matches"));
 assert(linkedInRealDomFallback.diagnostics.some((item) => item.selector === "candidate text heuristic" || item.selector === "document.title fallback"));
 
+const prismHrVisibleCardText = `
+  LinkedIn
+  PrismHR
+  AI/ML Engineer
+  Noida, Uttar Pradesh, India
+  3 weeks ago
+  43 applicants
+  Apply
+  Save
+  About the job
+  We are seeking a highly skilled AI/ML Engineer to design, develop, and deploy machine learning models and AI-driven solutions that enhance business processes and product capabilities.
+  Key Responsibilities:
+  Model Development: Build, train, and optimise machine learning models for predictive analytics, natural language processing, computer vision, and other AI applications.
+  Data Engineering: Preprocess, clean, and structure large datasets for model training and evaluation.
+  Required Skills & Qualifications:
+  Strong proficiency in Python, TensorFlow, PyTorch, and ML libraries.
+  Seniority level
+  Mid-Senior level
+  Similar jobs
+  AI / ML Engineer
+`;
+
+const prismHrVisibleCard = await runExtraction("https://www.linkedin.com/jobs/view/4424855234/", {
+  title: "AI/ML Engineer | PrismHR | LinkedIn",
+  bodyText: prismHrVisibleCardText,
+  selectors: {
+    main: node(prismHrVisibleCardText),
+  },
+});
+
+assert.strictEqual(prismHrVisibleCard.title, "AI/ML Engineer");
+assert.strictEqual(prismHrVisibleCard.company, "PrismHR");
+assert.strictEqual(prismHrVisibleCard.location, "Noida, Uttar Pradesh, India");
+assert(prismHrVisibleCard.description.startsWith("About the job We are seeking a highly skilled AI/ML Engineer"));
+assertNoLinkedInNoise(prismHrVisibleCard.description);
+assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText length"));
+assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText first 1000 chars"));
+
 const naukri = await runExtraction("https://www.naukri.com/job-listings-ai-engineer-example", {
   selectors: {
     ".styles_jd-header-title__rZwM1": node("AI Engineer"),

@@ -377,9 +377,9 @@ function updateUploadStatus(value) {
 
 async function waitForLinkedInJobContent({ attempts = 8, delayMs = 500 } = {}) {
   const hasContent = () => {
-    const bodyText = String(document.body?.innerText || document.body?.textContent || "");
+    const bodyText = String(document.body?.innerText || document.body?.textContent || document.documentElement?.textContent || "");
     if (document.querySelector(".jobs-description__content, #job-details, .jobs-details, .jobs-search__job-details, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title")) return true;
-    return /about the job|job description|seniority level|employment type|applicants?/i.test(bodyText) && bodyText.length > 500;
+    return /about the job|job description|seniority level|employment type|applicants?|apply|save/i.test(bodyText) && bodyText.length > 200;
   };
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (hasContent()) return true;
@@ -390,11 +390,32 @@ async function waitForLinkedInJobContent({ attempts = 8, delayMs = 500 } = {}) {
 
 async function extractPage() {
   if (window.location.hostname.includes("linkedin.com")) await waitForLinkedInJobContent();
-  const text = document.body.innerText;
   const diagnostics = [];
   const meta = (name) => document.querySelector(`meta[property="${name}"],meta[name="${name}"]`)?.content ?? "";
   const clean = (value) => (value ?? "").replace(/\s+/g, " ").trim();
-  const rawNodeText = (node) => node?.innerText || node?.textContent || "";
+  const visibleTextFrom = (root = document.body) => {
+    if (!root || !document.createTreeWalker || typeof NodeFilter === "undefined") return root?.innerText || root?.textContent || "";
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (textNode) => {
+        const value = textNode.nodeValue || "";
+        if (!value.trim()) return NodeFilter.FILTER_REJECT;
+        const parent = textNode.parentElement;
+        if (!parent || /^(script|style|noscript|svg|path)$/i.test(parent.tagName)) return NodeFilter.FILTER_REJECT;
+        const style = window.getComputedStyle ? window.getComputedStyle(parent) : null;
+        if (style && (style.display === "none" || style.visibility === "hidden")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const chunks = [];
+    while (walker.nextNode()) chunks.push(walker.currentNode.nodeValue.trim());
+    return chunks.join("\n");
+  };
+  const bodyInnerText = String(document.body?.innerText || "");
+  const bodyTextContent = String(document.body?.textContent || "");
+  const documentTextContent = String(document.documentElement?.textContent || "");
+  const collectedVisibleText = visibleTextFrom(document.body);
+  const text = bodyInnerText || collectedVisibleText || bodyTextContent || documentTextContent;
+  const rawNodeText = (node) => node?.innerText || visibleTextFrom(node) || node?.textContent || "";
   const nodeText = (node) => clean(node?.innerText || node?.textContent || "");
   const firstText = (...selectors) => selectors.map((selector) => nodeText(document.querySelector(selector))).find(Boolean) ?? "";
   const firstAttr = (attribute, ...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.getAttribute(attribute))).find(Boolean) ?? "";
@@ -454,12 +475,19 @@ async function extractPage() {
     ".show-more-less-html__markup",
   ];
   const linkedInContainerSelectors = [
+    ".jobs-details__main-content--single-pane",
+    ".jobs-details__main-content",
+    ".jobs-details__job-details-module",
+    ".jobs-details-top-card",
+    ".job-details-jobs-unified-top-card",
+    ".jobs-unified-top-card",
+    ".jobs-box--fadein",
     ".jobs-search__job-details--container",
     ".jobs-search__job-details",
     ".jobs-details",
-    ".jobs-details__main-content",
     ".job-view-layout",
     ".scaffold-layout__detail",
+    ".core-rail",
     ".jobs-search-results-list + div",
     "main",
   ];
@@ -498,7 +526,8 @@ async function extractPage() {
       .filter((candidate) => candidate.node && candidate.normalized.length >= 80)
       .sort((a, b) => b.score - a.score);
     if (scored[0]) return scored[0];
-    return { selector: "body structured visible-text fallback", node: document.body, raw: rawNodeText(document.body), normalized: clean(rawNodeText(document.body)), score: 0 };
+    const fallbackRaw = collectedVisibleText || bodyInnerText || bodyTextContent || documentTextContent;
+    return { selector: "body structured visible-text fallback", node: document.body, raw: fallbackRaw, normalized: clean(fallbackRaw), score: 0 };
   };
   const parseLinkedInLocation = (value, companyName = "") => {
     const parts = clean(value)
@@ -511,12 +540,19 @@ async function extractPage() {
   };
   const parseLinkedInTextFields = (candidateText, docParts) => {
     const lines = linkedInLines(candidateText).slice(0, 80);
-    const title = docParts.title || lines.find((line) => /engineer|developer|manager|analyst|architect|designer|consultant|lead|specialist|intern/i.test(line)) || "";
+    const titlePattern = /engineer|developer|manager|analyst|architect|designer|consultant|lead|specialist|intern|scientist|machine learning|ai\/ml|ai ml|software/i;
+    const badLine = (line) => /\blinkedin\b|applicants?|ago|reposted|promoted|apply|save|share|follow|connections?|join now|sign in|clear text|expand search|this button displays/i.test(line);
+    const title = docParts.title || lines.find((line) => titlePattern.test(line) && !badLine(line)) || "";
     const titleIndex = lines.findIndex((line) => line === title);
+    const companyWindow = lines.slice(Math.max(0, titleIndex - 4), titleIndex >= 0 ? titleIndex + 8 : 16);
     const company = docParts.company && !looksLikeLinkedInDomain(docParts.company)
       ? docParts.company
-      : lines.slice(Math.max(0, titleIndex + 1), titleIndex >= 0 ? titleIndex + 8 : 12)
-        .find((line) => !looksLikeLinkedInDomain(line) && !/\blinkedin\b|applicants?|ago|reposted|promoted|apply|save|share|follow|connections?/i.test(line) && line !== title) || "";
+      : companyWindow.find((line) => {
+        if (!line || line === title || looksLikeLinkedInDomain(line) || badLine(line)) return false;
+        if (/,|remote|hybrid|on-site|india|united states|united kingdom|canada|germany|france|australia|singapore/i.test(line)) return false;
+        if (titlePattern.test(line) && /jobs?|in |hiring/i.test(line)) return false;
+        return line.length <= 90;
+      }) || "";
     const location = lines.find((line) => {
       if (line === title || line === company) return false;
       return /,|remote|hybrid|on-site|india|united states|united kingdom|canada|germany|france|australia|singapore/i.test(line)
@@ -614,6 +650,10 @@ async function extractPage() {
     const candidate = findLinkedInCandidateContainer();
     const docParts = linkedInDocumentTitleParts();
     const textFields = parseLinkedInTextFields(candidate.raw, docParts);
+    recordDiagnostic("document.body.innerText length", "document.body.innerText", String(bodyInnerText.length));
+    recordDiagnostic("document.body.innerText first 1000 chars", "document.body.innerText", bodyInnerText.slice(0, 1000));
+    recordDiagnostic("visible text fallback length", "TreeWalker visible text", String(collectedVisibleText.length));
+    recordDiagnostic("visible text first 1000 chars", "TreeWalker visible text", collectedVisibleText.slice(0, 1000));
     recordDiagnostic("document.readyState", "document.readyState", document.readyState || "unknown");
     recordDiagnostic("main job container exists", candidate.node ? candidate.selector : "missing", candidate.node ? "yes" : "no");
     recordDiagnostic("candidate container selector", candidate.selector || "missing", candidate.selector || "missing");

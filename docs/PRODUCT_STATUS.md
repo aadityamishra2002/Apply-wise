@@ -106,6 +106,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 84. Validate extension syntax and popup element contract in CI alongside backend and web checks.
 85. Fix LinkedIn job extraction to use scoped job-detail selectors, support `/jobs/view/{jobId}` and `/jobs/collections/recommended/?currentJobId={jobId}`, block noisy descriptions, show selector diagnostics, and keep company missing instead of falling back to `linkedin.com`.
 86. Harden LinkedIn extraction after real browser regression by adding dynamic content wait/retry, real-DOM diagnostics, focused candidate-container text fallback, document-title parsing, and selector-count reporting.
+87. Add LinkedIn visible job-card fallback for pages where company appears above the title, location appears below the title, and description starts under "About the job"; add body text length/first-1000 diagnostics and PrismHR regression coverage.
 
 ## LinkedIn Extraction Reliability Update
 
@@ -115,6 +116,7 @@ Root cause found:
 - When description selectors missed, the extension fell back to `document.body.innerText`, which pulled navigation, login prompts, Premium banners, recommended jobs, company profile sections, footer content, and unrelated roles.
 - Company fallback used the hostname, so missing company data became `www.linkedin.com`.
 - A later real-browser regression showed the authenticated LinkedIn DOM available to the content script could miss all strict selector fixtures while still containing useful job text in the main job-detail area. Extraction also needed to wait for LinkedIn's dynamic content before reading the DOM.
+- A follow-up real-browser test on `https://www.linkedin.com/jobs/view/4424855234/` showed the visible LinkedIn card layout can expose company above title, title as the large heading, location below title, and description under "About the job" while strict selectors still return zero matches.
 
 Fixes implemented:
 
@@ -128,12 +130,15 @@ Fixes implemented:
 - CI now runs extension extraction regression tests for LinkedIn, Naukri, Workday, one generic company career page, and capture-quality validation.
 - Re-extract now waits for LinkedIn job content before reading the page.
 - LinkedIn diagnostics now include `document.readyState`, candidate container existence, selected candidate container selector, candidate text length, first 500 characters of candidate text, and selector-match counts for title/company/location/description groups.
+- LinkedIn diagnostics now also include `document.body.innerText.length`, the first 1000 characters of `document.body.innerText`, TreeWalker visible-text length, and first 1000 characters of collected visible text.
 - If exact selectors miss, LinkedIn extraction now falls back to document-title parsing and focused candidate-container text heuristics while still trimming before similar jobs, recommendations, footer, referrals, and profile sections.
+- If selectors and title parsing miss, LinkedIn extraction now scans the visible card text around the detected title to recover company-above-title and location-below-title layouts.
 
 Fully working in automated verification:
 
 - LinkedIn extraction regression for `https://www.linkedin.com/jobs/view/4425607893/` returns `AI Senior Software Engineer`, `Sopra Steria`, `Noida, Uttar Pradesh, India`, and a focused job description without similar-jobs/navigation/footer noise.
 - LinkedIn real-DOM fallback regression covers the case where strict selectors are missing but the main candidate container text contains the job details.
+- LinkedIn PrismHR fallback regression covers `AI/ML Engineer`, `PrismHR`, `Noida, Uttar Pradesh, India`, and the description starting with "We are seeking a highly skilled AI/ML Engineer...".
 - LinkedIn collection URL extraction is covered for `/jobs/collections/recommended/?currentJobId={jobId}`.
 - Naukri, Workday, and generic company-career extraction samples populate title, company, location, and description.
 - Extension capture-quality validation blocks missing title, company, location, invalid URL, short description, and noisy LinkedIn-style descriptions.
@@ -149,6 +154,7 @@ Still needs manual browser testing:
 
 - Reload the unpacked extension in Brave/Chrome and confirm the popup UI shows the same LinkedIn values on the real authenticated LinkedIn page.
 - Test both LinkedIn URLs currently known to fail:
+  - `https://www.linkedin.com/jobs/view/4424855234/`
   - `https://www.linkedin.com/jobs/view/4425607893/`
   - `https://www.linkedin.com/jobs/view/4424582004/?alternateChannel=search&eBP=BUDGET_EXHAUSTED_JOB&trk=d_flagship3_jobs_discovery_jymbii&refId=D6ZVOyifP0bVAzF0nWvuiQ%3D%3D&trackingId=H6NdQFF1Jn4tTjU2w5rcuA%3D%3D`
 - Pair the extension with the user's live Apply Wise account and confirm the captured job appears in the deployed web app.

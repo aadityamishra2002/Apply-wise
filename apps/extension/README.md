@@ -47,6 +47,7 @@ The extraction logic uses adapters for Greenhouse, Lever, LinkedIn, Indeed, Nauk
 
 After reloading the unpacked extension, test both:
 
+- `https://www.linkedin.com/jobs/view/4424855234/`
 - `https://www.linkedin.com/jobs/view/4425607893/`
 - `https://www.linkedin.com/jobs/view/4424582004/?alternateChannel=search&eBP=BUDGET_EXHAUSTED_JOB&trk=d_flagship3_jobs_discovery_jymbii&refId=D6ZVOyifP0bVAzF0nWvuiQ%3D%3D&trackingId=H6NdQFF1Jn4tTjU2w5rcuA%3D%3D`
 
@@ -59,4 +60,4 @@ Expected result:
 
 The LinkedIn adapter supports both `/jobs/view/{jobId}` and `/jobs/collections/recommended/?currentJobId={jobId}`. It does not use `linkedin.com` as a company fallback. If title, company, location, URL, or focused description quality is missing, **Send to Apply Wise** stays disabled.
 
-If LinkedIn returns missing fields, expand **Extraction diagnostics** in the popup. It shows `document.readyState`, whether a main candidate container was found, the selected candidate selector, candidate text length, the first 500 characters of candidate text, and selector-match counts for title/company/location/description. Click **Re-extract current page** after the LinkedIn job panel finishes loading; re-extract waits briefly for dynamic LinkedIn content before parsing.
+If LinkedIn returns missing fields, expand **Extraction diagnostics** in the popup. It shows `document.readyState`, `document.body.innerText.length`, the first 1000 characters of body text, collected visible-text length, whether a main candidate container was found, the selected candidate selector, candidate text length, the first 500 characters of candidate text, and selector-match counts for title/company/location/description. Click **Re-extract current page** after the LinkedIn job panel finishes loading; re-extract waits briefly for dynamic LinkedIn content before parsing.
