@@ -50,6 +50,11 @@ def test_gemini_is_enabled_only_when_api_key_exists() -> None:
     assert Settings(_env_file=None, gemini_api_key="key").gemini_enabled
 
 
+def test_password_reset_email_enabled_requires_host_and_sender() -> None:
+    assert not Settings(_env_file=None, smtp_host="smtp.example.com").password_reset_email_enabled
+    assert Settings(_env_file=None, smtp_host="smtp.example.com", smtp_from_email="support@applywise.app").password_reset_email_enabled
+
+
 def test_remotive_is_enabled_by_default_and_can_be_disabled(monkeypatch) -> None:
     monkeypatch.delenv("REMOTIVE_ENABLED", raising=False)
     assert Settings(_env_file=None).remotive_enabled

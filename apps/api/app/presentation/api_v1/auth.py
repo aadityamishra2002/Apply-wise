@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from app.application.identity.service import (
     IdentityService,
 )
 from app.core.config import get_settings
+from app.core.email import build_password_reset_url, send_password_reset_email
 from app.domain.identity.entities import UserRecord
 from app.infrastructure.db.session import get_session
 from app.infrastructure.repositories.identity import SqlAlchemyIdentityUnitOfWork
@@ -154,15 +155,18 @@ async def change_password(
 @router.post("/password-reset/request", response_model=PasswordResetResponse)
 async def request_password_reset(
     payload: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
     service: Annotated[IdentityService, Depends(get_identity_service)],
 ) -> PasswordResetResponse:
     token = await service.request_password_reset(str(payload.email))
     settings = get_settings()
     reset_url = f"/reset-password?token={token}" if token and settings.app_env != "production" else None
+    if token and settings.password_reset_email_enabled:
+        background_tasks.add_task(send_password_reset_email, settings, str(payload.email), build_password_reset_url(settings, token))
     message = (
         "If an account exists for that email, password reset instructions will be available."
-        if reset_url
-        else "If an account exists for that email, contact support@applywise.app from your registered email for account recovery. Automated reset emails are not enabled yet."
+        if reset_url or settings.password_reset_email_enabled
+        else f"If an account exists for that email, contact {settings.support_email} from your registered email for account recovery. Automated reset emails are not enabled yet."
     )
     return PasswordResetResponse(
         message=message,

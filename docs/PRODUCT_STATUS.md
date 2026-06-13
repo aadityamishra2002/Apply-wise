@@ -57,7 +57,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 35. Edit and save prepared cover letters before downloading or applying.
 36. Edit tailored resume summary, skills, and experience text before DOCX/PDF download.
 37. Review extension capture readiness and re-extract the current page before sending a job.
-38. Request and confirm password resets with one-time tokens in local/test environments, revoke sessions after reset, and show a production support recovery path until automated reset email delivery is added.
+38. Request and confirm password resets with one-time tokens in local/test environments, send production reset emails when SMTP is configured, revoke sessions after reset, and show a support recovery path when automated email is unavailable.
 39. Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.
 40. Load an extension-scoped autofill plan for a captured application, review mapped fields with confidence scores, approve selected fields, log the approval, and fill only approved fields.
 41. Download the latest prepared tailored resume from the extension for manual attachment on employer forms, with visible manual-upload-required status when browser upload automation is blocked.
@@ -110,6 +110,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 88. Add production resume-project extraction, persisted project records, resume profile edit API, resume re-parse API, project display in the resume workspace, and account export coverage for projects.
 89. Add authenticated job URL import with public-URL safety checks, conservative HTML extraction, persisted `url_import` jobs, ATS/match scoring, and Jobs-page import controls.
 90. Add a functional web resume-profile editor for correcting skills, experience, education, certifications, and projects after parsing.
+91. Add optional SMTP-backed production password-reset email delivery with safe token hiding, frontend reset URL generation, support fallback, env placeholders, and tests.
 
 ## Current Production Audit
 
@@ -126,7 +127,7 @@ Completed:
 Highest-impact remaining production work:
 
 1. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
-2. Add production email delivery for password reset and support workflows.
+2. Configure a real SMTP provider on Railway for password-reset delivery.
 3. Add payment checkout only after the payment account is approved.
 
 ## LinkedIn Extraction Reliability Update

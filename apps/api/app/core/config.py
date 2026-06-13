@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     rate_limit_default_requests: int = 240
     rate_limit_sensitive_requests: int = 30
+    frontend_base_url: str = "http://localhost:3000"
+    support_email: str = "support@applywise.app"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -111,6 +119,10 @@ class Settings(BaseSettings):
     @property
     def gemini_enabled(self) -> bool:
         return bool(self.gemini_api_key)
+
+    @property
+    def password_reset_email_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from_email)
 
 
 @lru_cache

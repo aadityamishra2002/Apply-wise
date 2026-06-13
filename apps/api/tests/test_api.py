@@ -1261,6 +1261,29 @@ def test_password_reset_request_has_support_recovery_path_when_reset_url_is_hidd
     assert "support@applywise.app" in body["message"]
 
 
+def test_password_reset_request_sends_email_when_smtp_is_enabled(monkeypatch) -> None:
+    payload = {"email": "smtp-reset@example.com", "password": "correct-horse-battery-staple"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "frontend_base_url", "https://apply-wise-1.vercel.app")
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "smtp_from_email", "support@applywise.app")
+    sent: list[tuple[str, str]] = []
+
+    def fake_send_password_reset_email(_settings, recipient: str, reset_url: str) -> None:
+        sent.append((recipient, reset_url))
+
+    monkeypatch.setattr("app.presentation.api_v1.auth.send_password_reset_email", fake_send_password_reset_email)
+    requested = client.post("/api/v1/auth/password-reset/request", json={"email": payload["email"]})
+
+    assert requested.status_code == 200
+    assert requested.json()["reset_url"] is None
+    assert "password reset instructions" in requested.json()["message"]
+    assert sent and sent[0][0] == payload["email"]
+    assert sent[0][1].startswith("https://apply-wise-1.vercel.app/reset-password?token=")
+
+
 def test_refresh_token_rotation_detects_reuse() -> None:
     registration = client.post(
         "/api/v1/auth/register",
