@@ -22,7 +22,7 @@ from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
 from app.application.retry import RetryPolicy, run_with_retries
-from app.application.resumes.service import MAX_RESUME_BYTES, ResumeProfile, ResumeService, ResumeValidationError, detect_skills
+from app.application.resumes.service import MAX_RESUME_BYTES, ResumeCertification, ResumeEducation, ResumeExperience, ResumeProfile, ResumeProject, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.quality import find_unsupported_claims
 from app.application.tailoring.service import GeminiTailoringService
 from app.core.config import get_settings
@@ -122,6 +122,7 @@ class ResumeProfileResponse(BaseModel):
     experiences: list["ResumeExperienceResponse"]
     education: list["ResumeEducationResponse"]
     certifications: list["ResumeCertificationResponse"]
+    projects: list["ResumeProjectResponse"]
 
 
 class ResumeExperienceResponse(BaseModel):
@@ -140,6 +141,44 @@ class ResumeCertificationResponse(BaseModel):
     name: str
     issuer: str | None
     year: str | None
+
+
+class ResumeProjectResponse(BaseModel):
+    name: str
+    description: str
+    technologies: list[str]
+
+
+class ResumeExperienceUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    company: str = Field(min_length=1, max_length=255)
+    description: str = Field(default="", max_length=5000)
+
+
+class ResumeEducationUpdateRequest(BaseModel):
+    institution: str = Field(min_length=1, max_length=255)
+    degree: str = Field(min_length=1, max_length=255)
+    year: str | None = Field(default=None, max_length=32)
+
+
+class ResumeCertificationUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    issuer: str | None = Field(default=None, max_length=255)
+    year: str | None = Field(default=None, max_length=32)
+
+
+class ResumeProjectUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=5000)
+    technologies: list[str] = Field(default_factory=list, max_length=30)
+
+
+class ResumeProfileUpdateRequest(BaseModel):
+    skills: list[str] = Field(default_factory=list, max_length=200)
+    experiences: list[ResumeExperienceUpdateRequest] = Field(default_factory=list, max_length=50)
+    education: list[ResumeEducationUpdateRequest] = Field(default_factory=list, max_length=50)
+    certifications: list[ResumeCertificationUpdateRequest] = Field(default_factory=list, max_length=50)
+    projects: list[ResumeProjectUpdateRequest] = Field(default_factory=list, max_length=50)
 
 
 class ApplicationResponse(BaseModel):
@@ -2371,6 +2410,10 @@ def resume_profile_export(profile: ResumeProfile) -> dict:
             {"name": item.name, "issuer": item.issuer, "year": item.year}
             for item in profile.certifications
         ],
+        "projects": [
+            {"name": item.name, "description": item.description, "technologies": list(item.technologies)}
+            for item in profile.projects
+        ],
     }
 
 
@@ -2415,6 +2458,94 @@ async def get_my_resume(
     return resume_profile_response(profile) if profile else None
 
 
+@router.patch("/resumes/me", response_model=ResumeProfileResponse)
+async def update_my_resume_profile(
+    payload: ResumeProfileUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeProfileResponse:
+    try:
+        profile = await ResumeService(session).update_profile(
+            user.id,
+            skills=[skill.strip() for skill in payload.skills if skill.strip()],
+            experiences=[
+                ResumeExperience(
+                    title=item.title.strip(),
+                    company=item.company.strip(),
+                    description=item.description.strip(),
+                )
+                for item in payload.experiences
+            ],
+            education=[
+                ResumeEducation(
+                    institution=item.institution.strip(),
+                    degree=item.degree.strip(),
+                    year=item.year.strip() if item.year else None,
+                )
+                for item in payload.education
+            ],
+            certifications=[
+                ResumeCertification(
+                    name=item.name.strip(),
+                    issuer=item.issuer.strip() if item.issuer else None,
+                    year=item.year.strip() if item.year else None,
+                )
+                for item in payload.certifications
+            ],
+            projects=[
+                ResumeProject(
+                    name=item.name.strip(),
+                    description=item.description.strip(),
+                    technologies=tuple(technology.strip() for technology in item.technologies if technology.strip()),
+                )
+                for item in payload.projects
+            ],
+        )
+    except ResumeValidationError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    log_activity(
+        session,
+        user.id,
+        "resume_profile_updated",
+        {
+            "resume_id": str(profile.id),
+            "skill_count": len(profile.skills),
+            "experience_count": len(profile.experiences),
+            "education_count": len(profile.education),
+            "certification_count": len(profile.certifications),
+            "project_count": len(profile.projects),
+        },
+    )
+    await session.commit()
+    return resume_profile_response(profile)
+
+
+@router.post("/resumes/reparse", response_model=ResumeProfileResponse)
+async def reparse_my_resume(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeProfileResponse:
+    try:
+        profile = await ResumeService(session).reparse_active(user.id)
+    except ResumeValidationError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    log_activity(
+        session,
+        user.id,
+        "resume_reparsed",
+        {
+            "resume_id": str(profile.id),
+            "skill_count": len(profile.skills),
+            "experience_count": len(profile.experiences),
+            "education_count": len(profile.education),
+            "certification_count": len(profile.certifications),
+            "project_count": len(profile.projects),
+        },
+    )
+    await session.commit()
+    return resume_profile_response(profile)
+
+
 @router.post("/resumes/upload", response_model=ResumeProfileResponse, status_code=status.HTTP_201_CREATED)
 async def upload_resume(
     user: Annotated[UserRecord, Depends(get_current_user)],
@@ -2450,6 +2581,7 @@ async def upload_resume(
             "experience_count": len(profile.experiences),
             "education_count": len(profile.education),
             "certification_count": len(profile.certifications),
+            "project_count": len(profile.projects),
             "detected_sections": list(profile.detected_sections),
         },
     )
@@ -2477,5 +2609,9 @@ def resume_profile_response(profile: ResumeProfile) -> ResumeProfileResponse:
         certifications=[
             ResumeCertificationResponse(name=item.name, issuer=item.issuer, year=item.year)
             for item in profile.certifications
+        ],
+        projects=[
+            ResumeProjectResponse(name=item.name, description=item.description, technologies=list(item.technologies))
+            for item in profile.projects
         ],
     )

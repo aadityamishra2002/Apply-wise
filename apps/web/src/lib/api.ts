@@ -19,11 +19,13 @@ export type ResumeProfile = {
   experiences: ResumeExperience[];
   education: ResumeEducation[];
   certifications: ResumeCertification[];
+  projects: ResumeProject[];
 };
 
 export type ResumeExperience = { title: string; company: string; description: string };
 export type ResumeEducation = { institution: string; degree: string; year: string | null };
 export type ResumeCertification = { name: string; issuer: string | null; year: string | null };
+export type ResumeProject = { name: string; description: string; technologies: string[] };
 export type JobRecommendation = {
   id: string; title: string; company: string; location: string; work_mode: string; salary: string | null;
   description: string; source: string; url: string; posted_at: string | null; match_score: number;
@@ -306,6 +308,18 @@ export async function uploadResume(file: File, accessToken: string): Promise<Res
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { detail?: string } | null;
     throw new Error(body?.detail ?? "Resume upload failed.");
+  }
+  return (await response.json()) as ResumeProfile;
+}
+
+export async function reparseResume(accessToken: string): Promise<ResumeProfile> {
+  const response = await fetch(`${apiUrl}/resumes/reparse`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Resume re-parse failed.");
   }
   return (await response.json()) as ResumeProfile;
 }

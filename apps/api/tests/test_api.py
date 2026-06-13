@@ -249,7 +249,7 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
     assert upload.status_code == 201
     assert upload.json()["original_filename"] == "resume.docx"
     assert upload.json()["parse_status"] == "review_required"
-    assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills", "certifications"]
+    assert upload.json()["detected_sections"] == ["summary", "experience", "education", "skills", "projects", "certifications"]
     assert upload.json()["skills"] == ["AWS", "Docker", "FastAPI", "PostgreSQL", "Python", "React", "TypeScript"]
     assert upload.json()["experiences"] == [
         {
@@ -272,11 +272,19 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
             "year": "2022",
         }
     ]
+    assert upload.json()["projects"] == [
+        {
+            "name": "Apply Wise Copilot",
+            "description": "Built a React and FastAPI workflow that parses resumes, scores jobs, and tracks applications.",
+            "technologies": ["FastAPI", "React"],
+        }
+    ]
     activity = client.get("/api/v1/activity/logs", headers={"Authorization": f"Bearer {token}"}).json()
     event_types = [event["event_type"] for event in activity]
     assert {"resume_parsed", "resume_uploaded"}.issubset(set(event_types))
     parsed_event = next(event for event in activity if event["event_type"] == "resume_parsed")
     assert parsed_event["metadata"]["skill_count"] == 7
+    assert parsed_event["metadata"]["project_count"] == 1
 
     profile = client.get(
         "/api/v1/resumes/me",
@@ -284,6 +292,51 @@ def test_docx_resume_upload_extracts_and_persists_profile() -> None:
     )
     assert profile.status_code == 200
     assert profile.json() == upload.json()
+
+
+def test_resume_profile_can_be_edited_and_reparsed() -> None:
+    token = register_user("resume-edit@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+
+    edited = client.patch(
+        "/api/v1/resumes/me",
+        headers=headers,
+        json={
+            "skills": ["Python", "FastAPI", "SQL"],
+            "experiences": [
+                {
+                    "title": "AI Product Engineer",
+                    "company": "Apply Wise",
+                    "description": "Built truthful application workflows.",
+                }
+            ],
+            "education": [{"institution": "State University", "degree": "Bachelor of Engineering", "year": "2021"}],
+            "certifications": [{"name": "AWS Certified Cloud Practitioner", "issuer": "AWS", "year": "2022"}],
+            "projects": [
+                {
+                    "name": "Resume Parser",
+                    "description": "Built a Python parser for resume evidence review.",
+                    "technologies": ["Python"],
+                }
+            ],
+        },
+    )
+    assert edited.status_code == 200
+    assert edited.json()["parse_status"] == "reviewed"
+    assert edited.json()["skills"] == ["FastAPI", "Python", "SQL"]
+    assert edited.json()["experiences"][0]["company"] == "Apply Wise"
+    assert edited.json()["projects"][0]["name"] == "Resume Parser"
+
+    reparsed = client.post("/api/v1/resumes/reparse", headers=headers)
+    assert reparsed.status_code == 200
+    assert reparsed.json()["parse_status"] == "review_required"
+    assert reparsed.json()["experiences"][0]["company"] == "Northstar Labs"
+    assert reparsed.json()["projects"][0]["name"] == "Apply Wise Copilot"
+
+    activity = client.get("/api/v1/activity/logs", headers=headers).json()
+    event_types = {event["event_type"] for event in activity}
+    assert {"resume_profile_updated", "resume_reparsed"}.issubset(event_types)
 
 
 def test_pdf_resume_upload_extracts_profile() -> None:
@@ -1206,6 +1259,9 @@ def make_resume_docx() -> bytes:
     document.add_paragraph("State University - Bachelor of Engineering - 2021")
     document.add_heading("Certifications", level=1)
     document.add_paragraph("AWS Certified Cloud Practitioner - Amazon Web Services - 2022")
+    document.add_heading("Projects", level=1)
+    document.add_paragraph("Apply Wise Copilot")
+    document.add_paragraph("Built a React and FastAPI workflow that parses resumes, scores jobs, and tracks applications.")
     document.add_heading("Skills", level=1)
     document.add_paragraph("React TypeScript Python FastAPI PostgreSQL Docker")
     buffer = BytesIO()

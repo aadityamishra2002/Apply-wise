@@ -6,13 +6,14 @@ import { Check, CloudUpload, Download, FileText, LoaderCircle, ShieldCheck, Spar
 
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/ui";
-import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
+import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, reparseResume, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
 
 export default function ResumePage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ResumeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [reparsing, setReparsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [versions, setVersions] = useState<ResumeVersionRecord[]>([]);
 
@@ -43,6 +44,20 @@ export default function ResumePage() {
   function download(versionId: string, format: "docx" | "pdf") {
     const token = getAccessToken();
     if (token) void downloadResumeVersion(versionId, format, token).catch((downloadError: Error) => setError(downloadError.message));
+  }
+
+  async function reparse() {
+    const token = getAccessToken();
+    if (!token) return;
+    setReparsing(true);
+    setError(null);
+    try {
+      setProfile(await reparseResume(token));
+    } catch (reparseError) {
+      setError(reparseError instanceof Error ? reparseError.message : "Resume re-parse failed.");
+    } finally {
+      setReparsing(false);
+    }
   }
 
   return (
@@ -83,6 +98,14 @@ export default function ResumePage() {
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#f3f8e6] p-3 text-[11px] font-bold text-[#66801f]"><Check size={14} /> Extracted and ready for review</div>
+              <button
+                className="mt-3 w-full rounded-xl bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:cursor-wait disabled:opacity-70"
+                disabled={reparsing}
+                onClick={() => void reparse()}
+                type="button"
+              >
+                {reparsing ? "Re-parsing..." : "Re-parse extracted profile"}
+              </button>
             </div>
           ) : null}
 
@@ -149,6 +172,18 @@ export default function ResumePage() {
                       {certification.year ? <p className="mt-2 text-[11px] text-[#71807c]">{certification.year}</p> : null}
                     </div>
                   )) : <p className="text-[12px] text-[#91a09c]">No structured certifications detected yet.</p>}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[#edf0ed] pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Projects</h3>
+                <div className="mt-3 space-y-3">
+                  {profile.projects.length ? profile.projects.map((project) => (
+                    <div className="rounded-xl bg-[#f6f8f5] p-4" key={project.name}>
+                      <p className="text-[13px] font-bold">{project.name}</p>
+                      <p className="mt-2 text-[12px] leading-5 text-[#71807c]">{project.description}</p>
+                      {project.technologies.length ? <div className="mt-3 flex flex-wrap gap-2">{project.technologies.map((technology) => <Pill key={`${project.name}-${technology}`} tone="green">{technology}</Pill>)}</div> : null}
+                    </div>
+                  )) : <p className="text-[12px] text-[#91a09c]">No structured projects detected yet.</p>}
                 </div>
               </div>
               <div className="mt-6 border-t border-[#edf0ed] pt-5">

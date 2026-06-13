@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 11, 2026
+**Last updated:** June 14, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -22,7 +22,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 
 1. Register or log in.
 2. Upload a PDF or DOCX master resume.
-3. Review extracted sections, recognized skills, structured experience, education, and certifications.
+3. Review extracted sections, recognized skills, structured experience, education, certifications, and projects.
 4. Search live Adzuna and Remotive listings by role or keyword.
 5. Review explainable profile-match scores and missing skills.
 6. Save a role into the application tracker.
@@ -107,6 +107,27 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 85. Fix LinkedIn job extraction to use scoped job-detail selectors, support `/jobs/view/{jobId}` and `/jobs/collections/recommended/?currentJobId={jobId}`, block noisy descriptions, show selector diagnostics, and keep company missing instead of falling back to `linkedin.com`.
 86. Harden LinkedIn extraction after real browser regression by adding dynamic content wait/retry, real-DOM diagnostics, focused candidate-container text fallback, document-title parsing, and selector-count reporting.
 87. Add LinkedIn visible job-card fallback for pages where company appears above the title, location appears below the title, and description starts under "About the job"; add body text length/first-1000 diagnostics and PrismHR regression coverage.
+88. Add production resume-project extraction, persisted project records, resume profile edit API, resume re-parse API, project display in the resume workspace, and account export coverage for projects.
+
+## Current Production Audit
+
+Completed:
+
+- Phase 1 resume upload, PDF parsing with PyMuPDF, DOCX parsing, extracted-text storage, skill extraction, experience extraction, education extraction, certification extraction, project extraction, resume profile API, profile update API, and re-parse API are now implemented.
+- Phase 2 job ingestion has provider abstraction, normalization, deduplication, persistent jobs, manual JD capture, and Chrome extension capture. URL import remains the next production gap.
+- Phase 3 matching has configurable score weights, skills/keyword/experience/education style scoring, missing skills, matching skills, explanations, and stored job-match records.
+- Phase 4 AI generation has evidence-grounded resume tailoring, cover letter generation, resume-version storage, generation history, model/fallback metadata, and unsupported-claim checks.
+- Phase 5 application tracking has saved/preparing/applied/interview/rejected/offer/withdrawn statuses, notes, timeline events, interviews, duplicate prevention, and dashboard metrics.
+- Phase 6 extension integration has site-aware extraction and manual-submit-only assisted workflow foundations. LinkedIn still needs real-browser reload testing whenever LinkedIn changes the DOM.
+- Phase 7 security has JWT auth, refresh-token rotation, admin role allowlist, rate limiting, audit logs, environment validation, and account export/deletion guidance.
+
+Highest-impact remaining production work:
+
+1. Add authenticated URL import for job postings so users can paste a job URL even without the extension.
+2. Expand resume structured profile editing in the web UI beyond the current API/re-parse controls.
+3. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
+4. Add production email delivery for password reset and support workflows.
+5. Add payment checkout only after the payment account is approved.
 
 ## LinkedIn Extraction Reliability Update
 

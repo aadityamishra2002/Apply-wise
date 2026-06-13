@@ -6,11 +6,11 @@ from uuid import UUID
 
 import fitz
 from docx import Document
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.infrastructure.db.models import Certification, Education, Experience, MasterResume, Skill
+from app.infrastructure.db.models import Certification, Education, Experience, MasterResume, Project, Skill
 
 
 MAX_RESUME_BYTES = 10 * 1024 * 1024
@@ -60,6 +60,7 @@ class ResumeProfile:
     experiences: tuple["ResumeExperience", ...]
     education: tuple["ResumeEducation", ...] = ()
     certifications: tuple["ResumeCertification", ...] = ()
+    projects: tuple["ResumeProject", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,13 @@ class ResumeCertification:
     name: str
     issuer: str | None
     year: str | None
+
+
+@dataclass(frozen=True)
+class ResumeProject:
+    name: str
+    description: str
+    technologies: tuple[str, ...] = ()
 
 
 class ResumeService:
@@ -109,7 +117,88 @@ class ResumeService:
         )
         self._session.add(resume)
         await self._session.flush()
-        for normalized_name, display_name in detect_skills(extracted_text):
+        await self._replace_structured_profile(resume, user_id, extracted_text)
+        await self._session.commit()
+        profile = await self.get_active(user_id)
+        if not profile:
+            raise RuntimeError("Active resume was not persisted.")
+        return profile
+
+    async def update_profile(
+        self,
+        user_id: UUID,
+        *,
+        skills: list[str],
+        experiences: list[ResumeExperience],
+        education: list[ResumeEducation],
+        certifications: list[ResumeCertification],
+        projects: list[ResumeProject],
+    ) -> ResumeProfile:
+        resume = await self._get_active_row(user_id)
+        if not resume:
+            raise ResumeValidationError("Upload a master resume before editing your profile.")
+        await self._clear_structured_profile(resume.id)
+        await self._persist_structured_profile(
+            resume,
+            user_id,
+            tuple((normalize_skill_name(skill), skill.strip()) for skill in skills if skill.strip()),
+            tuple(experiences),
+            tuple(education),
+            tuple(certifications),
+            tuple(projects),
+            evidence_source="user_review",
+        )
+        resume.parse_status = "reviewed"
+        await self._session.commit()
+        refreshed = await self.get_active(user_id)
+        if not refreshed:
+            raise RuntimeError("Active resume was not persisted.")
+        return refreshed
+
+    async def reparse_active(self, user_id: UUID) -> ResumeProfile:
+        resume = await self._get_active_row(user_id)
+        if not resume or not resume.extracted_text:
+            raise ResumeValidationError("Upload a master resume before reparsing.")
+        await self._clear_structured_profile(resume.id)
+        await self._replace_structured_profile(resume, user_id, resume.extracted_text)
+        resume.parse_status = "review_required"
+        await self._session.commit()
+        refreshed = await self.get_active(user_id)
+        if not refreshed:
+            raise RuntimeError("Active resume was not persisted.")
+        return refreshed
+
+    async def _replace_structured_profile(self, resume: MasterResume, user_id: UUID, extracted_text: str) -> None:
+        await self._persist_structured_profile(
+            resume,
+            user_id,
+            detect_skills(extracted_text),
+            detect_experiences(extracted_text),
+            detect_education(extracted_text),
+            detect_certifications(extracted_text),
+            detect_projects(extracted_text),
+            evidence_source="resume_text",
+        )
+
+    async def _persist_structured_profile(
+        self,
+        resume: MasterResume,
+        user_id: UUID,
+        skills: tuple[tuple[str, str], ...],
+        experiences: tuple[ResumeExperience, ...],
+        education: tuple[ResumeEducation, ...],
+        certifications: tuple[ResumeCertification, ...],
+        projects: tuple[ResumeProject, ...],
+        *,
+        evidence_source: str,
+    ) -> None:
+        seen_skills: set[str] = set()
+        for normalized_name, display_name in skills:
+            normalized_name = normalize_skill_name(normalized_name)
+            display_name = display_name.strip()
+            if not normalized_name or not display_name or normalized_name in seen_skills:
+                continue
+            seen_skills.add(normalized_name)
             self._session.add(
                 Skill(
                     resume_id=resume.id,
@@ -117,10 +206,10 @@ class ResumeService:
                     skill_name=display_name,
                     normalized_name=normalized_name,
                     confidence_score=1.0,
-                    evidence={"source": "resume_text"},
+                    evidence={"source": evidence_source},
                 )
             )
-        for index, experience in enumerate(detect_experiences(extracted_text)):
+        for index, experience in enumerate(experiences):
             self._session.add(
                 Experience(
                     resume_id=resume.id,
@@ -131,18 +220,18 @@ class ResumeService:
                     sort_order=index,
                 )
             )
-        for index, education in enumerate(detect_education(extracted_text)):
+        for index, education_item in enumerate(education):
             self._session.add(
                 Education(
                     resume_id=resume.id,
                     user_id=user_id,
-                    institution=education.institution,
-                    degree=education.degree,
-                    year=education.year,
+                    institution=education_item.institution,
+                    degree=education_item.degree,
+                    year=education_item.year,
                     sort_order=index,
                 )
             )
-        for index, certification in enumerate(detect_certifications(extracted_text)):
+        for index, certification in enumerate(certifications):
             self._session.add(
                 Certification(
                     resume_id=resume.id,
@@ -153,11 +242,31 @@ class ResumeService:
                     sort_order=index,
                 )
             )
-        await self._session.commit()
-        profile = await self.get_active(user_id)
-        if not profile:
-            raise RuntimeError("Active resume was not persisted.")
-        return profile
+        for index, project in enumerate(projects):
+            self._session.add(
+                Project(
+                    resume_id=resume.id,
+                    user_id=user_id,
+                    name=project.name,
+                    description=project.description,
+                    technologies=list(project.technologies),
+                    sort_order=index,
+                )
+            )
+
+    async def _clear_structured_profile(self, resume_id: UUID) -> None:
+        await self._session.execute(delete(Skill).where(Skill.resume_id == resume_id))
+        await self._session.execute(delete(Experience).where(Experience.resume_id == resume_id))
+        await self._session.execute(delete(Education).where(Education.resume_id == resume_id))
+        await self._session.execute(delete(Certification).where(Certification.resume_id == resume_id))
+        await self._session.execute(delete(Project).where(Project.resume_id == resume_id))
+
+    async def _get_active_row(self, user_id: UUID) -> MasterResume | None:
+        return await self._session.scalar(
+            select(MasterResume)
+            .where(MasterResume.user_id == user_id, MasterResume.is_active.is_(True))
+            .order_by(MasterResume.created_at.desc())
+        )
 
     async def get_active(self, user_id: UUID) -> ResumeProfile | None:
         resume = await self._session.scalar(
@@ -167,6 +276,7 @@ class ResumeService:
                 selectinload(MasterResume.experiences),
                 selectinload(MasterResume.education),
                 selectinload(MasterResume.certifications),
+                selectinload(MasterResume.projects),
             )
             .where(MasterResume.user_id == user_id, MasterResume.is_active.is_(True))
             .order_by(MasterResume.created_at.desc())
@@ -218,6 +328,10 @@ def detect_skills(text: str) -> tuple[tuple[str, str], ...]:
     return tuple(sorted(unique.values()))
 
 
+def normalize_skill_name(skill: str) -> str:
+    return re.sub(r"\s+", " ", skill.strip().lower())
+
+
 def detect_experiences(text: str) -> tuple[ResumeExperience, ...]:
     content = section_lines(text, "experience")
     experiences = []
@@ -258,6 +372,49 @@ def detect_certifications(text: str) -> tuple[ResumeCertification, ...]:
             )
         )
     return tuple(certifications)
+
+
+def detect_projects(text: str) -> tuple[ResumeProject, ...]:
+    lines = section_lines(text, "projects")
+    projects: list[ResumeProject] = []
+    current_name: str | None = None
+    current_description: list[str] = []
+    for line in lines:
+        cleaned = line.strip(" -•\t")
+        if not cleaned:
+            continue
+        if current_name is None:
+            current_name = cleaned
+            continue
+        if looks_like_project_heading(cleaned) and current_description:
+            projects.append(build_project(current_name, current_description))
+            current_name = cleaned
+            current_description = []
+        else:
+            current_description.append(cleaned)
+    if current_name:
+        projects.append(build_project(current_name, current_description))
+    return tuple(project for project in projects if project.name and project.description)
+
+
+def looks_like_project_heading(line: str) -> bool:
+    if len(line) > 90:
+        return False
+    if re.search(r"\b(built|created|developed|implemented|designed|deployed|integrated|managed)\b", line.lower()):
+        return False
+    return not line.endswith(".")
+
+
+def build_project(name: str, description_lines: list[str]) -> ResumeProject:
+    description = " ".join(description_lines).strip()
+    normalized_description = description.lower()
+    technologies = tuple(
+        display_name
+        for alias, display_name in SKILL_ALIASES.items()
+        if re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized_description)
+    )
+    unique_technologies = tuple(dict.fromkeys(technologies))
+    return ResumeProject(name=name.strip(), description=description, technologies=unique_technologies)
 
 
 def section_lines(text: str, section: str) -> list[str]:
@@ -303,5 +460,9 @@ def to_profile(resume: MasterResume) -> ResumeProfile:
         certifications=tuple(
             ResumeCertification(name=item.name, issuer=item.issuer, year=item.year)
             for item in sorted(resume.certifications, key=lambda entry: entry.sort_order)
+        ),
+        projects=tuple(
+            ResumeProject(name=item.name, description=item.description, technologies=tuple(item.technologies or []))
+            for item in sorted(resume.projects, key=lambda entry: entry.sort_order)
         ),
     )

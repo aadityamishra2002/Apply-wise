@@ -153,6 +153,7 @@ class MasterResume(Base):
     experiences: Mapped[list["Experience"]] = relationship(back_populates="resume")
     education: Mapped[list["Education"]] = relationship(back_populates="resume")
     certifications: Mapped[list["Certification"]] = relationship(back_populates="resume")
+    projects: Mapped[list["Project"]] = relationship(back_populates="resume")
 
 
 class Skill(Base):
@@ -208,6 +209,19 @@ class Certification(Base):
     year: Mapped[str | None] = mapped_column(String(32))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     resume: Mapped[MasterResume] = relationship(back_populates="certifications")
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("master_resumes.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    technologies: Mapped[list[str]] = mapped_column(JSON_TYPE, default=list)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    resume: Mapped[MasterResume] = relationship(back_populates="projects")
 
 
 class Job(Base):
