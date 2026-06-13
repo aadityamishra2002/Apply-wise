@@ -71,6 +71,7 @@ The maintained product guide is available in two formats:
 - Explicit confirmation before marking an application as applied
 - API guard requiring manual-submission confirmation before applied status
 - Payment-review pages with concrete founder/location/support details
+- Release-process docs now show QA/STAGE as paused while MVP work ships directly to `prod`
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture

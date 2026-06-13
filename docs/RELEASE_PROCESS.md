@@ -1,6 +1,8 @@
 # Apply Wise Release Process
 
-This repository now uses three long-lived branches:
+Current MVP mode: work is going directly to the `prod` branch after local validation so the product can launch faster. The QA/STAGE promotion process below is paused and should be re-enabled later when traffic, team size, or release risk justifies the extra environments.
+
+The earlier release plan used three long-lived branches:
 
 | Branch | Purpose | User access |
 |---|---|---|
@@ -16,15 +18,15 @@ Current stable baseline:
 
 `QA` and `STAGE` were created from the same commit as `main`, so all three branches started identical.
 
-## Required Promotion Flow
+## Paused Promotion Flow
 
-All future work must move in this order:
+When the stricter process is re-enabled, future work should move in this order:
 
 ```text
 feature work -> QA -> STAGE -> main
 ```
 
-Rules:
+Paused rules:
 
 1. Do not commit feature work directly to `main`.
 2. Start changes from `QA`.
@@ -33,6 +35,8 @@ Rules:
 5. Test `STAGE`.
 6. Merge `STAGE` into `main` only when ready for users.
 7. Keep `main` deployable at all times.
+
+Current MVP rule: commit to `prod`, run backend tests/frontend builds for the touched slice, update README/product status docs, and push.
 
 ## Recommended Git Commands
 
