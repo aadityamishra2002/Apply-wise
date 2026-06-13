@@ -6,7 +6,7 @@ import { Check, CloudUpload, Download, FileText, LoaderCircle, ShieldCheck, Spar
 
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/ui";
-import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, reparseResume, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
+import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, reparseResume, saveResumeProfile, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
 
 export default function ResumePage() {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -14,6 +14,15 @@ export default function ResumePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editor, setEditor] = useState({
+    skills: "",
+    experiences: "",
+    education: "",
+    certifications: "",
+    projects: "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [versions, setVersions] = useState<ResumeVersionRecord[]>([]);
 
@@ -57,6 +66,41 @@ export default function ResumePage() {
       setError(reparseError instanceof Error ? reparseError.message : "Resume re-parse failed.");
     } finally {
       setReparsing(false);
+    }
+  }
+
+  function startEditingProfile() {
+    if (!profile) return;
+    setEditor({
+      skills: profile.skills.join(", "),
+      experiences: profile.experiences.map((item) => `${item.title} | ${item.company} | ${item.description}`).join("\n"),
+      education: profile.education.map((item) => `${item.institution} | ${item.degree} | ${item.year ?? ""}`).join("\n"),
+      certifications: profile.certifications.map((item) => `${item.name} | ${item.issuer ?? ""} | ${item.year ?? ""}`).join("\n"),
+      projects: profile.projects.map((item) => `${item.name} | ${item.description} | ${item.technologies.join(", ")}`).join("\n"),
+    });
+    setEditingProfile(true);
+  }
+
+  async function saveStructuredProfile() {
+    const token = getAccessToken();
+    if (!token || !profile) return;
+    setSavingProfile(true);
+    setError(null);
+    try {
+      const updatedProfile: ResumeProfile = {
+        ...profile,
+        skills: splitList(editor.skills),
+        experiences: splitRows(editor.experiences).map(([title, company, description]) => ({ title, company, description: description ?? "" })).filter((item) => item.title && item.company),
+        education: splitRows(editor.education).map(([institution, degree, year]) => ({ institution, degree, year: year || null })).filter((item) => item.institution && item.degree),
+        certifications: splitRows(editor.certifications).map(([name, issuer, year]) => ({ name, issuer: issuer || null, year: year || null })).filter((item) => item.name),
+        projects: splitRows(editor.projects).map(([name, description, technologies]) => ({ name, description, technologies: splitList(technologies ?? "") })).filter((item) => item.name && item.description),
+      };
+      setProfile(await saveResumeProfile(updatedProfile, token));
+      setEditingProfile(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save resume profile.");
+    } finally {
+      setSavingProfile(false);
     }
   }
 
@@ -135,9 +179,26 @@ export default function ResumePage() {
         <div className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
           <h2 className="text-[17px] font-bold tracking-[-0.04em]">Extracted profile</h2>
           <p className="mt-1 text-[12px] text-[#91a09c]">Review the evidence your copilot will use for matching and tailoring.</p>
+          {profile ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" onClick={startEditingProfile} type="button">Edit structured profile</button>
+              {editingProfile ? <button className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px] font-bold text-[#65736f]" onClick={() => setEditingProfile(false)} type="button">Cancel edit</button> : null}
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="grid min-h-[260px] place-items-center text-[#176b5b]"><LoaderCircle className="animate-spin" size={22} /></div>
+          ) : profile && editingProfile ? (
+            <div className="mt-6 space-y-4 border-t border-[#edf0ed] pt-5">
+              <EditorField label="Skills" help="Comma or newline separated." value={editor.skills} onChange={(value) => setEditor({ ...editor, skills: value })} />
+              <EditorField label="Experience" help="One per line: title | company | description" value={editor.experiences} onChange={(value) => setEditor({ ...editor, experiences: value })} />
+              <EditorField label="Education" help="One per line: institution | degree | year" value={editor.education} onChange={(value) => setEditor({ ...editor, education: value })} />
+              <EditorField label="Certifications" help="One per line: name | issuer | year" value={editor.certifications} onChange={(value) => setEditor({ ...editor, certifications: value })} />
+              <EditorField label="Projects" help="One per line: name | description | technologies" value={editor.projects} onChange={(value) => setEditor({ ...editor, projects: value })} />
+              <button className="rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:cursor-wait disabled:opacity-70" disabled={savingProfile} onClick={() => void saveStructuredProfile()} type="button">
+                {savingProfile ? "Saving profile..." : "Save structured profile"}
+              </button>
+            </div>
           ) : profile ? (
             <>
               <div className="mt-6 border-t border-[#edf0ed] pt-5">
@@ -224,5 +285,23 @@ export default function ResumePage() {
       </section>
       <div className="h-16 lg:hidden" />
     </AppShell>
+  );
+}
+
+function splitList(value: string): string[] {
+  return value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function splitRows(value: string): string[][] {
+  return value.split("\n").map((line) => line.split("|").map((part) => part.trim())).filter((parts) => parts.some(Boolean));
+}
+
+function EditorField({ label, help, value, onChange }: { label: string; help: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block">
+      <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">{label}</span>
+      <span className="mt-1 block text-[11px] text-[#91a09c]">{help}</span>
+      <textarea className="mt-2 min-h-24 w-full rounded-xl border border-[#dce7e2] bg-[#fbfcfa] p-3 text-[12px] leading-5 outline-none focus:border-[#85b7aa]" onChange={(event) => onChange(event.target.value)} value={value} />
+    </label>
   );
 }

@@ -324,6 +324,25 @@ export async function reparseResume(accessToken: string): Promise<ResumeProfile>
   return (await response.json()) as ResumeProfile;
 }
 
+export async function saveResumeProfile(profile: ResumeProfile, accessToken: string): Promise<ResumeProfile> {
+  const response = await fetch(`${apiUrl}/resumes/me`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      skills: profile.skills,
+      experiences: profile.experiences,
+      education: profile.education,
+      certifications: profile.certifications,
+      projects: profile.projects,
+    }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not save resume profile.");
+  }
+  return (await response.json()) as ResumeProfile;
+}
+
 export async function loadJobRecommendations(accessToken: string, query = "", location = ""): Promise<JobRecommendation[]> {
   const params = new URLSearchParams();
   if (query.trim()) params.set("query", query.trim());

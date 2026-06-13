@@ -109,12 +109,13 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 87. Add LinkedIn visible job-card fallback for pages where company appears above the title, location appears below the title, and description starts under "About the job"; add body text length/first-1000 diagnostics and PrismHR regression coverage.
 88. Add production resume-project extraction, persisted project records, resume profile edit API, resume re-parse API, project display in the resume workspace, and account export coverage for projects.
 89. Add authenticated job URL import with public-URL safety checks, conservative HTML extraction, persisted `url_import` jobs, ATS/match scoring, and Jobs-page import controls.
+90. Add a functional web resume-profile editor for correcting skills, experience, education, certifications, and projects after parsing.
 
 ## Current Production Audit
 
 Completed:
 
-- Phase 1 resume upload, PDF parsing with PyMuPDF, DOCX parsing, extracted-text storage, skill extraction, experience extraction, education extraction, certification extraction, project extraction, resume profile API, profile update API, and re-parse API are now implemented.
+- Phase 1 resume upload, PDF parsing with PyMuPDF, DOCX parsing, extracted-text storage, skill extraction, experience extraction, education extraction, certification extraction, project extraction, resume profile API, profile update API, web profile editor, and re-parse API are now implemented.
 - Phase 2 job ingestion has provider abstraction, normalization, deduplication, persistent jobs, manual JD capture, URL import, and Chrome extension capture.
 - Phase 3 matching has configurable score weights, skills/keyword/experience/education style scoring, missing skills, matching skills, explanations, and stored job-match records.
 - Phase 4 AI generation has evidence-grounded resume tailoring, cover letter generation, resume-version storage, generation history, model/fallback metadata, and unsupported-claim checks.
@@ -124,10 +125,9 @@ Completed:
 
 Highest-impact remaining production work:
 
-1. Expand resume structured profile editing in the web UI beyond the current API/re-parse controls.
-2. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
-3. Add production email delivery for password reset and support workflows.
-4. Add payment checkout only after the payment account is approved.
+1. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
+2. Add production email delivery for password reset and support workflows.
+3. Add payment checkout only after the payment account is approved.
 
 ## LinkedIn Extraction Reliability Update
 

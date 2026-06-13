@@ -22,7 +22,7 @@ The maintained product guide is available in two formats:
 - Owner-only admin summary for users, jobs, applications, generated materials, and subscriptions
 - PDF and DOCX master-resume upload with persisted text extraction
 - Resume section, skill, structured experience, education, certification, and project extraction
-- Resume profile update and re-parse APIs with persisted structured project records
+- Resume profile update and re-parse APIs with a web editor for structured skills, experience, education, certifications, and projects
 - Resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application
 - Live Adzuna job discovery for India with keyword search and attribution
 - Live Remotive remote-job discovery with respectful short-lived caching and attribution
