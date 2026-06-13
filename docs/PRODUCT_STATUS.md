@@ -97,6 +97,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 75. Add dashboard launch checklist backed by resume/profile/match/application/preparation/review readiness.
 76. Add explicit confirmation before marking an application as applied to reinforce manual final submission.
 77. Enforce manual-submission confirmation on the API before accepting an applied status.
+78. Replace visible compliance-page business placeholders with founder/location/support details for payment review readiness.
 
 ## Truthfulness Rules
 

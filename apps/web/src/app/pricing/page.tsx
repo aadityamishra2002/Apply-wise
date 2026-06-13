@@ -30,7 +30,6 @@ export default function PricingPage() {
       title="Simple INR Pricing for a Digital SaaS Product"
       description="Pricing is shown for payment gateway review and planned paid launch. Checkout may remain disabled until payment-provider approval is complete."
     >
-      {/* TODO: Confirm final INR prices, billing cycle, taxes, and business registration details before enabling live checkout. */}
       <div className="grid gap-4 md:grid-cols-3">
         {plans.map((plan) => (
           <section className="rounded-2xl border border-[#e4e8e3] bg-[#fbfcf9] p-5" key={plan.name}>
