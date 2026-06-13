@@ -570,8 +570,20 @@ export async function saveUserProfileSettings(profile: UserProfileSettings, acce
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(profile),
   });
-  if (!response.ok) throw new Error("Could not save application profile.");
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not save application profile."));
   return (await response.json()) as UserProfileSettings;
+}
+
+async function apiErrorMessage(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null) as { detail?: string | Array<{ loc?: unknown[]; msg?: string }> } | null;
+  if (typeof body?.detail === "string") return body.detail;
+  if (Array.isArray(body?.detail)) {
+    return body.detail.map((item) => {
+      const field = Array.isArray(item.loc) ? item.loc.filter((part: unknown) => part !== "body").join(".") : "";
+      return `${field || "request"}: ${item.msg ?? fallback}`;
+    }).join("; ");
+  }
+  return fallback;
 }
 
 export async function loadSubscription(accessToken: string): Promise<Subscription> {

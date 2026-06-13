@@ -73,6 +73,7 @@ The maintained product guide is available in two formats:
 - Payment-review pages with concrete founder/location/support details
 - Release-process docs now show QA/STAGE as paused while MVP work ships directly to `prod`
 - Server-side validation for application-profile URLs used by review/autofill
+- Settings shows API validation details for application-profile save errors
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture

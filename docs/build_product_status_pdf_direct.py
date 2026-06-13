@@ -156,6 +156,7 @@ for item in [
     "Replace visible compliance-page business placeholders with founder, location, and support details for payment review readiness.",
     "Mark QA/STAGE promotion documentation as paused while MVP work ships directly to prod.",
     "Validate application-profile URLs server-side before using them for review and autofill mapping.",
+    "Surface API validation details in Settings when application-profile fields cannot be saved.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
