@@ -1,6 +1,8 @@
 from io import BytesIO
 
 import fitz
+import httpx
+import pytest
 from docx import Document
 from fastapi.testclient import TestClient
 
@@ -419,6 +421,69 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     approval = client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"})
     assert approval.status_code == 200
     assert approval.json()["approval_status"] == "approved"
+
+
+def test_job_url_import_fetches_scores_and_persists(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = register_user("url-import@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+
+    class FakeAsyncClient:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def get(self, url: str, headers: dict[str, str]) -> httpx.Response:
+            html = """
+            <html>
+              <head>
+                <title>Platform Engineer - Example Careers</title>
+                <meta property="og:site_name" content="Example Careers">
+                <meta property="og:title" content="Platform Engineer - Example Careers">
+              </head>
+              <body>
+                <main>
+                  <h1>Platform Engineer</h1>
+                  <p>Location: Remote India</p>
+                  <h2>Job Description</h2>
+                  <p>Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.</p>
+                  <p>Partner with product teams, improve observability, and operate production systems.</p>
+                </main>
+              </body>
+            </html>
+            """
+            return httpx.Response(200, headers={"content-type": "text/html; charset=utf-8"}, text=html, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    imported = client.post(
+        "/api/v1/jobs/import-url",
+        headers=headers,
+        json={"url": "https://careers.example.com/platform-engineer"},
+    )
+    assert imported.status_code == 201
+    assert imported.json()["source"] == "url_import"
+    assert imported.json()["title"] == "Platform Engineer"
+    assert imported.json()["company"] == "Example Careers"
+    assert imported.json()["location"] == "Remote India"
+    assert imported.json()["match_score"] > 0
+    assert "python" in imported.json()["matching_skills"]
+
+
+def test_job_url_import_rejects_private_urls() -> None:
+    token = register_user("url-import-private@example.com")["tokens"]["access_token"]
+    upload_resume(token)
+    response = client.post(
+        "/api/v1/jobs/import-url",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"url": "http://127.0.0.1:8000/internal-job"},
+    )
+    assert response.status_code == 422
+    assert "public job URLs" in response.text
 
 
 def test_learning_skill_recommendations_rank_missing_skills() -> None:

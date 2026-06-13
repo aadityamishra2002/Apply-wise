@@ -8,6 +8,7 @@ import { MatchRing, Pill } from "@/components/ui";
 import {
   captureManualJob,
   getAccessToken,
+  importJobUrl,
   loadResumeProfile,
   loadJobRecommendations,
   saveJob,
@@ -30,6 +31,7 @@ export default function JobsPage() {
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [showCapture, setShowCapture] = useState(false);
   const [manualJob, setManualJob] = useState(emptyManualJob);
+  const [jobUrl, setJobUrl] = useState("");
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
 
@@ -102,6 +104,21 @@ export default function JobsPage() {
     }
   }
 
+  async function importUrl() {
+    const token = getAccessToken();
+    if (!token || !jobUrl.trim()) return;
+    setError(null);
+    try {
+      const job = await importJobUrl(jobUrl.trim(), token);
+      setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
+      setSelected(job);
+      setJobUrl("");
+      setShowCapture(false);
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "Could not import this job URL.");
+    }
+  }
+
   async function decide(jobId: string, approvalStatus: "approved" | "dismissed") {
     const token = getAccessToken();
     if (!token) return;
@@ -122,12 +139,17 @@ export default function JobsPage() {
         <button className="flex items-center gap-1.5 text-[12px] font-bold text-[#176b5b]" onClick={() => setShowCapture((current) => !current)}><Plus size={14} />{showCapture ? "Close job capture" : "Paste a job from any career page"}</button>
         {showCapture ? (
           <div className="mt-3 grid gap-2 rounded-2xl border border-[#e4e8e3] bg-white p-4 small-shadow sm:grid-cols-2">
+            <div className="grid gap-2 rounded-xl bg-[#f6f8f5] p-3 sm:col-span-2 sm:grid-cols-[1fr_auto]">
+              <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setJobUrl(event.target.value)} placeholder="Import public job URL" value={jobUrl} />
+              <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60" disabled={!jobUrl.trim()} onClick={() => void importUrl()} type="button">Import URL</button>
+              <p className="text-[11px] leading-5 text-[#71807c] sm:col-span-2">If a site blocks server-side import, paste the details below or use the browser extension.</p>
+            </div>
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, title: event.target.value })} placeholder="Job title" value={manualJob.title} />
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, company: event.target.value })} placeholder="Company" value={manualJob.company} />
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, location: event.target.value })} placeholder="Location" value={manualJob.location} />
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, url: event.target.value })} placeholder="Job page URL" value={manualJob.url} />
             <textarea className="min-h-28 rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px] sm:col-span-2" onChange={(event) => setManualJob({ ...manualJob, description: event.target.value })} placeholder="Paste the job description" value={manualJob.description} />
-            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white sm:col-span-2" onClick={() => void captureJob()}>Score captured job</button>
+            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white sm:col-span-2" onClick={() => void captureJob()} type="button">Score captured job</button>
           </div>
         ) : null}
       </div>

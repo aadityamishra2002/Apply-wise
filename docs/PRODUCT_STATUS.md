@@ -36,7 +36,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 14. Review persisted free-tier or owner-bypass subscription entitlements in settings.
 15. Review non-secret provider health for the configured job-source aggregator.
 16. Reschedule interviews, edit preparation notes, or remove obsolete rounds.
-17. Paste a role from any career page, score it, and save it into the tracker.
+17. Import a public job URL or paste a role from any career page, score it, and save it into the tracker.
 18. Pair an unpacked Chrome extension with a one-time code and review captured job pages before scoring.
 19. Review a distinct ATS-readiness breakdown and approve or dismiss roles in the `80+` queue.
 20. Review duplicate protection, draft readiness, and the employer-page handoff before manually submitting an application.
@@ -108,13 +108,14 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 86. Harden LinkedIn extraction after real browser regression by adding dynamic content wait/retry, real-DOM diagnostics, focused candidate-container text fallback, document-title parsing, and selector-count reporting.
 87. Add LinkedIn visible job-card fallback for pages where company appears above the title, location appears below the title, and description starts under "About the job"; add body text length/first-1000 diagnostics and PrismHR regression coverage.
 88. Add production resume-project extraction, persisted project records, resume profile edit API, resume re-parse API, project display in the resume workspace, and account export coverage for projects.
+89. Add authenticated job URL import with public-URL safety checks, conservative HTML extraction, persisted `url_import` jobs, ATS/match scoring, and Jobs-page import controls.
 
 ## Current Production Audit
 
 Completed:
 
 - Phase 1 resume upload, PDF parsing with PyMuPDF, DOCX parsing, extracted-text storage, skill extraction, experience extraction, education extraction, certification extraction, project extraction, resume profile API, profile update API, and re-parse API are now implemented.
-- Phase 2 job ingestion has provider abstraction, normalization, deduplication, persistent jobs, manual JD capture, and Chrome extension capture. URL import remains the next production gap.
+- Phase 2 job ingestion has provider abstraction, normalization, deduplication, persistent jobs, manual JD capture, URL import, and Chrome extension capture.
 - Phase 3 matching has configurable score weights, skills/keyword/experience/education style scoring, missing skills, matching skills, explanations, and stored job-match records.
 - Phase 4 AI generation has evidence-grounded resume tailoring, cover letter generation, resume-version storage, generation history, model/fallback metadata, and unsupported-claim checks.
 - Phase 5 application tracking has saved/preparing/applied/interview/rejected/offer/withdrawn statuses, notes, timeline events, interviews, duplicate prevention, and dashboard metrics.
@@ -123,11 +124,10 @@ Completed:
 
 Highest-impact remaining production work:
 
-1. Add authenticated URL import for job postings so users can paste a job URL even without the extension.
-2. Expand resume structured profile editing in the web UI beyond the current API/re-parse controls.
-3. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
-4. Add production email delivery for password reset and support workflows.
-5. Add payment checkout only after the payment account is approved.
+1. Expand resume structured profile editing in the web UI beyond the current API/re-parse controls.
+2. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
+3. Add production email delivery for password reset and support workflows.
+4. Add payment checkout only after the payment account is approved.
 
 ## LinkedIn Extraction Reliability Update
 

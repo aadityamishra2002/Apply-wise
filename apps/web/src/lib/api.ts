@@ -366,6 +366,19 @@ export async function captureManualJob(job: ManualJob, accessToken: string): Pro
   return (await response.json()) as JobRecommendation;
 }
 
+export async function importJobUrl(url: string, accessToken: string): Promise<JobRecommendation> {
+  const response = await fetch(`${apiUrl}/jobs/import-url`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? "Could not import this job URL.");
+  }
+  return (await response.json()) as JobRecommendation;
+}
+
 export async function loadApplications(accessToken: string): Promise<ApplicationRecord[]> {
   const response = await fetch(`${apiUrl}/applications`, {
     headers: { Authorization: `Bearer ${accessToken}` },

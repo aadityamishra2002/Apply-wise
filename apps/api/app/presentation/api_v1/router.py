@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from html.parser import HTMLParser
+import ipaddress
 import json
 import re
 from secrets import token_urlsafe
 from typing import Annotated
+from urllib.parse import urlparse
 from uuid import UUID
 from uuid import NAMESPACE_URL, uuid5
 
@@ -354,6 +357,10 @@ class ManualJobRequest(BaseModel):
     location: str = Field(default="Not specified", max_length=255)
     url: str = Field(min_length=1, max_length=1000)
     description: str = Field(min_length=40, max_length=50000)
+
+
+class JobUrlImportRequest(BaseModel):
+    url: str = Field(min_length=8, max_length=1000)
 
 
 class ExtensionPairingCodeResponse(BaseModel):
@@ -770,6 +777,32 @@ async def capture_manual_job(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> JobResponse:
     return await score_and_store_manual_job(session, user.id, payload)
+
+
+@router.post("/jobs/import-url", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def import_job_url(
+    payload: JobUrlImportRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> JobResponse:
+    url = validate_public_job_url(payload.url)
+    try:
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+            response = await client.get(
+                url,
+                headers={
+                    "User-Agent": "ApplyWiseBot/1.0 (+https://apply-wise-1.vercel.app)",
+                    "Accept": "text/html,application/xhtml+xml",
+                },
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not fetch this job page. Paste the job details manually or use the extension.") from error
+    content_type = response.headers.get("content-type", "")
+    if "html" not in content_type.lower():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This URL did not return an HTML job page.")
+    extracted = extract_job_from_html(str(response.url), response.text)
+    return await score_and_store_manual_job(session, user.id, extracted, source="url_import")
 
 
 @router.post("/extension/pairing-codes", response_model=ExtensionPairingCodeResponse, status_code=status.HTTP_201_CREATED)
@@ -2014,6 +2047,183 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
     return result
 
 
+class JobHtmlExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.title_parts: list[str] = []
+        self.h1_parts: list[str] = []
+        self.visible_parts: list[str] = []
+        self.meta: dict[str, str] = {}
+        self._tag_stack: list[str] = []
+        self._capture_title = False
+        self._capture_h1 = False
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        attributes = {key.lower(): value or "" for key, value in attrs}
+        if tag in {"script", "style", "noscript", "svg", "nav", "footer"}:
+            self._skip_depth += 1
+        if tag == "title":
+            self._capture_title = True
+        if tag == "h1":
+            self._capture_h1 = True
+        if tag == "meta":
+            key = attributes.get("property") or attributes.get("name")
+            content = attributes.get("content", "").strip()
+            if key and content:
+                self.meta[key.lower()] = clean_visible_text(content)
+        self._tag_stack.append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript", "svg", "nav", "footer"} and self._skip_depth:
+            self._skip_depth -= 1
+        if tag == "title":
+            self._capture_title = False
+        if tag == "h1":
+            self._capture_h1 = False
+        if self._tag_stack:
+            self._tag_stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        text = clean_visible_text(data)
+        if not text:
+            return
+        if self._capture_title:
+            self.title_parts.append(text)
+        if self._capture_h1:
+            self.h1_parts.append(text)
+        if not self._skip_depth:
+            self.visible_parts.append(text)
+
+
+def validate_public_job_url(raw_url: str) -> str:
+    parsed = urlparse(raw_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Enter a full public http or https job URL.")
+    host = (parsed.hostname or "").lower()
+    if host in {"localhost", "0.0.0.0"} or host.endswith(".local"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs can be imported.")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address and (address.is_private or address.is_loopback or address.is_link_local or address.is_multicast or address.is_reserved):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs can be imported.")
+    return raw_url.strip()
+
+
+def extract_job_from_html(url: str, html: str) -> ManualJobRequest:
+    extractor = JobHtmlExtractor()
+    extractor.feed(html[:1_000_000])
+    visible_text = clean_visible_text(" ".join(extractor.visible_parts))
+    lines = visible_lines(extractor.visible_parts)
+    title_candidates = [
+        clean_job_title(" ".join(extractor.h1_parts)),
+        clean_job_title(extractor.meta.get("og:title", "")),
+        clean_job_title(extractor.meta.get("twitter:title", "")),
+        clean_job_title(" ".join(extractor.title_parts)),
+    ]
+    title = next((candidate for candidate in title_candidates if candidate and not looks_like_generic_site(candidate)), "")
+    company = extract_company(lines, extractor, title)
+    location = extract_location(lines)
+    description = extract_job_description(lines, visible_text)
+    missing = []
+    if not title:
+        missing.append("title")
+    if not company:
+        missing.append("company")
+    if len(description) < 120:
+        missing.append("job description")
+    if missing:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Could not extract {', '.join(missing)} from this URL. Paste the job details manually or use the extension.")
+    return ManualJobRequest(
+        title=title[:255],
+        company=company[:255],
+        location=(location or "Not specified")[:255],
+        url=url,
+        description=description[:50000],
+    )
+
+
+def clean_visible_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def visible_lines(parts: list[str]) -> list[str]:
+    lines: list[str] = []
+    for part in parts:
+        cleaned = clean_visible_text(part)
+        if cleaned and cleaned not in lines:
+            lines.append(cleaned)
+    return lines
+
+
+def clean_job_title(value: str) -> str:
+    cleaned = clean_visible_text(value)
+    cleaned = re.sub(r"\s+[-|]\s+(LinkedIn|Indeed|Naukri|Careers|Jobs).*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^Apply for\s+", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip(" -|")
+
+
+def looks_like_generic_site(value: str) -> bool:
+    return bool(re.fullmatch(r"(jobs?|careers?|job search|linkedin|indeed|naukri|workday)", value.strip().lower()))
+
+
+def extract_company(lines: list[str], extractor: JobHtmlExtractor, title: str) -> str:
+    site_name = extractor.meta.get("og:site_name", "")
+    if site_name and not looks_like_generic_site(site_name):
+        return site_name
+    title_line = clean_visible_text(extractor.meta.get("og:title", "") or " ".join(extractor.title_parts))
+    for separator in (" at ", " - ", " | "):
+        if separator in title_line:
+            parts = [part.strip() for part in title_line.split(separator) if part.strip()]
+            if len(parts) >= 2:
+                candidate = parts[1] if parts[0] == title else parts[-1]
+                if not looks_like_generic_site(candidate):
+                    return candidate
+    for index, line in enumerate(lines):
+        if re.fullmatch(r"company", line, flags=re.IGNORECASE) and index + 1 < len(lines):
+            return lines[index + 1]
+        match = re.search(r"\bcompany\s*[:\-]\s*(.+)$", line, flags=re.IGNORECASE)
+        if match:
+            return clean_visible_text(match.group(1))
+    return ""
+
+
+def extract_location(lines: list[str]) -> str:
+    for index, line in enumerate(lines):
+        if re.fullmatch(r"location", line, flags=re.IGNORECASE) and index + 1 < len(lines):
+            return lines[index + 1]
+        match = re.search(r"\blocation\s*[:\-]\s*(.+)$", line, flags=re.IGNORECASE)
+        if match:
+            return clean_visible_text(match.group(1))
+    for line in lines:
+        if re.search(r"\b(remote|hybrid|on-site|india|united states|united kingdom|canada|australia|singapore|bengaluru|bangalore|mumbai|pune|noida|gurgaon|delhi|hyderabad|chennai)\b", line, flags=re.IGNORECASE):
+            if not re.search(r"apply|save|posted|applicants|followers", line, flags=re.IGNORECASE):
+                return line
+    return ""
+
+
+def extract_job_description(lines: list[str], visible_text: str) -> str:
+    start_patterns = re.compile(r"^(about the job|job description|role overview|about this role|responsibilities|what you'?ll do)$", re.IGNORECASE)
+    stop_patterns = re.compile(r"^(benefits|similar jobs|recommended jobs|people also viewed|share|apply now|language|footer|company overview)$", re.IGNORECASE)
+    start_index = next((index for index, line in enumerate(lines) if start_patterns.search(line)), None)
+    selected = lines[start_index + 1 :] if start_index is not None else lines
+    description_lines: list[str] = []
+    for line in selected:
+        if stop_patterns.search(line):
+            break
+        if re.search(r"^(sign in|create alert|save job|apply|posted|applicants)$", line, re.IGNORECASE):
+            continue
+        description_lines.append(line)
+    description = clean_visible_text(" ".join(description_lines))
+    if len(description) < 120:
+        description = clean_visible_text(visible_text)
+    return description
+
+
 async def quality_warnings_for_resume_version(session: AsyncSession, version: ResumeVersion, user_id: UUID) -> list[str]:
     profile = await ResumeService(session).get_active(user_id)
     if not profile:
@@ -2021,15 +2231,15 @@ async def quality_warnings_for_resume_version(session: AsyncSession, version: Re
     return [warning.message for warning in find_unsupported_claims(version.resume_content, None, profile)]
 
 
-async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest, create_application: bool = False) -> JobResponse:
+async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, payload: ManualJobRequest, create_application: bool = False, source: str = "manual") -> JobResponse:
     profile = await ResumeService(session).get_active(user_id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before capturing a job.")
     external_id = sha256(payload.url.strip().encode()).hexdigest()
     job = ProviderJob(
-        id=uuid5(NAMESPACE_URL, f"jobcopilot:manual:{external_id}"),
+        id=uuid5(NAMESPACE_URL, f"jobcopilot:{source}:{external_id}"),
         external_id=external_id,
-        source="manual",
+        source=source,
         title=payload.title.strip(),
         company=payload.company.strip(),
         location=payload.location.strip() or "Not specified",
@@ -2079,6 +2289,7 @@ async def score_and_store_manual_job(session: AsyncSession, user_id: UUID, paylo
             "job_id": str(stored_job.id),
             "title": stored_job.title,
             "company": stored_job.company,
+            "source": source,
             "match_score": match.match_score,
             "ats_score": ats.score,
             "created_application": bool(create_application),
