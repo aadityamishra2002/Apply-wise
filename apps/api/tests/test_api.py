@@ -478,6 +478,70 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
 
 
+def test_linkedin_extension_capture_persists_scores_and_prepares_materials() -> None:
+    token = register_user("linkedin-capture-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
+    assert pairing.status_code == 201
+    extension_token = client.post("/api/v1/extension/pair", json={"code": pairing.json()["code"]}).json()["extension_token"]
+    extension_headers = {"Authorization": f"Bearer {extension_token}"}
+
+    captured = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers=extension_headers,
+        json={
+            "title": "AI Senior Software Engineer",
+            "company": "Sopra Steria",
+            "location": "Noida, Uttar Pradesh, India",
+            "url": "https://www.linkedin.com/jobs/view/4425607893/",
+            "description": (
+                "Company Description About Sopra Steria. Job Description The world is how we shape it. "
+                "Role Mission Develop and integrate AI-driven capabilities into the QA Evolution platform. "
+                "Ensure secure, auditable, and governed execution of AI agents. Enable scalable agent orchestration "
+                "patterns aligned with enterprise architecture. Experience with PydanticAI, LangChain, AutoGen, "
+                "OpenAI Agents SDK, Python, Java, Retrieval-Augmented Generation, embeddings, vector databases, "
+                "knowledge graphs, LLM evaluation pipelines, and CI/CD integration. Qualifications B Tech in computer science."
+            ),
+        },
+    )
+
+    assert captured.status_code == 201
+    body = captured.json()
+    assert body["title"] == "AI Senior Software Engineer"
+    assert body["company"] == "Sopra Steria"
+    assert body["location"] == "Noida, Uttar Pradesh, India"
+    assert body["application_id"]
+    assert body["ats_score"] is not None
+    assert body["match_score"] is not None
+    assert body["description"].startswith("Company Description")
+    assert "Similar jobs" not in body["description"]
+
+    applications = client.get("/api/v1/applications", headers=headers)
+    assert applications.status_code == 200
+    saved_application = next(item for item in applications.json() if item["id"] == body["application_id"])
+    assert saved_application["title"] == "AI Senior Software Engineer"
+    assert saved_application["company"] == "Sopra Steria"
+
+    prepared = client.post(f"/api/v1/applications/{body['application_id']}/prepare", headers=headers)
+    assert prepared.status_code == 201
+    prepared_body = prepared.json()
+    assert prepared_body["resume_version_id"]
+    assert prepared_body["cover_letter_id"]
+    assert prepared_body["ats_score"] is not None
+    assert prepared_body["generation_status"] in {"fallback_no_provider", "generated", "fallback_after_retry"}
+
+    review = client.get(f"/api/v1/applications/{body['application_id']}/review-before-apply", headers=headers)
+    assert review.status_code == 200
+    assert review.json()["resume_prepared"] is True
+    assert review.json()["cover_letter_prepared"] is True
+    assert review.json()["manual_final_submission_required"] is True
+
+    events = client.get(f"/api/v1/applications/{body['application_id']}/events", headers=headers).json()
+    event_types = {event["event_type"] for event in events}
+    assert {"extension_job_captured", "resume_generated", "cover_letter_generated"}.issubset(event_types)
+
+
 def test_application_status_update_changes_dashboard_summary() -> None:
     token = register_user()["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

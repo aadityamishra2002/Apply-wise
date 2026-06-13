@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("download-resume-docx").addEventListener("click", () => downloadTailoredResume("docx"));
   document.getElementById("unpair").addEventListener("click", unpair);
   for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
+  await checkApiHealth();
   const extensionToken = stored.extensionToken;
   showPaired(Boolean(extensionToken));
   if (extensionToken) await extract();
@@ -26,6 +27,7 @@ async function saveApiUrl() {
   apiUrl = normalizeApiUrl(document.getElementById("api-url").value || defaultApiUrl);
   document.getElementById("api-url").value = apiUrl;
   await chrome.storage.local.set({ apiUrl });
+  await checkApiHealth();
   message("API URL saved. Pair again if you changed environments.");
 }
 
@@ -65,7 +67,24 @@ async function extract() {
   }
   for (const field of fields) document.getElementById(field).value = result[field] ?? "";
   updateQualityPreview();
+  renderDiagnostics(result.diagnostics || []);
   message(`Extracted with the ${result.extractor} page adapter. Review every field before sending.`);
+}
+
+async function checkApiHealth() {
+  const status = document.getElementById("api-status");
+  if (!status) return;
+  status.textContent = "Checking backend...";
+  try {
+    const response = await fetchWithRetry(`${apiUrl}/health`, {}, { retries: 0, timeoutMs: 6000 });
+    if (!response.ok) {
+      status.textContent = `Warning: backend returned HTTP ${response.status}. Check the Apply Wise API URL before pairing.`;
+      return;
+    }
+    status.textContent = "Backend reachable.";
+  } catch (error) {
+    status.textContent = `Warning: backend unreachable (${error.message}). Check the Apply Wise API URL before pairing or sending jobs.`;
+  }
 }
 
 async function send() {
@@ -305,22 +324,43 @@ function updateQualityPreview() {
   const payload = Object.fromEntries(fields.map((field) => [field, document.getElementById(field).value.trim()]));
   const list = document.getElementById("quality-list");
   list.replaceChildren();
-  for (const item of captureQuality(payload)) {
+  const quality = captureQuality(payload);
+  for (const item of quality) {
     const row = document.createElement("li");
     row.className = item.ready ? "ready" : "blocked";
     row.textContent = `${item.ready ? "Ready" : "Needs review"}: ${item.label}`;
     list.appendChild(row);
   }
+  const sendButton = document.getElementById("send");
+  if (sendButton) sendButton.disabled = quality.some((item) => !item.ready);
 }
 
 function captureQuality(payload) {
+  const description = payload.description || "";
+  const noisePattern = /(recommended jobs|similar jobs|linkedin premium|try premium|notifications|language selector|sign in to create job alert|people also viewed|footer|referrals increase your chances)/i;
   return [
     { label: "Job title", ready: Boolean(payload.title) },
     { label: "Company", ready: Boolean(payload.company) },
+    { label: "Location", ready: Boolean(payload.location) },
     { label: "Job URL", ready: Boolean(payload.url) && /^https?:\/\//.test(payload.url) },
-    { label: "Description has at least 40 characters", ready: payload.description.length >= 40 },
-    { label: "Description has useful detail", ready: payload.description.length >= 250 },
+    { label: "Description has at least 40 characters", ready: description.length >= 40 },
+    { label: "Description has useful detail", ready: description.length >= 250 },
+    { label: "Description is focused on the job", ready: description.length >= 250 && !noisePattern.test(description) },
   ];
+}
+
+function renderDiagnostics(diagnostics) {
+  const section = document.getElementById("diagnostics");
+  const list = document.getElementById("extraction-diagnostics");
+  if (!section || !list) return;
+  list.replaceChildren();
+  for (const item of diagnostics) {
+    const row = document.createElement("li");
+    row.textContent = `${item.field}: ${item.selector || "missing"}${item.fallback ? " (fallback)" : ""}${item.preview ? ` -> ${truncate(item.preview, 90)}` : ""}`;
+    row.className = item.selector ? "ready" : "blocked";
+    list.appendChild(row);
+  }
+  section.hidden = diagnostics.length === 0;
 }
 
 function truncate(value, length) {
@@ -337,10 +377,65 @@ function updateUploadStatus(value) {
 
 function extractPage() {
   const text = document.body.innerText;
+  const diagnostics = [];
   const meta = (name) => document.querySelector(`meta[property="${name}"],meta[name="${name}"]`)?.content ?? "";
   const clean = (value) => (value ?? "").replace(/\s+/g, " ").trim();
-  const firstText = (...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.innerText)).find(Boolean) ?? "";
+  const nodeText = (node) => clean(node?.innerText || node?.textContent || "");
+  const firstText = (...selectors) => selectors.map((selector) => nodeText(document.querySelector(selector))).find(Boolean) ?? "";
   const firstAttr = (attribute, ...selectors) => selectors.map((selector) => clean(document.querySelector(selector)?.getAttribute(attribute))).find(Boolean) ?? "";
+  const recordDiagnostic = (field, selector, value, fallback = false) => diagnostics.push({ field, selector, preview: clean(value).slice(0, 180), fallback });
+  const diagnosticText = (field, selectors, { transform = (value) => value, reject = () => false, fallback = false } = {}) => {
+    for (const [index, selector] of selectors.entries()) {
+      const node = document.querySelector(selector);
+      const value = transform(nodeText(node));
+      if (value && !reject(value)) {
+        recordDiagnostic(field, selector, value, fallback || index > 0);
+        return value;
+      }
+    }
+    recordDiagnostic(field, "", "", fallback);
+    return "";
+  };
+  const looksLikeLinkedInDomain = (value) => /(^|\.)linkedin\.com|www\.linkedin\.com/i.test(value);
+  const parseLinkedInLocation = (value, companyName = "") => {
+    const parts = clean(value)
+      .split(/[\n·•]/)
+      .map((part) => clean(part))
+      .filter(Boolean)
+      .filter((part) => part.toLowerCase() !== clean(companyName).toLowerCase())
+      .filter((part) => !/(applicants?|reposted|promoted|ago|actively recruiting|see who|apply|followers?|connections?)/i.test(part));
+    return parts.find((part) => /,|remote|hybrid|on-site|india|united states|united kingdom|canada|germany|france|australia|singapore/i.test(part)) || "";
+  };
+  const cleanLinkedInDescription = (value) => {
+    let description = clean(value)
+      .replace(/\bShow more\s+Show less\b/gi, "")
+      .replace(/\bSee who .*? has hired for this role\b/gi, "")
+      .replace(/\bJoin or sign in to find your next job\b/gi, "")
+      .replace(/\bJoin to apply for .*? role at .*?\b/gi, "");
+    const stopPatterns = [
+      /\bSeniority level\b/i,
+      /\bEmployment type\b/i,
+      /\bJob function\b/i,
+      /\bIndustries\b/i,
+      /\bReferrals increase your chances\b/i,
+      /\bGet notified about new\b/i,
+      /\bSimilar jobs\b/i,
+      /\bRecommended jobs\b/i,
+      /\bPeople also viewed\b/i,
+      /\bAbout the company\b/i,
+      /\bFooter\b/i,
+    ];
+    const stopIndex = stopPatterns
+      .map((pattern) => {
+        const match = description.search(pattern);
+        return match >= 0 ? match : null;
+      })
+      .filter((index) => index !== null)
+      .sort((a, b) => a - b)[0];
+    if (Number.isInteger(stopIndex)) description = description.slice(0, stopIndex);
+    return clean(description).slice(0, 45000);
+  };
+  const isNoisyLinkedInDescription = (value) => !value || /(recommended jobs|similar jobs|linkedin premium|try premium|notifications|language selector|sign in to create job alert|people also viewed|footer)/i.test(value);
   const jsonLd = [...document.querySelectorAll('script[type="application/ld+json"]')]
     .flatMap((script) => {
       try {
@@ -358,7 +453,7 @@ function extractPage() {
   const jsonLdDescription = clean((jsonLd?.description || "").replace(/<[^>]+>/g, " "));
   const heading = document.querySelector("h1")?.innerText?.trim() ?? document.title.split("|")[0].trim();
   const jobLocation = [...document.querySelectorAll("[class*='location'],[data-testid*='location']")].map((node) => node.innerText).find(Boolean) ?? "";
-  const company = jsonLdCompany || meta("og:site_name") || document.querySelector("[class*='company']")?.innerText?.trim() || window.location.hostname;
+  const company = jsonLdCompany || meta("og:site_name") || document.querySelector("[class*='company']")?.innerText?.trim() || "";
   const base = {
     extractor: "generic",
     title: clean(jsonLd?.title) || clean(heading),
@@ -366,6 +461,7 @@ function extractPage() {
     location: clean(jsonLdLocation || jobLocation),
     url: window.location.href,
     description: (jsonLdDescription || clean(text)).slice(0, 45000),
+    diagnostics,
   };
   if (window.location.hostname.includes("greenhouse.io")) return {
     ...base,
@@ -383,14 +479,53 @@ function extractPage() {
     location: firstText(".posting-categories .location", ".location"),
     description: firstText(".posting-page", ".content") || base.description,
   };
-  if (window.location.hostname.includes("linkedin.com")) return {
-    ...base,
-    extractor: "LinkedIn",
-    title: firstText(".job-details-jobs-unified-top-card__job-title", ".top-card-layout__title", "h1"),
-    company: firstText(".job-details-jobs-unified-top-card__company-name", ".topcard__org-name-link") || company,
-    location: firstText(".job-details-jobs-unified-top-card__primary-description-container", ".topcard__flavor--bullet") || jobLocation,
-    description: firstText(".jobs-description__content", ".show-more-less-html__markup") || base.description,
-  };
+  if (window.location.hostname.includes("linkedin.com")) {
+    const isLinkedInJobUrl = /\/jobs\/view\/\d+/.test(window.location.pathname) || new URL(window.location.href).searchParams.has("currentJobId");
+    const title = diagnosticText("title", [
+      ".job-details-jobs-unified-top-card__job-title h1",
+      ".job-details-jobs-unified-top-card__job-title",
+      ".jobs-unified-top-card__job-title h1",
+      ".jobs-unified-top-card__job-title",
+      ".top-card-layout__title",
+      "main h1",
+      "h1",
+    ]);
+    const companyName = diagnosticText("company", [
+      ".job-details-jobs-unified-top-card__company-name a",
+      ".job-details-jobs-unified-top-card__company-name",
+      ".jobs-unified-top-card__company-name a",
+      ".jobs-unified-top-card__company-name",
+      ".topcard__org-name-link",
+      ".base-main-card__subtitle a",
+      ".sub-nav-cta__optional-url",
+    ], { reject: looksLikeLinkedInDomain });
+    const rawLocation = diagnosticText("location", [
+      ".job-details-jobs-unified-top-card__primary-description-container .tvm__text--low-emphasis",
+      ".job-details-jobs-unified-top-card__primary-description-container span[dir='ltr']",
+      ".job-details-jobs-unified-top-card__primary-description-container",
+      ".jobs-unified-top-card__bullet",
+      ".topcard__flavor--bullet",
+      ".sub-nav-cta__meta-text",
+    ], { transform: (value) => parseLinkedInLocation(value, companyName) || value });
+    const description = diagnosticText("description", [
+      ".jobs-description__content .jobs-box__html-content",
+      ".jobs-description__content .jobs-description-content__text",
+      ".jobs-description__content .show-more-less-html__markup",
+      ".jobs-description-content__text",
+      "#job-details",
+      ".description__text .show-more-less-html__markup",
+      ".show-more-less-html__markup",
+    ], { transform: cleanLinkedInDescription, reject: isNoisyLinkedInDescription });
+    recordDiagnostic("url format", isLinkedInJobUrl ? "LinkedIn job URL supported" : "LinkedIn URL supported with generic adapter path", window.location.href, false);
+    return {
+      ...base,
+      extractor: "LinkedIn",
+      title,
+      company: companyName,
+      location: rawLocation,
+      description,
+    };
+  }
   if (window.location.hostname.includes("indeed.")) return {
     ...base,
     extractor: "Indeed",

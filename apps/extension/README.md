@@ -23,14 +23,15 @@ After changing extension files, click **Reload** for the unpacked extension in `
 2. Click the Apply Wise extension.
 3. Review the extracted title, company, location, URL, and description.
 4. Review **Capture readiness**. Fix any field marked **Needs review** or click **Re-extract current page** after opening the full job description.
-5. Click **Send to Apply Wise**.
-6. Open Apply Wise, prepare the application materials, and review the generated resume and cover letter.
-7. Open **Review Application** in Apply Wise and click **I reviewed this application**. The extension will not load an autofill plan until this is done.
-8. Return to the employer application page, click **Inspect application form**, then click **Load autofill plan**.
-9. Review every suggested field. Sensitive or low-confidence fields are unchecked by default.
-10. Select only the fields you approve and click **Fill reviewed fields**. Apply Wise logs the approved field keys before filling.
-11. Review the **Resume upload status** panel. If the page has a resume upload field, download the tailored resume PDF or DOCX from the extension.
-12. Attach the tailored resume manually when the browser blocks direct file assignment, then manually submit only after your own final review.
+5. Review **Extraction diagnostics** to see which selector produced the title, company, location, description, and URL-format detection.
+6. Click **Send to Apply Wise** after all readiness checks pass.
+7. Open Apply Wise, prepare the application materials, and review the generated resume and cover letter.
+8. Open **Review Application** in Apply Wise and click **I reviewed this application**. The extension will not load an autofill plan until this is done.
+9. Return to the employer application page, click **Inspect application form**, then click **Load autofill plan**.
+10. Review every suggested field. Sensitive or low-confidence fields are unchecked by default.
+11. Select only the fields you approve and click **Fill reviewed fields**. Apply Wise logs the approved field keys before filling.
+12. Review the **Resume upload status** panel. If the page has a resume upload field, download the tailored resume PDF or DOCX from the extension.
+13. Attach the tailored resume manually when the browser blocks direct file assignment, then manually submit only after your own final review.
 
 On an employer application page, click **Inspect application form** to preview commonly detected fields such as name, email, phone, resume upload, cover letter, LinkedIn, GitHub, portfolio, skills, education, salary expectation, notice period, work authorization, and pronouns.
 
@@ -41,3 +42,16 @@ Autofill skips disabled, read-only, hidden, empty-value, checkbox, and radio con
 If capture fails, the popup shows the API reason. Common causes are an expired pairing token, no master resume uploaded in Apply Wise, a short or empty description, an invalid URL, or a protected page where the extension cannot read the full job text.
 
 The extraction logic uses adapters for Greenhouse, Lever, LinkedIn, Indeed, Naukri, Workday, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and common company career pages with a general heuristic fallback. Review every extracted field because job-page markup can change over time.
+
+## LinkedIn Extraction Check
+
+After reloading the unpacked extension, test `https://www.linkedin.com/jobs/view/4425607893/`.
+
+Expected result:
+
+- Title: `AI Senior Software Engineer`
+- Company: `Sopra Steria`
+- Location: `Noida, Uttar Pradesh, India`
+- Description: only the actual job-description content and requirements
+
+The LinkedIn adapter supports both `/jobs/view/{jobId}` and `/jobs/collections/recommended/?currentJobId={jobId}`. It does not use `linkedin.com` as a company fallback. If title, company, location, URL, or focused description quality is missing, **Send to Apply Wise** stays disabled.

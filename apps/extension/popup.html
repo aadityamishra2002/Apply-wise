@@ -11,6 +11,7 @@
       <section id="connection">
         <label>Apply Wise API URL<input id="api-url" placeholder="https://your-railway-domain/api/v1"></label>
         <button class="secondary compact" id="save-api-url">Save API URL</button>
+        <p id="api-status" class="muted"></p>
       </section>
       <section id="pairing">
         <label>Pairing code<input id="code" placeholder="Code from Apply Wise Settings"></label>
@@ -25,6 +26,11 @@
         <section id="quality-preview">
           <h2>Capture readiness</h2>
           <ul id="quality-list"></ul>
+        </section>
+        <section id="diagnostics" hidden>
+          <h2>Extraction diagnostics</h2>
+          <p class="muted">Shows which selectors produced each field so broken site markup is easier to debug.</p>
+          <ul id="extraction-diagnostics"></ul>
         </section>
         <button class="secondary" id="refresh">Re-extract current page</button>
         <button id="send">Send to Apply Wise</button>

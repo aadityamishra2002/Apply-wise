@@ -104,6 +104,46 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 82. Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.
 83. Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.
 84. Validate extension syntax and popup element contract in CI alongside backend and web checks.
+85. Fix LinkedIn job extraction to use scoped job-detail selectors, support `/jobs/view/{jobId}` and `/jobs/collections/recommended/?currentJobId={jobId}`, block noisy descriptions, show selector diagnostics, and keep company missing instead of falling back to `linkedin.com`.
+
+## LinkedIn Extraction Reliability Update
+
+Root cause found:
+
+- The LinkedIn adapter did not have enough fallbacks for the current LinkedIn job-detail DOM.
+- When description selectors missed, the extension fell back to `document.body.innerText`, which pulled navigation, login prompts, Premium banners, recommended jobs, company profile sections, footer content, and unrelated roles.
+- Company fallback used the hostname, so missing company data became `www.linkedin.com`.
+
+Fixes implemented:
+
+- LinkedIn extraction now uses multiple scoped selectors for title, company, location, and description.
+- LinkedIn descriptions are restricted to job-description containers only and trimmed before seniority, similar-jobs, referral, alert, and footer sections.
+- The extension supports both direct job URLs and collection URLs with `currentJobId`.
+- Company no longer falls back to the LinkedIn hostname; missing company remains missing and blocks send.
+- The popup shows extraction diagnostics for title, company, location, description, and URL format.
+- The **Send to Apply Wise** button is disabled when title, company, location, URL, or description quality is missing/poor.
+- The popup warns when the configured Apply Wise API backend is unreachable.
+- CI now runs extension extraction regression tests for LinkedIn, Naukri, Workday, one generic company career page, and capture-quality validation.
+
+Fully working in automated verification:
+
+- LinkedIn extraction regression for `https://www.linkedin.com/jobs/view/4425607893/` returns `AI Senior Software Engineer`, `Sopra Steria`, `Noida, Uttar Pradesh, India`, and a focused job description without similar-jobs/navigation/footer noise.
+- LinkedIn collection URL extraction is covered for `/jobs/collections/recommended/?currentJobId={jobId}`.
+- Naukri, Workday, and generic company-career extraction samples populate title, company, location, and description.
+- Extension capture-quality validation blocks missing title, company, location, invalid URL, short description, and noisy LinkedIn-style descriptions.
+- Extension API capture test verifies LinkedIn job submission, saved application persistence, ATS/match scoring, tailored resume generation, cover letter generation, and application timeline audit events.
+
+Remaining limitations:
+
+- LinkedIn changes markup often, so the diagnostics panel should be checked when a field becomes missing.
+- Authenticated LinkedIn pages can differ from public pages; users should reload the extension and use **Re-extract current page** after expanding the full job description.
+- Final browser-level verification of saving to the user's live account still requires a valid extension pairing token from the logged-in Apply Wise Settings page.
+
+Still needs manual browser testing:
+
+- Reload the unpacked extension in Brave/Chrome and confirm the popup UI shows the same LinkedIn values on the real authenticated LinkedIn page.
+- Pair the extension with the user's live Apply Wise account and confirm the captured job appears in the deployed web app.
+- Prepare materials in the web app for that captured job and confirm the generated resume/cover-letter previews are acceptable for user review.
 
 ## Truthfulness Rules
 
@@ -159,7 +199,29 @@ $env:PYTHONPATH='apps/api'; .\.venv\Scripts\python.exe -m pytest apps/api/tests 
 cd apps\web
 & 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' '.\node_modules\typescript\bin\tsc' --noEmit
 & 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' '.\node_modules\next\dist\bin\next' build
+cd ..\..
+& 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --check apps\extension\popup.js
+& 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' apps\extension\tests\extraction-regression.test.js
 ```
+
+LinkedIn extension smoke test:
+
+1. Reload the unpacked extension from `brave://extensions` or `chrome://extensions`.
+2. Open `https://www.linkedin.com/jobs/view/4425607893/`.
+3. Click the Apply Wise extension and choose **Re-extract current page**.
+4. Confirm the popup shows:
+   - Title: `AI Senior Software Engineer`
+   - Company: `Sopra Steria`
+   - Location: `Noida, Uttar Pradesh, India`
+   - Description: only the actual job description, without navigation, Premium prompts, recommended jobs, footer, or unrelated roles.
+5. Open **Extraction diagnostics** and confirm each field shows a LinkedIn selector instead of `missing`.
+6. Confirm **Send to Apply Wise** remains disabled if title, company, location, URL, or focused description is missing.
+7. Pair the extension from Apply Wise Settings, send the job, then verify the saved job appears in Apply Wise Jobs/Applications and ATS/match scoring is shown.
+
+Additional extractor checks:
+
+- Naukri: open a Naukri job detail page, re-extract, and verify title/company/location/description are populated.
+- Workday: open a `myworkdayjobs.com` job posting, re-extract, and verify the Workday adapter extracts title/company/location/description.
 
 ## Extension Usage Steps
 
