@@ -132,9 +132,21 @@ async function responseMessage(response) {
 }
 
 async function inspectForm() {
+  const { extensionToken, lastApplicationId } = await chrome.storage.local.get(["extensionToken", "lastApplicationId"]);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
-  const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: detectApplicationFields });
+  let result;
+  try {
+    [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: detectApplicationFields });
+  } catch (error) {
+    if (extensionToken && lastApplicationId) {
+      await recordApplicationEvent(extensionToken, lastApplicationId, "form_inspection_failed", {
+        reason: error.message,
+        manual_final_submission_required: true,
+      });
+    }
+    return message(`Form inspection failed on this page: ${error.message}. Review and fill the employer form manually.`);
+  }
   const list = document.getElementById("detected-fields");
   list.replaceChildren();
   for (const field of result) {
@@ -221,6 +233,13 @@ async function fillReviewedFields() {
   try {
     [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillApplicationFields, args: [approvedFields] });
   } catch (error) {
+    if (extensionToken) {
+      await recordApplicationEvent(extensionToken, autofillPlan.application_id, "autofill_failed", {
+        reason: error.message,
+        approved_field_keys: approvedFields.map((field) => field.field_key),
+        manual_final_submission_required: true,
+      });
+    }
     return message(`Autofill failed on this page: ${error.message}`);
   }
   if (extensionToken) {
@@ -265,6 +284,14 @@ async function downloadTailoredResume(format) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   message(`Downloaded ${filename}. Attach it to the resume upload field manually, then review and submit manually.`);
+}
+
+async function recordApplicationEvent(extensionToken, applicationId, eventType, metadata) {
+  return fetchWithRetry(`${apiUrl}/extension/applications/${applicationId}/events`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${extensionToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ event_type: eventType, metadata }),
+  }, { retries: 1 }).catch(() => null);
 }
 
 function showPaired(paired) {

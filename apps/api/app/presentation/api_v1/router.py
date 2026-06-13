@@ -369,7 +369,7 @@ class AutofillPlanResponse(BaseModel):
 
 
 class ExtensionApplicationEventRequest(BaseModel):
-    event_type: str = Field(pattern="^(autofill_previewed|autofill_approved|autofill_attempted|resume_upload_attempted|resume_upload_failed)$")
+    event_type: str = Field(pattern="^(autofill_previewed|autofill_approved|autofill_attempted|autofill_failed|form_inspection_failed|resume_upload_attempted|resume_upload_failed)$")
     metadata: dict = Field(default_factory=dict)
 
 

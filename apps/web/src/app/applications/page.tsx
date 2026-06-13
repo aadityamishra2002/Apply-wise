@@ -685,6 +685,8 @@ function eventSummary(event: ApplicationEvent): string {
     const skipped = Array.isArray(metadata.skipped) ? metadata.skipped.length : 0;
     return `${filled} field(s) filled, ${skipped} left for manual review. Final submission remains manual.`;
   }
+  if (event.event_type === "autofill_failed") return `Autofill failed on the employer page: ${String(metadata.reason ?? "unknown browser/page restriction")}. Fill manually and submit yourself.`;
+  if (event.event_type === "form_inspection_failed") return `Form inspection failed on the employer page: ${String(metadata.reason ?? "unknown browser/page restriction")}. Review fields manually.`;
   if (event.event_type === "resume_upload_attempted") return "Resume upload assistance was attempted; attach manually if the browser blocked file access.";
   if (event.event_type === "resume_upload_failed") return "Resume upload could not be automated in the browser; manual upload is required.";
   if (event.event_type === "resume_downloaded_for_upload") return `Tailored resume ${String(metadata.format ?? "file").toUpperCase()} downloaded for manual upload.`;

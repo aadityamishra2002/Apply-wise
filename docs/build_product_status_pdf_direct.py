@@ -157,6 +157,7 @@ for item in [
     "Mark QA/STAGE promotion documentation as paused while MVP work ships directly to prod.",
     "Validate application-profile URLs server-side before using them for review and autofill mapping.",
     "Surface API validation details in Settings when application-profile fields cannot be saved.",
+    "Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
