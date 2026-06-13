@@ -158,6 +158,7 @@ for item in [
     "Validate application-profile URLs server-side before using them for review and autofill mapping.",
     "Surface API validation details in Settings when application-profile fields cannot be saved.",
     "Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.",
+    "Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

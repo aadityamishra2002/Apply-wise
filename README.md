@@ -41,6 +41,7 @@ The maintained product guide is available in two formats:
 - Review Application workflow with job details, match/ATS scores, tailored resume version, cover letter preview, extracted fields, missing fields, warnings, and manual review confirmation
 - Extension autofill is gated behind Review Application confirmation and fills only approved fields
 - Extension form-inspection and autofill failures are logged to the application timeline with manual fallback guidance
+- Extension field detection uses ARIA-linked labels, nearby question text, and common employer-form data attributes
 - Site-aware extension capture for LinkedIn, Indeed, Naukri, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow

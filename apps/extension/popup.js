@@ -476,11 +476,7 @@ function extractPage() {
 
 function detectApplicationFields() {
   const classify = (element) => {
-    const haystack = [
-      element.name, element.id, element.type, element.autocomplete,
-      element.getAttribute("aria-label"), element.getAttribute("data-automation-id"), element.getAttribute("data-qa"), element.getAttribute("data-testid"), element.placeholder,
-      element.labels?.[0]?.innerText,
-    ].filter(Boolean).join(" ").toLowerCase();
+    const haystack = fieldHaystack(element);
     const rules = [
       ["resume upload", /resume|cv|curriculum/],
       ["cover letter", /cover.?letter/],
@@ -597,7 +593,30 @@ function setNativeValue(element, value) {
 function fieldHaystack(element) {
   return [
     element.name, element.id, element.type, element.autocomplete,
-    element.getAttribute("aria-label"), element.getAttribute("data-automation-id"), element.getAttribute("data-qa"), element.getAttribute("data-testid"), element.placeholder,
-    element.labels?.[0]?.innerText,
+    element.getAttribute("aria-label"),
+    element.getAttribute("aria-describedby"),
+    element.getAttribute("data-automation-id"),
+    element.getAttribute("data-qa"),
+    element.getAttribute("data-test"),
+    element.getAttribute("data-testid"),
+    element.getAttribute("data-ui"),
+    element.getAttribute("data-field"),
+    element.getAttribute("data-field-label"),
+    element.getAttribute("data-ph-at-id"),
+    element.getAttribute("title"),
+    element.placeholder,
+    [...(element.labels || [])].map((label) => label.innerText).join(" "),
+    ariaLabelledByText(element),
+    nearbyFieldText(element),
   ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function ariaLabelledByText(element) {
+  const ids = (element.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
+  return ids.map((id) => document.getElementById(id)?.innerText || document.getElementById(id)?.textContent || "").join(" ");
+}
+
+function nearbyFieldText(element) {
+  const wrapper = element.closest("label, .form-group, .field, .application-question, [class*='field'], [class*='question'], [data-automation-id*='question']");
+  return (wrapper?.innerText || wrapper?.textContent || "").slice(0, 240);
 }

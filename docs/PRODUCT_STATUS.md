@@ -92,6 +92,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 70. Show account data export events clearly in the dashboard activity timeline.
 71. Add resume-aware empty-state guidance on Jobs so users know when to upload a resume, broaden search, or paste a job manually.
 72. Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.
+73. Improve extension field detection with ARIA-linked labels, nearby question text, and common employer-form data attributes.
 72. Add editable application profile fields in Settings and use them to improve Review Application/autofill mapping.
 73. Clean Applications page review/material labels to avoid separator encoding artifacts in production UI.
 74. Clean extension autofill preview labels and bump the unpacked extension version for reload clarity.
