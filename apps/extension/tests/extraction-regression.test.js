@@ -348,6 +348,50 @@ assert(linkedInSeparateAboutModule.description.includes("We are looking for an A
 assertNoLinkedInNoise(linkedInSeparateAboutModule.description);
 assert(linkedInSeparateAboutModule.diagnostics.some((item) => item.field === "description" && item.selector === ".job-details-about-the-job-module__description"));
 
+const linkedInNoisyBodyFallbackText = `
+  0 notifications
+  Skip to search
+  Dailoqa
+  AI /ML Engineer
+  Noida, Uttar Pradesh, India
+  About the job
+  About the Role
+  We are looking for Women AI Engineers who want to help shape the future of Financial Services clients and our company.
+  Key Responsibilities
+  Agentic AI Development: Work on building scalable multi-modal Large Language Model based AI agents.
+  Required Qualifications:
+  Bachelor's degree in Computer Science, Software Engineering, or a related field.
+  Desired Skills:
+  Strong problem-solving skills and ability to work in a fast-paced environment.
+  â€¦ more
+  This job alert is on
+  Machine Learning Engineer, Noida, Uttar Pradesh, India
+  Job search faster with Premium
+  More jobs
+  Machine Learning Engineer Codvo.ai India Remote
+  See more jobs like this
+  Can't find top talent?
+  Post a job
+  About Accessibility Talent Solutions Privacy & Terms
+  Select language
+  LinkedIn Corporation © 2026
+`;
+
+const linkedInNoisyBodyFallback = await runExtraction("https://www.linkedin.com/jobs/view/4415786285/", {
+  title: "AI /ML Engineer | Dailoqa | LinkedIn",
+  bodyText: linkedInNoisyBodyFallbackText,
+  selectors: {
+    main: node(linkedInNoisyBodyFallbackText),
+  },
+});
+
+assert.strictEqual(linkedInNoisyBodyFallback.title, "AI /ML Engineer");
+assert.strictEqual(linkedInNoisyBodyFallback.company, "Dailoqa");
+assert.strictEqual(linkedInNoisyBodyFallback.location, "Noida, Uttar Pradesh, India");
+assert(linkedInNoisyBodyFallback.description.includes("We are looking for Women AI Engineers"));
+assert(linkedInNoisyBodyFallback.description.includes("Strong problem-solving skills"));
+assert(!/This job alert is on|Premium|More jobs|Post a job|Select language|LinkedIn Corporation/i.test(linkedInNoisyBodyFallback.description), linkedInNoisyBodyFallback.description);
+
 const naukri = await runExtraction("https://www.naukri.com/job-listings-ai-engineer-example", {
   selectors: {
     ".styles_jd-header-title__rZwM1": node("AI Engineer"),

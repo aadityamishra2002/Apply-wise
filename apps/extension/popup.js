@@ -385,7 +385,7 @@ function updateQualityPreview() {
 
 function captureQuality(payload) {
   const description = payload.description || "";
-  const noisePattern = /(recommended jobs|similar jobs|linkedin premium|try premium|notifications|language selector|sign in to create job alert|people also viewed|footer|referrals increase your chances)/i;
+  const noisePattern = /(recommended jobs|similar jobs|more jobs|job alert|linkedin premium|premium access|reactivate premium|try premium|notifications|language selector|select language|sign in to create job alert|people also viewed|footer|referrals increase your chances|can't find top talent|post a job|linkedin corporation)/i;
   return [
     { label: "Job title", ready: Boolean(payload.title), blocking: true },
     { label: "Company", ready: Boolean(payload.company), blocking: true },
@@ -736,7 +736,9 @@ async function extractPage() {
       .replace(/\bShow more\s+Show less\b/gi, "")
       .replace(/\bSee who .*? has hired for this role\b/gi, "")
       .replace(/\bJoin or sign in to find your next job\b/gi, "")
-      .replace(/\bJoin to apply for .*? role at .*?\b/gi, "");
+      .replace(/\bJoin to apply for .*? role at .*?\b/gi, "")
+      .replace(/\bâ€¦\s*more\b/gi, "")
+      .replace(/\b…\s*more\b/gi, "");
     const stopPatterns = [
       /\bSeniority level\b/i,
       /\bEmployment type\b/i,
@@ -744,10 +746,30 @@ async function extractPage() {
       /\bIndustries\b/i,
       /\bReferrals increase your chances\b/i,
       /\bGet notified about new\b/i,
+      /\bThis job alert is on\b/i,
+      /\bJob search faster with Premium\b/i,
+      /\bAccess company insights\b/i,
+      /\bReactivate Premium\b/i,
+      /\bCancel anytime\b/i,
+      /\bMore jobs\b/i,
+      /\bSee more jobs like this\b/i,
       /\bSimilar jobs\b/i,
       /\bRecommended jobs\b/i,
       /\bPeople also viewed\b/i,
       /\bAbout the company\b/i,
+      /\bCan[’']t find top talent\b/i,
+      /\bPost a job\b/i,
+      /\bAbout Accessibility\b/i,
+      /\bTalent Solutions\b/i,
+      /\bCommunity Guidelines\b/i,
+      /\bPrivacy & Terms\b/i,
+      /\bAd Choices\b/i,
+      /\bQuestions\? Visit our Help Center\b/i,
+      /\bManage your account and privacy\b/i,
+      /\bRecommendation transparency\b/i,
+      /\bSelect language\b/i,
+      /\bLinkedIn Corporation\b/i,
+      /\bScrolled to top of feed\b/i,
       /\bFooter\b/i,
     ];
     const stopIndex = stopPatterns
@@ -760,7 +782,7 @@ async function extractPage() {
     if (Number.isInteger(stopIndex)) description = description.slice(0, stopIndex);
     return clean(description).slice(0, 45000);
   };
-  const isNoisyLinkedInDescription = (value) => !value || /(recommended jobs|similar jobs|linkedin premium|try premium|notifications|language selector|sign in to create job alert|people also viewed|footer)/i.test(value);
+  const isNoisyLinkedInDescription = (value) => !value || /(recommended jobs|similar jobs|more jobs|job alert|linkedin premium|premium access|try premium|reactivate premium|notifications|language selector|select language|sign in to create job alert|people also viewed|footer|can't find top talent|post a job|linkedin corporation)/i.test(value);
   const flattenJsonLd = (entry) => {
     if (!entry) return [];
     if (Array.isArray(entry)) return entry.flatMap(flattenJsonLd);
