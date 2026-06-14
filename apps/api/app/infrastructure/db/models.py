@@ -267,6 +267,11 @@ class ResumeVersion(Base):
     master_resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("master_resumes.id"), index=True)
     ats_score: Mapped[float] = mapped_column(Float)
     resume_content: Mapped[dict] = mapped_column(JSON_TYPE)
+    prompt_version: Mapped[str] = mapped_column(String(64), default="applywise-tailoring-v1")
+    model_provider: Mapped[str] = mapped_column(String(64), default="deterministic")
+    model_name: Mapped[str] = mapped_column(String(128), default="deterministic-v1")
+    generation_status: Mapped[str] = mapped_column(String(64), default="fallback_no_provider")
+    quality_warnings: Mapped[list] = mapped_column(JSON_TYPE, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
@@ -277,6 +282,12 @@ class CoverLetter(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     content: Mapped[str] = mapped_column(Text)
+    ats_score: Mapped[float] = mapped_column(Float, default=0)
+    prompt_version: Mapped[str] = mapped_column(String(64), default="applywise-tailoring-v1")
+    model_provider: Mapped[str] = mapped_column(String(64), default="deterministic")
+    model_name: Mapped[str] = mapped_column(String(128), default="deterministic-v1")
+    generation_status: Mapped[str] = mapped_column(String(64), default="fallback_no_provider")
+    quality_warnings: Mapped[list] = mapped_column(JSON_TYPE, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 

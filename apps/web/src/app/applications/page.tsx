@@ -218,11 +218,12 @@ export default function ApplicationsPage() {
       const prepared = await prepareApplication(applicationId, token);
       setMaterials(prepared);
       const preparedResume = await loadResumeVersion(prepared.resume_version_id, token);
+      const preparedCoverLetter = await loadCoverLetter(prepared.cover_letter_id, token);
       setResumeVersion(preparedResume);
       setResumeDraft(preparedResume.resume_content);
       setResumeSaved(false);
-      setCoverLetter({ id: prepared.cover_letter_id, content: prepared.cover_letter, created_at: new Date().toISOString() });
-      setCoverLetterDraft(prepared.cover_letter);
+      setCoverLetter(preparedCoverLetter);
+      setCoverLetterDraft(preparedCoverLetter.content);
       setCoverLetterSaved(false);
       setApplications((current) => current.map((item) => (item.id === prepared.application.id ? prepared.application : item)));
       await inspect(prepared.application);

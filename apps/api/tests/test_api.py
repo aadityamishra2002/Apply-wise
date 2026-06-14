@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from uuid import UUID, uuid4
 
 import fitz
 import httpx
@@ -10,6 +12,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
+from app.infrastructure.db.models import Job, JobMatch
+from app.infrastructure.db.session import session_factory
 from app.main import app
 
 
@@ -424,6 +428,96 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     approval = client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"})
     assert approval.status_code == 200
     assert approval.json()["approval_status"] == "approved"
+
+
+def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
+    token = register_user("job-prep@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Platform Engineer",
+            "company": "Example Career Site",
+            "location": "Remote",
+            "url": "https://example.com/careers/platform-engineer",
+            "description": "Build reliable Python and FastAPI services with PostgreSQL, Docker, and Kubernetes for customer-facing applications.",
+        },
+    )
+    assert captured.status_code == 201
+    saved = client.post(f"/api/v1/jobs/{captured.json()['id']}/save", headers=headers)
+    assert saved.status_code == 201
+
+    resume = client.post(f"/api/v1/jobs/{captured.json()['id']}/resume-versions", headers=headers)
+    assert resume.status_code == 201
+    resume_body = resume.json()
+    assert resume_body["job_id"] == captured.json()["id"]
+    assert resume_body["prompt_version"] == "applywise-tailoring-v1"
+    assert resume_body["model_provider"] in {"deterministic", "gemini"}
+    assert resume_body["ats_score"] == captured.json()["ats_score"]
+    assert "tailored_bullets" in resume_body["resume_content"]
+    generated_text = str(resume_body["resume_content"]).lower()
+    assert "python" in generated_text
+    assert "kubernetes" not in generated_text
+    assert resume_body["missing_skills_analysis"]
+    assert resume_body["quality_warnings"] == []
+
+    stored_resume = client.get(f"/api/v1/resume-versions/{resume_body['id']}", headers=headers)
+    assert stored_resume.status_code == 200
+    assert stored_resume.json()["resume_content"] == resume_body["resume_content"]
+
+    cover_letter = client.post(f"/api/v1/jobs/{captured.json()['id']}/cover-letters", headers=headers)
+    assert cover_letter.status_code == 201
+    letter_body = cover_letter.json()
+    assert letter_body["job_id"] == captured.json()["id"]
+    assert letter_body["prompt_version"] == "applywise-tailoring-v1"
+    assert "Northstar Labs" in letter_body["content"]
+    assert "Kubernetes" not in letter_body["content"]
+    assert letter_body["quality_warnings"] == []
+    stored_letter = client.get(f"/api/v1/cover-letters/{letter_body['id']}", headers=headers)
+    assert stored_letter.status_code == 200
+    assert stored_letter.json()["content"] == letter_body["content"]
+
+    review = client.get(f"/api/v1/applications/{saved.json()['id']}/review-before-apply", headers=headers)
+    assert review.status_code == 200
+    assert review.json()["resume_version_id"] == resume_body["id"]
+    assert review.json()["cover_letter_id"] == letter_body["id"]
+
+
+def test_job_resume_generation_fails_when_resume_is_missing() -> None:
+    token = register_user("job-prep-no-resume@example.com")["tokens"]["access_token"]
+    user_id = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}).json()["id"]
+    job_id = seed_scored_job(user_id)
+    response = client.post(f"/api/v1/jobs/{job_id}/resume-versions", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 409
+    assert "Upload a master resume" in response.json()["detail"]
+
+
+def test_job_material_generation_is_owner_scoped() -> None:
+    owner_token = register_user("job-prep-owner@example.com")["tokens"]["access_token"]
+    outsider_token = register_user("job-prep-outsider@example.com")["tokens"]["access_token"]
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    outsider_headers = {"Authorization": f"Bearer {outsider_token}"}
+    upload_resume(owner_token)
+    upload_resume(outsider_token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=owner_headers,
+        json={
+            "title": "Owner Scoped Engineer",
+            "company": "Private Example",
+            "location": "Remote",
+            "url": "https://example.com/careers/owner-scoped-engineer",
+            "description": "Build Python and FastAPI services with PostgreSQL and Docker.",
+        },
+    )
+    assert captured.status_code == 201
+
+    resume = client.post(f"/api/v1/jobs/{captured.json()['id']}/resume-versions", headers=outsider_headers)
+    assert resume.status_code == 404
+    cover_letter = client.post(f"/api/v1/jobs/{captured.json()['id']}/cover-letters", headers=outsider_headers)
+    assert cover_letter.status_code == 404
 
 
 def test_job_url_import_fetches_scores_and_persists(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1498,6 +1592,43 @@ def upload_resume(token: str) -> None:
         files={"file": ("resume.docx", make_resume_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
     )
     assert response.status_code == 201
+
+
+def seed_scored_job(user_id: str) -> str:
+    job_id = uuid4()
+
+    async def seed() -> None:
+        async with session_factory() as session:
+            session.add(
+                Job(
+                    id=job_id,
+                    source="test",
+                    external_id=str(job_id),
+                    title="Seeded Platform Engineer",
+                    company="Seeded Example",
+                    location="Remote",
+                    salary=None,
+                    url=f"https://example.com/jobs/{job_id}",
+                    description="Build Python and FastAPI services with PostgreSQL and Docker.",
+                    description_hash=str(job_id),
+                )
+            )
+            session.add(
+                JobMatch(
+                    user_id=UUID(user_id),
+                    job_id=job_id,
+                    match_score=78,
+                    ats_score=72,
+                    ats_breakdown={"keywords": 70, "sections": 80},
+                    ats_recommendations=["Add stronger Python service keywords if supported by your resume."],
+                    matching_skills=["python", "fastapi", "postgresql", "docker"],
+                    missing_skills=["kubernetes"],
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+    return str(job_id)
 
 
 def make_resume_pdf() -> bytes:

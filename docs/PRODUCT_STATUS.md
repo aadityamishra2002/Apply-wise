@@ -115,6 +115,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 93. Fix the real Brave/Chrome injection regression where the LinkedIn extractor called an external helper that was not available inside the active tab context; the injected extractor is now self-contained and covered by regression tests.
 94. Add LinkedIn description recovery for separate `job-details-about-the-job-module` layouts and include extraction diagnostics in the copyable debug report.
 95. Trim LinkedIn visible-text fallback descriptions before job alerts, Premium upsells, more-jobs sections, footer links, and language selectors.
+96. Generate stored tailored resumes and cover letters directly from the Jobs page after job capture, with previews, copy/download actions, missing-skills analysis, ATS suggestions, model metadata, and owner-scoped access.
 
 ## Current Production Audit
 
@@ -123,7 +124,7 @@ Completed:
 - Phase 1 resume upload, PDF parsing with PyMuPDF, DOCX parsing, extracted-text storage, skill extraction, experience extraction, education extraction, certification extraction, project extraction, resume profile API, profile update API, web profile editor, and re-parse API are now implemented.
 - Phase 2 job ingestion has provider abstraction, normalization, deduplication, persistent jobs, manual JD capture, URL import, and Chrome extension capture.
 - Phase 3 matching has configurable score weights, skills/keyword/experience/education style scoring, missing skills, matching skills, explanations, and stored job-match records.
-- Phase 4 AI generation has evidence-grounded resume tailoring, cover letter generation, resume-version storage, generation history, model/fallback metadata, and unsupported-claim checks.
+- Phase 4 AI generation has evidence-grounded resume tailoring, cover letter generation, direct Jobs page preparation after capture, resume-version storage, generation history, model/fallback metadata, and unsupported-claim checks.
 - Phase 5 application tracking has saved/preparing/applied/interview/rejected/offer/withdrawn statuses, notes, timeline events, interviews, duplicate prevention, and dashboard metrics.
 - Phase 6 extension integration has site-aware extraction and manual-submit-only assisted workflow foundations. LinkedIn still needs real-browser reload testing whenever LinkedIn changes the DOM.
 - Phase 7 security has JWT auth, refresh-token rotation, admin role allowlist, rate limiting, audit logs, environment validation, and account export/deletion guidance.
@@ -157,7 +158,7 @@ Fixes implemented:
 - Company no longer falls back to the LinkedIn hostname; missing company remains missing and blocks send.
 - The popup shows extraction diagnostics for title, company, location, description, and URL format.
 - The popup shows a copyable LinkedIn debug report with active tab URL, matched site type, extraction layer, field lengths, token presence, backend API URL, backend status/body, and validation errors.
-- The **Send to Apply Wise** button is disabled when title, company, location, URL, or description quality is missing/poor.
+- The **Send to Apply Wise** button is disabled when title, company, URL, or a 40+ character description is missing. Location and deeper description quality are warnings only.
 - The popup warns when the configured Apply Wise API backend is unreachable.
 - CI now runs extension extraction regression tests for LinkedIn, Naukri, Workday, one generic company career page, and capture-quality validation.
 - Re-extract now waits for LinkedIn job content before reading the page.

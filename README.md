@@ -41,6 +41,7 @@ The maintained product guide is available in two formats:
 - Tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit timeline events
 - Queued material-preparation run tracking with visible status, attempts, results, failed-run retry controls, and timeline events
 - Review Application workflow with job details, match/ATS scores, tailored resume version, cover letter preview, extracted fields, missing fields, warnings, and manual review confirmation
+- Direct Jobs page preparation flow for captured jobs with stored tailored-resume drafts, cover letters, missing-skills analysis, ATS suggestions, previews, copy, and downloads
 - Extension autofill is gated behind Review Application confirmation and fills only approved fields
 - Extension form-inspection and autofill failures are logged to the application timeline with manual fallback guidance
 - Extension field detection uses ARIA-linked labels, nearby question text, and common employer-form data attributes

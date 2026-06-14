@@ -147,8 +147,30 @@ export type ApplicationMaterials = {
   generation_status: string;
   retry_attempts: number;
 };
-export type CoverLetterRecord = { id: string; content: string; created_at: string };
-export type ResumeVersionRecord = { id: string; job_id: string; job_title: string; company: string; ats_score: number; created_at: string };
+export type CoverLetterRecord = {
+  id: string;
+  job_id: string;
+  content: string;
+  ats_score: number;
+  prompt_version: string;
+  model_provider: string;
+  model_name: string;
+  generation_status: string;
+  quality_warnings: string[];
+  created_at: string;
+};
+export type ResumeVersionRecord = {
+  id: string;
+  job_id: string;
+  job_title: string;
+  company: string;
+  ats_score: number;
+  prompt_version: string;
+  model_provider: string;
+  model_name: string;
+  generation_status: string;
+  created_at: string;
+};
 export type ResumeExperienceDraft = { title: string; company: string; description: string };
 export type ResumeContentDraft = {
   professional_summary?: string;
@@ -156,7 +178,13 @@ export type ResumeContentDraft = {
   experience: ResumeExperienceDraft[];
   [key: string]: unknown;
 };
-export type ResumeVersionDetail = ResumeVersionRecord & { resume_content: ResumeContentDraft };
+export type ResumeVersionDetail = ResumeVersionRecord & {
+  resume_content: ResumeContentDraft;
+  quality_warnings: string[];
+  ats_improvement_suggestions: string[];
+  missing_skills_analysis: string[];
+  matching_skills: string[];
+};
 export type AnalyticsSummary = { total_applications: number; interview_rate: number; offer_rate: number; status_counts: Record<string, number> };
 export type SkillRecommendation = { skill: string; mention_count: number; approved_role_count: number; high_fit_role_count: number; reason: string };
 export type JobPreferences = { role_keywords: string; location: string; remote_only: boolean };
@@ -239,6 +267,24 @@ export async function saveResumeVersion(versionId: string, resumeContent: Resume
   });
   if (!response.ok) throw new Error("Could not save this resume version.");
   return (await response.json()) as ResumeVersionDetail;
+}
+
+export async function createJobResumeVersion(jobId: string, accessToken: string): Promise<ResumeVersionDetail> {
+  const response = await fetch(`${apiUrl}/jobs/${jobId}/resume-versions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not generate a tailored resume."));
+  return (await response.json()) as ResumeVersionDetail;
+}
+
+export async function createJobCoverLetter(jobId: string, accessToken: string): Promise<CoverLetterRecord> {
+  const response = await fetch(`${apiUrl}/jobs/${jobId}/cover-letters`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not generate a cover letter."));
+  return (await response.json()) as CoverLetterRecord;
 }
 
 export async function downloadResumeVersion(versionId: string, format: "docx" | "pdf", accessToken: string, acknowledgeQualityWarnings = false): Promise<void> {
@@ -621,13 +667,19 @@ export async function saveUserProfileSettings(profile: UserProfileSettings, acce
 }
 
 async function apiErrorMessage(response: Response, fallback: string): Promise<string> {
-  const body = await response.json().catch(() => null) as { detail?: string | Array<{ loc?: unknown[]; msg?: string }> } | null;
+  const body = await response.json().catch(() => null) as { detail?: unknown; message?: string } | null;
   if (typeof body?.detail === "string") return body.detail;
+  if (typeof body?.message === "string") return body.message;
   if (Array.isArray(body?.detail)) {
-    return body.detail.map((item) => {
+    return (body.detail as Array<{ loc?: unknown[]; msg?: string }>).map((item) => {
       const field = Array.isArray(item.loc) ? item.loc.filter((part: unknown) => part !== "body").join(".") : "";
       return `${field || "request"}: ${item.msg ?? fallback}`;
     }).join("; ");
+  }
+  if (body?.detail && typeof body.detail === "object") {
+    const detail = body.detail as { message?: string; quality_warnings?: string[] };
+    if (detail.message && Array.isArray(detail.quality_warnings)) return `${detail.message}\n${detail.quality_warnings.join("\n")}`;
+    if (detail.message) return detail.message;
   }
   return fallback;
 }

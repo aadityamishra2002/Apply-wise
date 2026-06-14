@@ -9,6 +9,10 @@ from app.application.resumes.service import ResumeProfile
 from app.infrastructure.db.models import Job
 
 
+TAILORING_PROMPT_VERSION = "applywise-tailoring-v1"
+DETERMINISTIC_MODEL_NAME = "deterministic-v1"
+
+
 class GeneratedDraft(BaseModel):
     professional_summary: str = Field(min_length=20, max_length=1200)
     cover_letter: str = Field(min_length=80, max_length=6000)
@@ -20,6 +24,9 @@ class TailoredMaterials:
     cover_letter: str
     provenance: str
     generation_status: str
+    prompt_version: str = TAILORING_PROMPT_VERSION
+    model_provider: str = "deterministic"
+    model_name: str = DETERMINISTIC_MODEL_NAME
     retry_attempts: int = 1
 
 
@@ -59,6 +66,8 @@ class GeminiTailoringService:
             cover_letter=generated.cover_letter,
             provenance="gemini_evidence_grounded",
             generation_status="generated",
+            model_provider="gemini",
+            model_name=self._model,
             retry_attempts=result.attempts,
         )
 
@@ -97,6 +106,7 @@ def build_fallback_materials(job: Job, profile: ResumeProfile) -> TailoredMateri
             "target_role": job.title,
             "target_company": job.company,
             "skills": list(profile.skills),
+            "tailored_bullets": build_tailored_bullets(job, profile),
             "experience": [
                 {"title": experience.title, "company": experience.company, "description": experience.description}
                 for experience in profile.experiences
@@ -107,6 +117,19 @@ def build_fallback_materials(job: Job, profile: ResumeProfile) -> TailoredMateri
         provenance="deterministic_evidence_grounded",
         generation_status="fallback_no_provider",
     )
+
+
+def build_tailored_bullets(job: Job, profile: ResumeProfile) -> list[str]:
+    job_text = job.description.lower()
+    verified_focus = [skill for skill in profile.skills if skill.lower() in job_text]
+    bullets: list[str] = []
+    for experience in profile.experiences:
+        description = " ".join(sentence.strip() for sentence in experience.description.splitlines() if sentence.strip())
+        if not description:
+            continue
+        focus = f" Verified focus: {', '.join(verified_focus[:5])}." if verified_focus else ""
+        bullets.append(f"{description[:500]}{focus}")
+    return bullets[:6]
 
 
 def build_cover_letter(job: Job, profile: ResumeProfile) -> str:

@@ -28,7 +28,7 @@ from app.application.identity.service import is_expired
 from app.application.retry import RetryPolicy, run_with_retries
 from app.application.resumes.service import MAX_RESUME_BYTES, ResumeCertification, ResumeEducation, ResumeExperience, ResumeProfile, ResumeProject, ResumeService, ResumeValidationError, detect_skills
 from app.application.tailoring.quality import find_unsupported_claims
-from app.application.tailoring.service import GeminiTailoringService
+from app.application.tailoring.service import GeminiTailoringService, TailoredMaterials, build_fallback_materials
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
@@ -260,7 +260,14 @@ class ApplicationMaterialsResponse(BaseModel):
 
 class CoverLetterResponse(BaseModel):
     id: str
+    job_id: str
     content: str
+    ats_score: float
+    prompt_version: str
+    model_provider: str
+    model_name: str
+    generation_status: str
+    quality_warnings: list[str] = []
     created_at: str
 
 
@@ -286,11 +293,19 @@ class ResumeVersionResponse(BaseModel):
     job_title: str
     company: str
     ats_score: float
+    prompt_version: str
+    model_provider: str
+    model_name: str
+    generation_status: str
     created_at: str
 
 
 class ResumeVersionDetailResponse(ResumeVersionResponse):
     resume_content: dict
+    quality_warnings: list[str] = []
+    ats_improvement_suggestions: list[str] = []
+    missing_skills_analysis: list[str] = []
+    matching_skills: list[str] = []
 
 
 class ResumeVersionUpdateRequest(BaseModel):
@@ -1123,6 +1138,127 @@ async def save_job(
     return application_response(application, stored_job)
 
 
+@router.post("/jobs/{job_id}/resume-versions", response_model=ResumeVersionDetailResponse, status_code=status.HTTP_201_CREATED)
+async def create_job_resume_version(
+    job_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeVersionDetailResponse:
+    job, stored_match = await get_owned_scored_job(session, job_id, user.id)
+    profile, materials = await safe_tailored_materials(job, user.id, session, include_resume=True, include_cover_letter=False)
+    resume_content = validate_resume_version_content(materials.resume_content)
+    quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, None, profile))
+    resume_version = ResumeVersion(
+        user_id=user.id,
+        job_id=job.id,
+        master_resume_id=profile.id,
+        ats_score=stored_match.ats_score,
+        resume_content=resume_content,
+        prompt_version=materials.prompt_version,
+        model_provider=materials.model_provider,
+        model_name=materials.model_name,
+        generation_status=materials.generation_status,
+        quality_warnings=quality_warnings,
+    )
+    session.add(resume_version)
+    await session.flush()
+    application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.job_id == job.id))
+    if application:
+        previous_status = application.status
+        application.status = ApplicationStatus.PREPARING
+        application.resume_version_id = resume_version.id
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="resume_generated",
+                from_status=previous_status.value,
+                to_status=ApplicationStatus.PREPARING.value,
+                metadata_={
+                    "resume_version_id": str(resume_version.id),
+                    "ats_score": resume_version.ats_score,
+                    "prompt_version": materials.prompt_version,
+                    "model_provider": materials.model_provider,
+                    "model_name": materials.model_name,
+                    "quality_warning_count": len(quality_warnings),
+                },
+            )
+        )
+    log_activity(
+        session,
+        user.id,
+        "resume_generated",
+        {
+            "job_id": str(job.id),
+            "resume_version_id": str(resume_version.id),
+            "ats_score": resume_version.ats_score,
+            "prompt_version": materials.prompt_version,
+            "model_provider": materials.model_provider,
+            "model_name": materials.model_name,
+        },
+    )
+    await session.commit()
+    return resume_version_detail_response(resume_version, job, stored_match)
+
+
+@router.post("/jobs/{job_id}/cover-letters", response_model=CoverLetterResponse, status_code=status.HTTP_201_CREATED)
+async def create_job_cover_letter(
+    job_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CoverLetterResponse:
+    job, stored_match = await get_owned_scored_job(session, job_id, user.id)
+    profile, materials = await safe_tailored_materials(job, user.id, session, include_resume=False, include_cover_letter=True)
+    quality_warnings = quality_warning_messages(find_unsupported_claims(None, materials.cover_letter, profile))
+    cover_letter = CoverLetter(
+        user_id=user.id,
+        job_id=job.id,
+        content=materials.cover_letter,
+        ats_score=stored_match.ats_score,
+        prompt_version=materials.prompt_version,
+        model_provider=materials.model_provider,
+        model_name=materials.model_name,
+        generation_status=materials.generation_status,
+        quality_warnings=quality_warnings,
+    )
+    session.add(cover_letter)
+    await session.flush()
+    application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.job_id == job.id))
+    if application:
+        previous_status = application.status
+        application.status = ApplicationStatus.PREPARING
+        application.cover_letter_id = cover_letter.id
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="cover_letter_generated",
+                from_status=previous_status.value,
+                to_status=ApplicationStatus.PREPARING.value,
+                metadata_={
+                    "cover_letter_id": str(cover_letter.id),
+                    "prompt_version": materials.prompt_version,
+                    "model_provider": materials.model_provider,
+                    "model_name": materials.model_name,
+                    "quality_warning_count": len(quality_warnings),
+                },
+            )
+        )
+    log_activity(
+        session,
+        user.id,
+        "cover_letter_generated",
+        {
+            "job_id": str(job.id),
+            "cover_letter_id": str(cover_letter.id),
+            "ats_score": cover_letter.ats_score,
+            "prompt_version": materials.prompt_version,
+            "model_provider": materials.model_provider,
+            "model_name": materials.model_name,
+        },
+    )
+    await session.commit()
+    return cover_letter_response(cover_letter)
+
+
 @router.get("/resume-versions", response_model=list[ResumeVersionResponse])
 async def list_resume_versions(
     user: Annotated[UserRecord, Depends(get_current_user)],
@@ -1141,6 +1277,10 @@ async def list_resume_versions(
             job_title=job.title,
             company=job.company,
             ats_score=version.ats_score,
+            prompt_version=version.prompt_version,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            generation_status=version.generation_status,
             created_at=version.created_at.isoformat(),
         )
         for version, job in rows.all()
@@ -1154,7 +1294,8 @@ async def get_resume_version(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ResumeVersionDetailResponse:
     version, job = await get_owned_resume_version_row(session, version_id, user.id)
-    return resume_version_detail_response(version, job)
+    match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
+    return resume_version_detail_response(version, job, match)
 
 
 @router.patch("/resume-versions/{version_id}", response_model=ResumeVersionDetailResponse)
@@ -1167,7 +1308,8 @@ async def update_resume_version(
     version, job = await get_owned_resume_version_row(session, version_id, user.id)
     version.resume_content = validate_resume_version_content(payload.resume_content)
     await session.commit()
-    return resume_version_detail_response(version, job)
+    match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
+    return resume_version_detail_response(version, job, match)
 
 
 @router.get("/resume-versions/{version_id}/download")
@@ -1790,6 +1932,59 @@ async def retry_background_job(
     return background_job_response(job)
 
 
+async def get_owned_scored_job(session: AsyncSession, job_id: UUID, user_id: UUID) -> tuple[Job, JobMatch]:
+    row = await session.execute(
+        select(Job, JobMatch)
+        .join(JobMatch, JobMatch.job_id == Job.id)
+        .where(Job.id == job_id, JobMatch.user_id == user_id)
+    )
+    result = row.one_or_none()
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scored job not found for this user.")
+    return result
+
+
+async def safe_tailored_materials(
+    job: Job,
+    user_id: UUID,
+    session: AsyncSession,
+    *,
+    include_resume: bool,
+    include_cover_letter: bool,
+    missing_resume_message: str = "Upload a master resume before generating application materials.",
+) -> tuple[ResumeProfile, TailoredMaterials]:
+    profile = await ResumeService(session).get_active(user_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=missing_resume_message)
+    if include_resume and not profile.experiences:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Resume profile data is too weak to generate a truthful tailored resume. Add or correct experience in your master resume first.",
+        )
+    materials = tailoring_service.prepare(job, profile)
+    warnings = find_unsupported_claims(
+        materials.resume_content if include_resume else None,
+        materials.cover_letter if include_cover_letter else None,
+        profile,
+    )
+    if warnings and materials.provenance != "deterministic_evidence_grounded":
+        materials = build_fallback_materials(job, profile)
+        warnings = find_unsupported_claims(
+            materials.resume_content if include_resume else None,
+            materials.cover_letter if include_cover_letter else None,
+            profile,
+        )
+    if warnings:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Generated material contained unsupported claims and was not stored.",
+                "quality_warnings": quality_warning_messages(warnings),
+            },
+        )
+    return profile, materials
+
+
 async def prepare_application_materials(session: AsyncSession, application_id: UUID, user_id: UUID) -> ApplicationMaterialsResponse:
     row = await session.execute(
         select(Application, Job)
@@ -1800,23 +1995,39 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job = result
-    profile = await ResumeService(session).get_active(user_id)
-    if not profile:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before preparing an application.")
-    materials = tailoring_service.prepare(job, profile)
+    profile, materials = await safe_tailored_materials(
+        job,
+        user_id,
+        session,
+        include_resume=True,
+        include_cover_letter=True,
+        missing_resume_message="Upload a master resume before preparing an application.",
+    )
     stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user_id, JobMatch.job_id == job.id))
     resume_content = materials.resume_content
+    quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, materials.cover_letter, profile))
     resume_version = ResumeVersion(
         user_id=user_id,
         job_id=job.id,
         master_resume_id=profile.id,
         ats_score=stored_match.ats_score if stored_match else 0,
         resume_content=resume_content,
+        prompt_version=materials.prompt_version,
+        model_provider=materials.model_provider,
+        model_name=materials.model_name,
+        generation_status=materials.generation_status,
+        quality_warnings=quality_warnings,
     )
     cover_letter = CoverLetter(
         user_id=user_id,
         job_id=job.id,
         content=materials.cover_letter,
+        ats_score=stored_match.ats_score if stored_match else 0,
+        prompt_version=materials.prompt_version,
+        model_provider=materials.model_provider,
+        model_name=materials.model_name,
+        generation_status=materials.generation_status,
+        quality_warnings=quality_warnings,
     )
     previous_status = application.status
     application.status = ApplicationStatus.PREPARING
@@ -1838,12 +2049,25 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
             ApplicationEvent(
                 application_id=application.id,
                 event_type="resume_generated",
-                metadata_={"resume_version_id": str(resume_version.id), "ats_score": resume_version.ats_score},
+                metadata_={
+                    "resume_version_id": str(resume_version.id),
+                    "ats_score": resume_version.ats_score,
+                    "prompt_version": materials.prompt_version,
+                    "model_provider": materials.model_provider,
+                    "model_name": materials.model_name,
+                    "quality_warning_count": len(quality_warnings),
+                },
             ),
             ApplicationEvent(
                 application_id=application.id,
                 event_type="cover_letter_generated",
-                metadata_={"cover_letter_id": str(cover_letter.id)},
+                metadata_={
+                    "cover_letter_id": str(cover_letter.id),
+                    "prompt_version": materials.prompt_version,
+                    "model_provider": materials.model_provider,
+                    "model_name": materials.model_name,
+                    "quality_warning_count": len(quality_warnings),
+                },
             ),
         ]
     )
@@ -2098,6 +2322,10 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
         seen.add(normalized)
         result.append(value)
     return result
+
+
+def quality_warning_messages(warnings) -> list[str]:
+    return [str(warning.message) for warning in warnings]
 
 
 class JobHtmlExtractor(HTMLParser):
@@ -2603,7 +2831,7 @@ async def get_owned_resume_version_row(session: AsyncSession, version_id: UUID, 
     return result
 
 
-def resume_version_detail_response(version: ResumeVersion, job: Job) -> ResumeVersionDetailResponse:
+def resume_version_detail_response(version: ResumeVersion, job: Job, match: JobMatch | None = None) -> ResumeVersionDetailResponse:
     created_at = version.created_at
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
@@ -2613,8 +2841,16 @@ def resume_version_detail_response(version: ResumeVersion, job: Job) -> ResumeVe
         job_title=job.title,
         company=job.company,
         ats_score=version.ats_score,
+        prompt_version=version.prompt_version,
+        model_provider=version.model_provider,
+        model_name=version.model_name,
+        generation_status=version.generation_status,
         created_at=created_at.isoformat(),
         resume_content=version.resume_content,
+        quality_warnings=[str(warning) for warning in (version.quality_warnings or [])],
+        ats_improvement_suggestions=[str(item) for item in ((match.ats_recommendations if match else []) or [])],
+        missing_skills_analysis=[str(item) for item in ((match.missing_skills if match else []) or [])],
+        matching_skills=[str(item) for item in ((match.matching_skills if match else []) or [])],
     )
 
 
@@ -2664,7 +2900,14 @@ def cover_letter_response(cover_letter: CoverLetter) -> CoverLetterResponse:
         created_at = created_at.replace(tzinfo=timezone.utc)
     return CoverLetterResponse(
         id=str(cover_letter.id),
+        job_id=str(cover_letter.job_id),
         content=cover_letter.content,
+        ats_score=cover_letter.ats_score,
+        prompt_version=cover_letter.prompt_version,
+        model_provider=cover_letter.model_provider,
+        model_name=cover_letter.model_name,
+        generation_status=cover_letter.generation_status,
+        quality_warnings=[str(warning) for warning in (cover_letter.quality_warnings or [])],
         created_at=created_at.isoformat(),
     )
 

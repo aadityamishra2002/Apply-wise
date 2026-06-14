@@ -1,20 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Bookmark, Check, FileText, LoaderCircle, MapPin, Plus, Search } from "lucide-react";
+import { Bookmark, Check, Copy, Download, FileText, LoaderCircle, Mail, MapPin, Plus, Search, WandSparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { MatchRing, Pill } from "@/components/ui";
 import {
   captureManualJob,
+  createJobCoverLetter,
+  createJobResumeVersion,
+  downloadCoverLetter,
+  downloadResumeVersion,
   getAccessToken,
   importJobUrl,
   loadResumeProfile,
   loadJobRecommendations,
   saveJob,
   updateJobApproval,
+  type CoverLetterRecord,
   type JobRecommendation,
   type ManualJob,
+  type ResumeVersionDetail,
 } from "@/lib/api";
 
 const emptyManualJob: ManualJob = { title: "", company: "", location: "", url: "", description: "" };
@@ -34,6 +40,10 @@ export default function JobsPage() {
   const [jobUrl, setJobUrl] = useState("");
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
+  const [generatedResume, setGeneratedResume] = useState<ResumeVersionDetail | null>(null);
+  const [generatedCoverLetter, setGeneratedCoverLetter] = useState<CoverLetterRecord | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState<"resume" | "cover" | null>(null);
 
   const sources = Array.from(new Set(jobs.map((job) => job.source))).sort();
   const visibleJobs = jobs.filter((job) => {
@@ -55,6 +65,13 @@ export default function JobsPage() {
       .catch((loadError: Error) => setError(loadError.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    setGeneratedResume(null);
+    setGeneratedCoverLetter(null);
+    setGenerationStatus(null);
+    setPreparing(null);
+  }, [selected?.id]);
 
   async function searchJobs() {
     const token = getAccessToken();
@@ -125,6 +142,69 @@ export default function JobsPage() {
     await updateJobApproval(jobId, approvalStatus, token);
     setJobs((current) => current.map((job) => job.id === jobId ? { ...job, approval_status: approvalStatus } : job));
     setSelected((current) => current?.id === jobId ? { ...current, approval_status: approvalStatus } : current);
+  }
+
+  async function generateResume() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setPreparing("resume");
+    setError(null);
+    setGenerationStatus(null);
+    try {
+      const version = await createJobResumeVersion(selected.id, token);
+      setGeneratedResume(version);
+      setGenerationStatus("Tailored resume generated and stored.");
+    } catch (generateError) {
+      setError(generateError instanceof Error ? generateError.message : "Could not generate a tailored resume.");
+    } finally {
+      setPreparing(null);
+    }
+  }
+
+  async function generateCoverLetter() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setPreparing("cover");
+    setError(null);
+    setGenerationStatus(null);
+    try {
+      const letter = await createJobCoverLetter(selected.id, token);
+      setGeneratedCoverLetter(letter);
+      setGenerationStatus("Cover letter generated and stored.");
+    } catch (generateError) {
+      setError(generateError instanceof Error ? generateError.message : "Could not generate a cover letter.");
+    } finally {
+      setPreparing(null);
+    }
+  }
+
+  async function copyText(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setGenerationStatus(`${label} copied to clipboard.`);
+    } catch {
+      setError(`Could not copy ${label.toLowerCase()}. Select the preview text and copy manually.`);
+    }
+  }
+
+  async function downloadGeneratedResume(format: "docx" | "pdf") {
+    const token = getAccessToken();
+    if (!token || !generatedResume) return;
+    try {
+      await downloadResumeVersion(generatedResume.id, format, token, generatedResume.quality_warnings.length > 0);
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : "Could not download the tailored resume.");
+    }
+  }
+
+  async function downloadGeneratedCoverLetter() {
+    const token = getAccessToken();
+    if (!token || !generatedCoverLetter) return;
+    try {
+      await downloadCoverLetter(generatedCoverLetter.id, token);
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : "Could not download the cover letter.");
+    }
   }
 
   return (
@@ -198,7 +278,18 @@ export default function JobsPage() {
               <p className="text-[12px] font-bold text-[#71807c]">{selected.company}</p>
               <h2 className="mt-1 text-[20px] font-bold">{selected.title}</h2>
               <p className="mt-2 text-[12px] text-[#91a09c]">{selected.location} / {selected.work_mode}</p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <ScoreTile label="Match score" value={`${selected.match_score}%`} />
+                <ScoreTile label="ATS score" value={`${selected.ats_score}%`} />
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">{selected.matching_skills.map((skill) => <Pill tone="green" key={skill}><Check size={11} />{skill}</Pill>)}</div>
+              {selected.missing_skills.length ? (
+                <div className="mt-4 rounded-xl border border-[#f0e5d8] bg-[#fffaf2] p-4">
+                  <p className="text-[12px] font-bold text-[#8a5a21]">Missing or unverified skills</p>
+                  <div className="mt-2 flex flex-wrap gap-2">{selected.missing_skills.map((skill) => <Pill key={skill}>{skill}</Pill>)}</div>
+                  <p className="mt-2 text-[11px] leading-5 text-[#8a7356]">Apply Wise will not add these unless they already exist in your uploaded resume/profile evidence.</p>
+                </div>
+              ) : null}
               <div className="mt-4 rounded-xl bg-[#e8f4ef] p-4">
                 <p className="text-[12px] font-bold text-[#176b5b]">Why this role is recommended</p>
                 <div className="mt-2 space-y-1">{selected.recommendation_reasons.map((reason) => <p className="text-[11px] leading-5 text-[#53645f]" key={reason}>- {reason}</p>)}</div>
@@ -207,6 +298,58 @@ export default function JobsPage() {
                 <p className="text-[12px] font-bold">ATS readiness {selected.ats_score}%</p>
                 <div className="mt-2 grid gap-1 text-[11px] text-[#71807c]">{Object.entries(selected.ats_breakdown).map(([label, score]) => <p className="capitalize" key={label}>{label.replace("_", " ")}: {score}%</p>)}</div>
                 {selected.ats_recommendations.map((item) => <p className="mt-2 text-[11px] text-[#71807c]" key={item}>{item}</p>)}
+              </div>
+              <div className="mt-4 rounded-xl border border-[#e4e8e3] bg-[#fbfcfa] p-4">
+                <div className="flex items-center gap-2 text-[#176b5b]"><WandSparkles size={15} /><p className="text-[12px] font-bold">Prepare application materials</p></div>
+                <p className="mt-2 text-[11px] leading-5 text-[#71807c]">Generate drafts grounded only in your uploaded resume. Missing skills stay as analysis, not invented claims.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="inline-flex items-center gap-1.5 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60" disabled={preparing !== null} onClick={() => void generateResume()}>
+                    {preparing === "resume" ? <LoaderCircle className="animate-spin" size={13} /> : <FileText size={13} />}Generate Tailored Resume
+                  </button>
+                  <button className="inline-flex items-center gap-1.5 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-60" disabled={preparing !== null} onClick={() => void generateCoverLetter()}>
+                    {preparing === "cover" ? <LoaderCircle className="animate-spin" size={13} /> : <Mail size={13} />}Generate Cover Letter
+                  </button>
+                </div>
+                {generationStatus ? <p className="mt-3 rounded-lg bg-[#e8f4ef] p-2 text-[11px] font-bold text-[#176b5b]">{generationStatus}</p> : null}
+                {generatedResume ? (
+                  <GeneratedPreview
+                    actions={(
+                      <>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => void copyText(formatResumePreview(generatedResume.resume_content), "Tailored resume")}><Copy size={12} />Copy</button>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => void downloadGeneratedResume("docx")}><Download size={12} />DOCX</button>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => void downloadGeneratedResume("pdf")}><Download size={12} />PDF</button>
+                      </>
+                    )}
+                    title="Tailored resume preview"
+                    value={formatResumePreview(generatedResume.resume_content)}
+                    warnings={generatedResume.quality_warnings}
+                  />
+                ) : null}
+                {generatedResume?.missing_skills_analysis?.length ? (
+                  <div className="mt-3 rounded-lg bg-white p-3">
+                    <p className="text-[11px] font-bold text-[#8a5a21]">Missing skills analysis</p>
+                    <div className="mt-2 flex flex-wrap gap-2">{generatedResume.missing_skills_analysis.map((skill) => <Pill key={skill}>{skill}</Pill>)}</div>
+                  </div>
+                ) : null}
+                {generatedResume?.ats_improvement_suggestions?.length ? (
+                  <div className="mt-3 rounded-lg bg-white p-3">
+                    <p className="text-[11px] font-bold text-[#176b5b]">ATS improvement suggestions</p>
+                    {generatedResume.ats_improvement_suggestions.map((item) => <p className="mt-1 text-[11px] leading-5 text-[#71807c]" key={item}>- {item}</p>)}
+                  </div>
+                ) : null}
+                {generatedCoverLetter ? (
+                  <GeneratedPreview
+                    actions={(
+                      <>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => void copyText(generatedCoverLetter.content, "Cover letter")}><Copy size={12} />Copy</button>
+                        <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b]" onClick={() => void downloadGeneratedCoverLetter()}><Download size={12} />TXT</button>
+                      </>
+                    )}
+                    title="Cover letter preview"
+                    value={generatedCoverLetter.content}
+                    warnings={generatedCoverLetter.quality_warnings}
+                  />
+                ) : null}
               </div>
               <p className="mt-5 text-[13px] leading-6 text-[#65736f]">{selected.description}</p>
               <button className="mt-5 flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:opacity-60" disabled={selected.saved} onClick={() => void persistSavedJob(selected.id)}><Bookmark size={15} />{selected.saved ? "Saved to tracker" : "Save job"}</button>
@@ -240,4 +383,43 @@ export default function JobsPage() {
       {jobs.some((job) => job.source === "adzuna" || job.source === "remotive") ? <p className="mt-5 text-[11px] font-bold text-[#91a09c]">Listings may be provided by <a className="text-[#176b5b] underline" href="https://www.adzuna.in/" rel="noreferrer" target="_blank">Adzuna</a> and <a className="text-[#176b5b] underline" href="https://remotive.com/remote-jobs" rel="noreferrer" target="_blank">Remotive</a>. Manually captured career-page roles are labeled separately.</p> : null}
     </AppShell>
   );
+}
+
+function ScoreTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[#f6f8f5] p-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">{label}</p>
+      <p className="mt-1 text-[20px] font-black text-[#176b5b]">{value}</p>
+    </div>
+  );
+}
+
+function GeneratedPreview({ actions, title, value, warnings }: { actions: ReactNode; title: string; value: string; warnings?: string[] }) {
+  return (
+    <div className="mt-4 rounded-xl border border-[#e4e8e3] bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] font-bold text-[#23312e]">{title}</p>
+        <div className="flex flex-wrap gap-2">{actions}</div>
+      </div>
+      {warnings?.length ? (
+        <div className="mt-3 rounded-lg bg-[#fff4ef] p-3">
+          <p className="text-[11px] font-bold text-[#a34f3f]">Review warnings</p>
+          {warnings.map((warning) => <p className="mt-1 text-[11px] leading-5 text-[#a34f3f]" key={warning}>- {warning}</p>)}
+        </div>
+      ) : null}
+      <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-[#f6f8f5] p-3 text-[11px] leading-5 text-[#53645f]">{value}</pre>
+    </div>
+  );
+}
+
+function formatResumePreview(content: ResumeVersionDetail["resume_content"]) {
+  const lines: string[] = [];
+  if (content.professional_summary) lines.push(`Summary\n${content.professional_summary}`);
+  if (Array.isArray(content.skills) && content.skills.length) lines.push(`Skills\n${content.skills.join(", ")}`);
+  const bullets = Array.isArray(content.tailored_bullets) ? content.tailored_bullets.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+  if (bullets.length) lines.push(`Tailored bullets\n${bullets.map((bullet) => `- ${bullet}`).join("\n")}`);
+  if (Array.isArray(content.experience) && content.experience.length) {
+    lines.push(`Experience\n${content.experience.map((item) => `${item.title} at ${item.company}\n${item.description}`).join("\n\n")}`);
+  }
+  return lines.join("\n\n") || "Generated resume draft is ready.";
 }
