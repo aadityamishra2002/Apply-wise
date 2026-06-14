@@ -113,6 +113,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 91. Add optional SMTP-backed production password-reset email delivery with safe token hiding, frontend reset URL generation, support fallback, env placeholders, and tests.
 92. Harden LinkedIn extension capture with explicit host permissions, selector/meta/JSON-LD/visible-text extraction layers, editable manual fallback for missing required fields, copyable debug report, extension version display, and structured backend capture errors.
 93. Fix the real Brave/Chrome injection regression where the LinkedIn extractor called an external helper that was not available inside the active tab context; the injected extractor is now self-contained and covered by regression tests.
+94. Add LinkedIn description recovery for separate `job-details-about-the-job-module` layouts and include extraction diagnostics in the copyable debug report.
 
 ## Current Production Audit
 
@@ -142,6 +143,7 @@ Root cause found:
 - A later real-browser regression showed the authenticated LinkedIn DOM available to the content script could miss all strict selector fixtures while still containing useful job text in the main job-detail area. Extraction also needed to wait for LinkedIn's dynamic content before reading the DOM.
 - A follow-up real-browser test on `https://www.linkedin.com/jobs/view/4424855234/` showed the visible LinkedIn card layout can expose company above title, title as the large heading, location below title, and description under "About the job" while strict selectors still return zero matches.
 - A later Brave test still returned completely empty fields because the injected `extractPage()` function referenced a popup-context helper that was not serialized into the active LinkedIn tab. The extractor now defines its LinkedIn wait/retry helper inside the injected function so it can run in the real page context.
+- A real LinkedIn capture then returned title, company, and location but an empty description. The LinkedIn adapter now checks newer separate about-the-job module selectors and scans description candidate nodes beyond the chosen top-card container.
 - The latest fix keeps Send disabled only for true required fields: title, company, URL, and a 40+ character description. Location is optional, and the user can manually fix required fields in the popup before sending.
 - Backend extension capture now returns top-level structured JSON errors with `ok`, `error_code`, `message`, and `details` for missing title, missing company, missing URL, short description, missing resume, invalid/expired extension token, and database save errors.
 
@@ -159,6 +161,7 @@ Fixes implemented:
 - Re-extract now waits for LinkedIn job content before reading the page.
 - LinkedIn diagnostics now include `document.readyState`, candidate container existence, selected candidate container selector, candidate text length, first 500 characters of candidate text, and selector-match counts for title/company/location/description groups.
 - LinkedIn diagnostics now also include `document.body.innerText.length`, the first 1000 characters of `document.body.innerText`, TreeWalker visible-text length, and first 1000 characters of collected visible text.
+- Copy Debug Report now includes the full extraction diagnostics array, including description selector counts and fallback candidate details.
 - If exact selectors miss, LinkedIn extraction now falls back to document-title parsing and focused candidate-container text heuristics while still trimming before similar jobs, recommendations, footer, referrals, and profile sections.
 - If selectors and title parsing miss, LinkedIn extraction now scans the visible card text around the detected title to recover company-above-title and location-below-title layouts.
 

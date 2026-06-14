@@ -44,10 +44,11 @@ function node(text, attrs = {}) {
 }
 
 function fakeDocument({ selectors = {}, all = {}, bodyText = "", title = "", metas = {}, scripts = [] }) {
+  const bodyNode = node(bodyText);
   return {
     title,
     readyState: "complete",
-    body: node(bodyText),
+    body: bodyNode,
     querySelector: (selector) => {
       const metaMatch = selector.match(/meta\[(?:property|name)="([^"]+)"\]/);
       if (metaMatch && metas[metaMatch[1]]) return node("", { content: metas[metaMatch[1]] });
@@ -55,8 +56,12 @@ function fakeDocument({ selectors = {}, all = {}, bodyText = "", title = "", met
     },
     querySelectorAll: (selector) => {
       if (selector === 'script[type="application/ld+json"]') return scripts.map((script) => node(script));
+      if (selector === "body") return [bodyNode];
       if (selector.includes(",")) {
-        return selector.split(",").map((part) => part.trim()).flatMap((part) => all[part] ?? (selectors[part] ? [selectors[part]] : []));
+        return selector.split(",").map((part) => part.trim()).flatMap((part) => {
+          if (part === "body") return [bodyNode];
+          return all[part] ?? (selectors[part] ? [selectors[part]] : []);
+        });
       }
       return all[selector] ?? (selectors[selector] ? [selectors[selector]] : []);
     },
@@ -304,6 +309,44 @@ assert(prismHrVisibleCard.description.includes("We are seeking a highly skilled 
 assertNoLinkedInNoise(prismHrVisibleCard.description);
 assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText length"));
 assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText first 1000 chars"));
+
+const linkedInSeparateAboutModuleText = `
+  LinkedIn
+  Application Support Engineer - Azure Active Directory, ITIL, ISO, Troubleshooting
+  HCL
+  Noida, Uttar Pradesh, India
+  1 week ago
+  37 applicants
+  Apply
+  Save
+  Seniority level
+  Associate
+  Employment type
+  Full-time
+`;
+
+const linkedInSeparateAboutModule = await runExtraction("https://www.linkedin.com/jobs/view/4338977048/", {
+  title: "Application Support Engineer - Azure Active Directory, ITIL, ISO, Troubleshooting | HCL | LinkedIn",
+  bodyText: linkedInSeparateAboutModuleText,
+  selectors: {
+    main: node(linkedInSeparateAboutModuleText),
+    ".job-details-about-the-job-module__description": node(`
+      About the job
+      We are looking for an Application Support Engineer to troubleshoot production issues, support Azure Active Directory workflows, follow ITIL processes, and collaborate with cross-functional teams.
+      Responsibilities include monitoring incidents, documenting fixes, escalating critical issues, and improving operational reliability.
+      Required skills include Azure Active Directory, ITIL, ISO standards, customer communication, and hands-on troubleshooting.
+      Seniority level
+      Associate
+    `),
+  },
+});
+
+assert.strictEqual(linkedInSeparateAboutModule.title, "Application Support Engineer - Azure Active Directory, ITIL, ISO, Troubleshooting");
+assert.strictEqual(linkedInSeparateAboutModule.company, "HCL");
+assert.strictEqual(linkedInSeparateAboutModule.location, "Noida, Uttar Pradesh, India");
+assert(linkedInSeparateAboutModule.description.includes("We are looking for an Application Support Engineer"));
+assertNoLinkedInNoise(linkedInSeparateAboutModule.description);
+assert(linkedInSeparateAboutModule.diagnostics.some((item) => item.field === "description" && item.selector === ".job-details-about-the-job-module__description"));
 
 const naukri = await runExtraction("https://www.naukri.com/job-listings-ai-engineer-example", {
   selectors: {

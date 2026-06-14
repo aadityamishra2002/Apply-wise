@@ -2,6 +2,7 @@ const defaultApiUrl = "https://jobsearchautomation-production.up.railway.app/api
 let apiUrl = defaultApiUrl;
 const fields = ["title", "company", "location", "url", "description"];
 let lastDebugReport = {};
+let lastDiagnostics = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   const stored = await chrome.storage.local.get(["apiUrl", "extensionToken"]);
@@ -400,14 +401,15 @@ function renderDiagnostics(diagnostics) {
   const section = document.getElementById("diagnostics");
   const list = document.getElementById("extraction-diagnostics");
   if (!section || !list) return;
+  lastDiagnostics = diagnostics || [];
   list.replaceChildren();
-  for (const item of diagnostics) {
+  for (const item of lastDiagnostics) {
     const row = document.createElement("li");
     row.textContent = `${item.field}: ${item.selector || "missing"}${item.fallback ? " (fallback)" : ""}${item.preview ? ` -> ${truncate(item.preview, 90)}` : ""}`;
     row.className = item.selector ? "ready" : "blocked";
     list.appendChild(row);
   }
-  section.hidden = diagnostics.length === 0;
+  section.hidden = lastDiagnostics.length === 0;
 }
 
 function currentPayload() {
@@ -428,6 +430,7 @@ function updateDebugReport(patch) {
     locationLength: payload.location.length,
     descriptionLength: payload.description.length,
     backendApiUrl: apiUrl,
+    extractionDiagnostics: lastDiagnostics,
   };
   const report = document.getElementById("debug-report");
   if (report) report.textContent = JSON.stringify(lastDebugReport, null, 2);
@@ -550,13 +553,24 @@ async function extractPage() {
     "[data-test-job-location]",
   ];
   const linkedInDescriptionSelectors = [
+    ".job-details-about-the-job-module__description",
+    ".job-details-about-the-job-module",
+    ".job-details-job-summary__text",
+    "[data-view-name='job-details-about-the-job-module']",
     ".jobs-description__content .jobs-box__html-content",
     ".jobs-description__content .jobs-description-content__text",
     ".jobs-description__content .show-more-less-html__markup",
+    ".jobs-description__content",
     ".jobs-description-content__text",
     ".jobs-box__html-content",
     ".jobs-description__container",
+    ".jobs-description",
     "#job-details",
+    "[class*='jobs-description']",
+    "[class*='about-the-job']",
+    "[class*='job-details-about']",
+    "[data-test-job-description]",
+    "[data-testid*='job-description']",
     ".description__text .show-more-less-html__markup",
     ".show-more-less-html__markup",
   ];
@@ -648,7 +662,17 @@ async function extractPage() {
   };
   const extractLinkedInDescriptionFromText = (candidateText) => {
     const raw = rawLinkedInText(candidateText);
-    const startPatterns = [/about the job/i, /job description/i, /about this job/i, /role mission/i, /responsibilities/i];
+    const startPatterns = [
+      /about the job/i,
+      /job description/i,
+      /about this job/i,
+      /about the role/i,
+      /role mission/i,
+      /what you will do/i,
+      /responsibilities/i,
+      /requirements/i,
+      /qualifications/i,
+    ];
     const start = startPatterns
       .map((pattern) => {
         const match = raw.search(pattern);
@@ -658,23 +682,57 @@ async function extractPage() {
       .sort((a, b) => a - b)[0] ?? 0;
     return cleanLinkedInDescription(raw.slice(start));
   };
+  const linkedInDescriptionCandidateNodes = () => {
+    const selectors = [
+      ...linkedInDescriptionSelectors,
+      "main",
+      "article",
+      "section",
+      "body",
+    ];
+    const nodes = [];
+    const seen = new Set();
+    for (const selector of selectors) {
+      let matches = [];
+      try {
+        matches = [...document.querySelectorAll(selector)];
+      } catch {
+        matches = [];
+      }
+      for (const node of matches) {
+        if (!node || seen.has(node)) continue;
+        seen.add(node);
+        nodes.push({ selector, node });
+      }
+    }
+    return nodes;
+  };
   const extractLinkedInDescriptionFromVisibleBlocks = () => {
-    const blocks = [...document.querySelectorAll("main, article, section, body")]
-      .map((node) => rawNodeText(node))
+    const blocks = linkedInDescriptionCandidateNodes()
+      .map(({ selector, node }) => ({ selector, raw: rawNodeText(node) }))
       .filter(Boolean)
-      .map((raw) => ({ raw, cleaned: clean(raw) }))
+      .map((block) => ({ ...block, cleaned: clean(block.raw), fromHeading: extractLinkedInDescriptionFromText(block.raw) }))
       .filter((block) => block.cleaned.length >= 40)
       .map((block) => ({
         ...block,
+        extracted: block.fromHeading || cleanLinkedInDescription(block.raw),
         score: block.cleaned.length
+          + (block.fromHeading ? 5000 : 0)
           + (/responsibilities|qualifications|requirements|about the role|what you will do|skills|job description|about the job/i.test(block.cleaned) ? 3000 : 0)
-          - (/similar jobs|recommended jobs|people also viewed|footer|language selector|premium/i.test(block.cleaned) ? 800 : 0),
+          - (/similar jobs|recommended jobs|people also viewed|footer|language selector|premium/i.test(block.cleaned) ? 800 : 0)
+          - (/seniority level|employment type|job function|industries/i.test(block.cleaned) && !block.fromHeading ? 500 : 0),
       }))
+      .filter((block) => block.extracted.length >= 40)
       .sort((a, b) => b.score - a.score);
-    return blocks[0] ? cleanLinkedInDescription(blocks[0].raw) : "";
+    recordDiagnostic("description fallback candidates", "LinkedIn description candidate nodes", String(blocks.length), true);
+    if (blocks[0]) {
+      recordDiagnostic("description fallback best selector", blocks[0].selector, blocks[0].extracted, true);
+      return blocks[0].extracted;
+    }
+    return "";
   };
   const cleanLinkedInDescription = (value) => {
-    let description = clean(value)
+    let description = clean(rawLinkedInText(value))
       .replace(/\bShow more\s+Show less\b/gi, "")
       .replace(/\bSee who .*? has hired for this role\b/gi, "")
       .replace(/\bJoin or sign in to find your next job\b/gi, "")
