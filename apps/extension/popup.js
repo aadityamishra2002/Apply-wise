@@ -457,20 +457,20 @@ function updateUploadStatus(value) {
   section.hidden = false;
 }
 
-async function waitForLinkedInJobContent({ attempts = 8, delayMs = 500 } = {}) {
-  const hasContent = () => {
-    const bodyText = String(document.body?.innerText || document.body?.textContent || document.documentElement?.textContent || "");
-    if (document.querySelector(".jobs-description__content, #job-details, .jobs-details, .jobs-search__job-details, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title")) return true;
-    return /about the job|job description|seniority level|employment type|applicants?|apply|save/i.test(bodyText) && bodyText.length > 200;
-  };
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (hasContent()) return true;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-  }
-  return false;
-}
-
 async function extractPage() {
+  const waitForLinkedInJobContent = async ({ attempts = 8, delayMs = 500 } = {}) => {
+    const hasContent = () => {
+      const bodyText = String(document.body?.innerText || document.body?.textContent || document.documentElement?.textContent || "");
+      if (document.querySelector(".jobs-description__content, #job-details, .jobs-details, .jobs-search__job-details, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title")) return true;
+      return /about the job|job description|seniority level|employment type|applicants?|apply|save/i.test(bodyText) && bodyText.length > 200;
+    };
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (hasContent()) return true;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return false;
+  };
+
   if (window.location.hostname.includes("linkedin.com")) await waitForLinkedInJobContent();
   const diagnostics = [];
   const meta = (name) => {

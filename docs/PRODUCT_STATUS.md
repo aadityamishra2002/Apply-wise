@@ -112,6 +112,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 90. Add a functional web resume-profile editor for correcting skills, experience, education, certifications, and projects after parsing.
 91. Add optional SMTP-backed production password-reset email delivery with safe token hiding, frontend reset URL generation, support fallback, env placeholders, and tests.
 92. Harden LinkedIn extension capture with explicit host permissions, selector/meta/JSON-LD/visible-text extraction layers, editable manual fallback for missing required fields, copyable debug report, extension version display, and structured backend capture errors.
+93. Fix the real Brave/Chrome injection regression where the LinkedIn extractor called an external helper that was not available inside the active tab context; the injected extractor is now self-contained and covered by regression tests.
 
 ## Current Production Audit
 
@@ -140,6 +141,7 @@ Root cause found:
 - Company fallback used the hostname, so missing company data became `www.linkedin.com`.
 - A later real-browser regression showed the authenticated LinkedIn DOM available to the content script could miss all strict selector fixtures while still containing useful job text in the main job-detail area. Extraction also needed to wait for LinkedIn's dynamic content before reading the DOM.
 - A follow-up real-browser test on `https://www.linkedin.com/jobs/view/4424855234/` showed the visible LinkedIn card layout can expose company above title, title as the large heading, location below title, and description under "About the job" while strict selectors still return zero matches.
+- A later Brave test still returned completely empty fields because the injected `extractPage()` function referenced a popup-context helper that was not serialized into the active LinkedIn tab. The extractor now defines its LinkedIn wait/retry helper inside the injected function so it can run in the real page context.
 - The latest fix keeps Send disabled only for true required fields: title, company, URL, and a 40+ character description. Location is optional, and the user can manually fix required fields in the popup before sending.
 - Backend extension capture now returns top-level structured JSON errors with `ok`, `error_code`, `message`, and `details` for missing title, missing company, missing URL, short description, missing resume, invalid/expired extension token, and database save errors.
 
@@ -167,7 +169,7 @@ Fully working in automated verification:
 - LinkedIn PrismHR fallback regression covers `AI/ML Engineer`, `PrismHR`, `Noida, Uttar Pradesh, India`, and the description starting with "We are seeking a highly skilled AI/ML Engineer...".
 - LinkedIn collection URL extraction is covered for `/jobs/collections/recommended/?currentJobId={jobId}`.
 - Naukri, Workday, and generic company-career extraction samples populate title, company, location, and description.
-- Extension capture-quality validation blocks missing title, company, location, invalid URL, short description, and noisy LinkedIn-style descriptions.
+- Extension capture-quality validation blocks missing title, missing company, invalid URL, and descriptions under 40 characters. Location and longer-description quality are warnings only so the user can manually fix and send LinkedIn captures when LinkedIn hides optional fields.
 - Extension API capture test verifies LinkedIn job submission, saved application persistence, ATS/match scoring, tailored resume generation, cover letter generation, and application timeline audit events.
 
 Remaining limitations:

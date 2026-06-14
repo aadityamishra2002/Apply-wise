@@ -5,7 +5,6 @@ const vm = require("vm");
 
 const popupSource = fs.readFileSync(path.join(__dirname, "..", "popup.js"), "utf8");
 const extractPageSource = extractFunction(popupSource, "extractPage");
-const waitForLinkedInJobContentSource = extractFunction(popupSource, "waitForLinkedInJobContent");
 const captureQualitySource = extractFunction(popupSource, "captureQuality");
 
 function extractFunction(source, name) {
@@ -107,7 +106,7 @@ async function runExtraction(url, documentConfig) {
     result: null,
   };
   vm.createContext(context);
-  await vm.runInContext(`${waitForLinkedInJobContentSource}; ${extractPageSource}; (async () => { result = await extractPage(); })();`, context);
+  await vm.runInContext(`${extractPageSource}; (async () => { result = await extractPage(); })();`, context);
   return context.result;
 }
 
