@@ -42,4 +42,4 @@ jobs:
         run: |
           node --check apps/extension/popup.js
           node apps/extension/tests/extraction-regression.test.js
-          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('apps/extension/manifest.json','utf8')); const html=fs.readFileSync('apps/extension/popup.html','utf8'); const quote=String.fromCharCode(34); for (const id of ['extension-version','api-url','save-api-url','api-status','pair','send','refresh','diagnostics','extraction-diagnostics','debug-report','copy-debug','inspect-form','load-autofill','fill-reviewed','download-resume-pdf','download-resume-docx','unpair','message']) { if (!html.includes('id='+quote+id+quote)) throw new Error('Missing popup element id: '+id); }"
+          node apps/extension/tests/manifest-popup-contract.test.js

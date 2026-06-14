@@ -19,6 +19,8 @@ The popup defaults to the production Railway API URL. If the backend domain chan
 
 After changing extension files, click **Reload** for the unpacked extension in `chrome://extensions` or `brave://extensions`.
 
+Manifest V3 note: the extension intentionally does not use persistent `content_scripts`. It uses `activeTab` plus `chrome.scripting.executeScript` from the popup so extraction runs inside the currently active job tab only after the user opens the extension.
+
 ## Use
 
 1. Open a job page.
