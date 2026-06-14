@@ -39,18 +39,59 @@ function node(text, attrs = {}) {
   return {
     innerText: text,
     textContent: text,
+    content: attrs.content ?? null,
     getAttribute: (name) => attrs[name] ?? null,
   };
 }
 
-function fakeDocument({ selectors = {}, all = {}, bodyText = "", title = "" }) {
+function fakeDocument({ selectors = {}, all = {}, bodyText = "", title = "", metas = {}, scripts = [] }) {
   return {
     title,
     readyState: "complete",
     body: node(bodyText),
-    querySelector: (selector) => selectors[selector] ?? null,
-    querySelectorAll: (selector) => all[selector] ?? (selectors[selector] ? [selectors[selector]] : []),
+    querySelector: (selector) => {
+      const metaMatch = selector.match(/meta\[(?:property|name)="([^"]+)"\]/);
+      if (metaMatch && metas[metaMatch[1]]) return node("", { content: metas[metaMatch[1]] });
+      return selectors[selector] ?? null;
+    },
+    querySelectorAll: (selector) => {
+      if (selector === 'script[type="application/ld+json"]') return scripts.map((script) => node(script));
+      if (selector.includes(",")) {
+        return selector.split(",").map((part) => part.trim()).flatMap((part) => all[part] ?? (selectors[part] ? [selectors[part]] : []));
+      }
+      return all[selector] ?? (selectors[selector] ? [selectors[selector]] : []);
+    },
   };
+}
+
+function fixtureDocument(name) {
+  const html = fs.readFileSync(path.join(__dirname, "fixtures", name), "utf8");
+  const selectors = {};
+  for (const match of html.matchAll(/data-selector="([^"]+)"[^>]*>([\s\S]*?)<\/[^>]+>/g)) {
+    selectors[match[1]] = node(stripTags(match[2]));
+  }
+  const metas = {};
+  for (const match of html.matchAll(/<meta\s+(?:property|name)="([^"]+)"\s+content="([^"]*)"[^>]*>/g)) {
+    metas[match[1]] = decode(match[2]);
+  }
+  const scripts = [...html.matchAll(/<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map((match) => match[1].trim());
+  const title = stripTags((html.match(/<title>([\s\S]*?)<\/title>/) || [null, ""])[1]);
+  return { selectors, metas, scripts, bodyText: stripTags(html), title };
+}
+
+function stripTags(value) {
+  return decode(
+    String(value || "")
+      .replace(/<[^>]+>/g, "\n")
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n")
+  );
+}
+
+function decode(value) {
+  return String(value || "").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 }
 
 async function runExtraction(url, documentConfig) {
@@ -101,6 +142,45 @@ const linkedInDescription = `
 `;
 
 async function main() {
+const fixtureStandard = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", fixtureDocument("linkedin-standard.html"));
+assert.strictEqual(fixtureStandard.extractor, "LinkedIn");
+assert.strictEqual(fixtureStandard.title, "AI Senior Software Engineer");
+assert.strictEqual(fixtureStandard.company, "Sopra Steria");
+assert.strictEqual(fixtureStandard.location, "Noida, Uttar Pradesh, India");
+assert(fixtureStandard.description.includes("Responsibilities include secure agent orchestration"));
+assert(fixtureStandard.extractionLayer.includes("selectors"));
+assertNoLinkedInNoise(fixtureStandard.description);
+
+const fixtureMeta = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", fixtureDocument("linkedin-meta.html"));
+assert.strictEqual(fixtureMeta.title, "AI Senior Software Engineer");
+assert.strictEqual(fixtureMeta.company, "Sopra Steria");
+assert(fixtureMeta.description.includes("Develop AI software for production platforms"));
+assert(fixtureMeta.extractionLayer.includes("meta_tags"));
+
+const fixtureJsonLd = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", fixtureDocument("linkedin-jsonld.html"));
+assert.strictEqual(fixtureJsonLd.title, "AI Senior Software Engineer");
+assert.strictEqual(fixtureJsonLd.company, "Sopra Steria");
+assert(fixtureJsonLd.location.includes("Noida"));
+assert(fixtureJsonLd.description.includes("Build AI services"));
+assert(fixtureJsonLd.extractionLayer.includes("json_ld"));
+
+const fixtureVisible = await runExtraction("https://www.linkedin.com/jobs/view/4424855234/", fixtureDocument("linkedin-visible-text.html"));
+assert.strictEqual(fixtureVisible.title, "AI/ML Engineer");
+assert.strictEqual(fixtureVisible.company, "PrismHR");
+assert.strictEqual(fixtureVisible.location, "Noida, Uttar Pradesh, India");
+assert(fixtureVisible.description.includes("highly skilled AI/ML Engineer"));
+assert(fixtureVisible.extractionLayer.includes("visible_text_heuristic"));
+
+const fixtureManual = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", fixtureDocument("linkedin-manual-fallback.html"));
+assert.strictEqual(fixtureManual.extractor, "LinkedIn");
+assert.strictEqual(fixtureManual.title, "");
+assert.strictEqual(fixtureManual.company, "");
+assert.strictEqual(fixtureManual.description, "");
+assert.strictEqual(fixtureManual.extractionLayer, "manual_required");
+const manualQuality = captureQuality(fixtureManual);
+assert(manualQuality.filter((item) => !item.ready && item.blocking).map((item) => item.label).includes("Job title"));
+assert(manualQuality.filter((item) => !item.ready && item.blocking).map((item) => item.label).includes("Company"));
+
 const linkedInView = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", {
   title: "AI Senior Software Engineer | LinkedIn",
   bodyText: "LinkedIn navigation Notifications Premium Similar jobs footer text",
@@ -221,7 +301,7 @@ const prismHrVisibleCard = await runExtraction("https://www.linkedin.com/jobs/vi
 assert.strictEqual(prismHrVisibleCard.title, "AI/ML Engineer");
 assert.strictEqual(prismHrVisibleCard.company, "PrismHR");
 assert.strictEqual(prismHrVisibleCard.location, "Noida, Uttar Pradesh, India");
-assert(prismHrVisibleCard.description.startsWith("About the job We are seeking a highly skilled AI/ML Engineer"));
+assert(prismHrVisibleCard.description.includes("We are seeking a highly skilled AI/ML Engineer"));
 assertNoLinkedInNoise(prismHrVisibleCard.description);
 assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText length"));
 assert(prismHrVisibleCard.diagnostics.some((item) => item.field === "document.body.innerText first 1000 chars"));

@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import fitz
 import httpx
+import jwt
 import pytest
 from docx import Document
 from fastapi.testclient import TestClient
@@ -594,6 +596,92 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert downloaded.headers["content-type"] == "application/pdf"
     assert client.get("/api/v1/applications", headers=extension_headers).status_code == 401
     assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
+
+
+def test_extension_capture_returns_structured_missing_field_error() -> None:
+    token = register_user("extension-errors@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
+    extension_token = client.post("/api/v1/extension/pair", json={"code": pairing.json()["code"]}).json()["extension_token"]
+    response = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers={"Authorization": f"Bearer {extension_token}"},
+        json={
+            "title": "",
+            "company": "Example",
+            "location": "",
+            "url": "https://www.linkedin.com/jobs/view/123/",
+            "description": "Build Python services for production users.",
+        },
+    )
+    assert response.status_code == 422
+    assert response.json()["ok"] is False
+    assert response.json()["error_code"] == "missing_title"
+    assert response.json()["details"]["missing_fields"] == ["title"]
+
+
+def test_extension_capture_returns_structured_missing_resume_error() -> None:
+    token = register_user("extension-no-resume@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
+    extension_token = client.post("/api/v1/extension/pair", json={"code": pairing.json()["code"]}).json()["extension_token"]
+    response = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers={"Authorization": f"Bearer {extension_token}"},
+        json={
+            "title": "LinkedIn Engineer",
+            "company": "Example",
+            "location": "",
+            "url": "https://www.linkedin.com/jobs/view/123/",
+            "description": "Build Python services for production users.",
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "missing_resume"
+    assert response.json()["details"]["action"] == "upload_resume"
+
+
+def test_extension_capture_returns_structured_token_errors() -> None:
+    invalid = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers={"Authorization": "Bearer definitely-not-a-token"},
+        json={
+            "title": "LinkedIn Engineer",
+            "company": "Example",
+            "location": "",
+            "url": "https://www.linkedin.com/jobs/view/123/",
+            "description": "Build Python services for production users.",
+        },
+    )
+    assert invalid.status_code == 401
+    assert invalid.json()["error_code"] == "invalid_extension_token"
+
+    settings = get_settings()
+    expired_token = jwt.encode(
+        {
+            "sub": "00000000-0000-0000-0000-000000000000",
+            "type": "extension_capture",
+            "iss": settings.jwt_issuer,
+            "iat": datetime.now(timezone.utc) - timedelta(days=2),
+            "exp": datetime.now(timezone.utc) - timedelta(days=1),
+        },
+        settings.app_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+    expired = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers={"Authorization": f"Bearer {expired_token}"},
+        json={
+            "title": "LinkedIn Engineer",
+            "company": "Example",
+            "location": "",
+            "url": "https://www.linkedin.com/jobs/view/123/",
+            "description": "Build Python services for production users.",
+        },
+    )
+    assert expired.status_code == 401
+    assert expired.json()["error_code"] == "expired_extension_token"
 
 
 def test_linkedin_extension_capture_persists_scores_and_prepares_materials() -> None:

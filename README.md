@@ -44,7 +44,7 @@ The maintained product guide is available in two formats:
 - Extension autofill is gated behind Review Application confirmation and fills only approved fields
 - Extension form-inspection and autofill failures are logged to the application timeline with manual fallback guidance
 - Extension field detection uses ARIA-linked labels, nearby question text, and common employer-form data attributes
-- LinkedIn extraction uses scoped job-detail selectors, dynamic wait/retry, visible job-card text fallback, direct/recommended-job URL support, body/candidate diagnostics, and noisy page-body blocking
+- LinkedIn extraction uses scoped selectors, meta tags, JSON-LD, visible-text fallback, editable manual fallback, copyable debug reports, direct/recommended-job URL support, and structured backend capture errors
 - Site-aware extension capture for LinkedIn, Indeed, Naukri, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages
 - Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow

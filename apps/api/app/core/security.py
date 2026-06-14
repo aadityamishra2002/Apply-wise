@@ -4,7 +4,7 @@ from secrets import token_urlsafe
 from uuid import UUID
 
 import jwt
-from jwt import InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError
 from pwdlib import PasswordHash
 
 from app.core.config import Settings
@@ -74,8 +74,10 @@ def decode_extension_token(token: str, settings: Settings) -> UUID:
         if payload.get("type") != "extension_capture":
             raise AccessTokenError("Unexpected token type.")
         return UUID(payload["sub"])
+    except ExpiredSignatureError as error:
+        raise AccessTokenError("Expired extension token.") from error
     except (InvalidTokenError, KeyError, TypeError, ValueError) as error:
-        raise AccessTokenError("Invalid or expired extension token.") from error
+        raise AccessTokenError("Invalid extension token.") from error
 
 
 def create_refresh_token() -> str:

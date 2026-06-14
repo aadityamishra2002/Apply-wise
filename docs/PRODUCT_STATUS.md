@@ -111,6 +111,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 89. Add authenticated job URL import with public-URL safety checks, conservative HTML extraction, persisted `url_import` jobs, ATS/match scoring, and Jobs-page import controls.
 90. Add a functional web resume-profile editor for correcting skills, experience, education, certifications, and projects after parsing.
 91. Add optional SMTP-backed production password-reset email delivery with safe token hiding, frontend reset URL generation, support fallback, env placeholders, and tests.
+92. Harden LinkedIn extension capture with explicit host permissions, selector/meta/JSON-LD/visible-text extraction layers, editable manual fallback for missing required fields, copyable debug report, extension version display, and structured backend capture errors.
 
 ## Current Production Audit
 
@@ -139,6 +140,8 @@ Root cause found:
 - Company fallback used the hostname, so missing company data became `www.linkedin.com`.
 - A later real-browser regression showed the authenticated LinkedIn DOM available to the content script could miss all strict selector fixtures while still containing useful job text in the main job-detail area. Extraction also needed to wait for LinkedIn's dynamic content before reading the DOM.
 - A follow-up real-browser test on `https://www.linkedin.com/jobs/view/4424855234/` showed the visible LinkedIn card layout can expose company above title, title as the large heading, location below title, and description under "About the job" while strict selectors still return zero matches.
+- The latest fix keeps Send disabled only for true required fields: title, company, URL, and a 40+ character description. Location is optional, and the user can manually fix required fields in the popup before sending.
+- Backend extension capture now returns top-level structured JSON errors with `ok`, `error_code`, `message`, and `details` for missing title, missing company, missing URL, short description, missing resume, invalid/expired extension token, and database save errors.
 
 Fixes implemented:
 
@@ -147,6 +150,7 @@ Fixes implemented:
 - The extension supports both direct job URLs and collection URLs with `currentJobId`.
 - Company no longer falls back to the LinkedIn hostname; missing company remains missing and blocks send.
 - The popup shows extraction diagnostics for title, company, location, description, and URL format.
+- The popup shows a copyable LinkedIn debug report with active tab URL, matched site type, extraction layer, field lengths, token presence, backend API URL, backend status/body, and validation errors.
 - The **Send to Apply Wise** button is disabled when title, company, location, URL, or description quality is missing/poor.
 - The popup warns when the configured Apply Wise API backend is unreachable.
 - CI now runs extension extraction regression tests for LinkedIn, Naukri, Workday, one generic company career page, and capture-quality validation.

@@ -7,7 +7,7 @@
   <body>
     <main>
       <h1>Apply Wise</h1>
-      <p class="muted">Review a job page before sending it for scoring.</p>
+      <p class="muted">Review a job page before sending it for scoring. <span id="extension-version"></span></p>
       <section id="connection">
         <label>Apply Wise API URL<input id="api-url" placeholder="https://your-railway-domain/api/v1"></label>
         <button class="secondary compact" id="save-api-url">Save API URL</button>
@@ -31,6 +31,9 @@
           <h2>Extraction diagnostics</h2>
           <p class="muted">Shows which selectors produced each field so broken site markup is easier to debug.</p>
           <ul id="extraction-diagnostics"></ul>
+          <h2>LinkedIn debug report</h2>
+          <pre id="debug-report"></pre>
+          <button class="secondary compact" id="copy-debug" type="button">Copy Debug Report</button>
         </section>
         <button class="secondary" id="refresh">Re-extract current page</button>
         <button id="send">Send to Apply Wise</button>

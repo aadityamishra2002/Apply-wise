@@ -12,6 +12,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
@@ -836,11 +837,63 @@ async def pair_extension(
 
 @router.post("/extension/jobs/capture", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def capture_extension_job(
-    payload: ManualJobRequest,
-    user_id: Annotated[UUID, Depends(get_extension_user_id)],
+    payload: dict,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> JobResponse:
-    return await score_and_store_manual_job(session, user_id, payload, create_application=True)
+) -> JobResponse | JSONResponse:
+    if not credentials:
+        return extension_error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "missing_extension_token",
+            "Pair the extension from Apply Wise Settings before sending a job.",
+            {"authorization": "missing"},
+        )
+    try:
+        user_id = decode_extension_token(credentials.credentials, settings)
+    except AccessTokenError as error:
+        return extension_error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "expired_extension_token" if "expired" in str(error).lower() else "invalid_extension_token",
+            "The extension pairing token is invalid or expired. Generate a fresh pairing code in Apply Wise Settings.",
+            {"token_error": str(error)},
+        )
+    user = await session.get(User, user_id)
+    if not user or user.status != "active":
+        return extension_error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "invalid_extension_token",
+            "The paired Apply Wise account is unavailable. Pair the extension again.",
+            {"user_status": user.status if user else "missing"},
+        )
+    validation_error = validate_extension_capture_payload(payload)
+    if isinstance(validation_error, JSONResponse):
+        return validation_error
+    try:
+        return await score_and_store_manual_job(session, user_id, validation_error, create_application=True)
+    except HTTPException as error:
+        await session.rollback()
+        detail = str(error.detail)
+        if error.status_code == status.HTTP_409_CONFLICT and "Upload a master resume" in detail:
+            return extension_error_response(
+                status.HTTP_409_CONFLICT,
+                "missing_resume",
+                "Upload a master resume in Apply Wise before capturing LinkedIn jobs.",
+                {"action": "upload_resume"},
+            )
+        return extension_error_response(
+            error.status_code,
+            "capture_failed",
+            detail,
+            {"status_code": error.status_code},
+        )
+    except SQLAlchemyError as error:
+        await session.rollback()
+        return extension_error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "database_error",
+            "Apply Wise could not save this captured job. Please try again.",
+            {"error": error.__class__.__name__},
+        )
 
 
 @router.get("/settings/job-preferences", response_model=JobPreferenceResponse)
@@ -2222,6 +2275,60 @@ def extract_job_description(lines: list[str], visible_text: str) -> str:
     if len(description) < 120:
         description = clean_visible_text(visible_text)
     return description
+
+
+def extension_error_response(status_code: int, error_code: str, message: str, details: dict | None = None) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "ok": False,
+            "error_code": error_code,
+            "message": message,
+            "details": details or {},
+        },
+    )
+
+
+def validate_extension_capture_payload(payload: dict) -> ManualJobRequest | JSONResponse:
+    cleaned = {
+        "title": clean_visible_text(str(payload.get("title", ""))),
+        "company": clean_visible_text(str(payload.get("company", ""))),
+        "location": clean_visible_text(str(payload.get("location", ""))) or "Not specified",
+        "url": clean_visible_text(str(payload.get("url", ""))),
+        "description": clean_visible_text(str(payload.get("description", ""))),
+    }
+    missing_fields = [field for field in ("title", "company", "url") if not cleaned[field]]
+    if missing_fields:
+        error_code = f"missing_{missing_fields[0]}"
+        return extension_error_response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code,
+            f"Missing required field: {', '.join(missing_fields)}.",
+            {"missing_fields": missing_fields, "received_lengths": {key: len(value) for key, value in cleaned.items()}},
+        )
+    if not re.match(r"^https?://", cleaned["url"], flags=re.IGNORECASE):
+        return extension_error_response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "invalid_url",
+            "Job URL must start with http:// or https://.",
+            {"url": cleaned["url"]},
+        )
+    if len(cleaned["description"]) < 40:
+        return extension_error_response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "short_description",
+            "Job description must be at least 40 characters.",
+            {"description_length": len(cleaned["description"]), "minimum_length": 40},
+        )
+    try:
+        return ManualJobRequest(**cleaned)
+    except ValueError as error:
+        return extension_error_response(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "invalid_capture_payload",
+            "Captured job fields are invalid. Review and fix the fields in the extension popup.",
+            {"error": str(error), "received_lengths": {key: len(value) for key, value in cleaned.items()}},
+        )
 
 
 async def quality_warnings_for_resume_version(session: AsyncSession, version: ResumeVersion, user_id: UUID) -> list[str]:

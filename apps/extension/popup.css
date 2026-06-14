@@ -14,6 +14,7 @@ button.compact { margin-top: 8px; padding: 8px; }
 ul { margin: 8px 0 0; padding-left: 18px; }
 li { color: #53645f; font-size: 12px; line-height: 1.6; }
 #quality-preview, #diagnostics, #autofill-preview, #upload-status { margin-top: 12px; border: 1px solid #dce7e2; border-radius: 10px; background: white; padding: 10px; }
+pre { white-space: pre-wrap; max-height: 180px; overflow: auto; border: 1px solid #edf0ed; border-radius: 8px; background: #fbfcfa; padding: 8px; color: #53645f; font-size: 11px; line-height: 1.4; }
 button:disabled { cursor: not-allowed; opacity: 0.55; }
 .ready { color: #176b5b; }
 .blocked { color: #a34f3f; }
