@@ -50,4 +50,29 @@ for (const id of [
   assert(popupHtml.includes(`id="${id}"`), `Missing popup element id: ${id}`);
 }
 
+for (const fieldId of ["title", "company", "location", "url", "description"]) {
+  assert(popupHtml.includes(`id="${fieldId}"`), `Manual fallback field is missing: ${fieldId}`);
+}
+
+assert(
+  popupJs.includes("sendButton.disabled = quality.some((item) => !item.ready && item.blocking)"),
+  "Send button must only be disabled by blocking validation failures.",
+);
+assert(
+  popupJs.includes('{ label: "Location", ready: Boolean(payload.location), blocking: false }'),
+  "Location must remain optional for LinkedIn captures.",
+);
+assert(
+  popupJs.includes('{ label: "Description has at least 40 characters", ready: description.length >= 40, blocking: true }'),
+  "Short descriptions must block sending.",
+);
+assert(
+  popupJs.includes('{ label: "Description has useful detail", ready: description.length >= 250, blocking: false }'),
+  "Useful-detail warnings must not block manually corrected captures.",
+);
+assert(
+  popupJs.includes("if (diagnostics) diagnostics.hidden = false"),
+  "Debug report updates must reveal the diagnostics/debug section.",
+);
+
 console.log("Extension manifest and popup contract tests passed.");

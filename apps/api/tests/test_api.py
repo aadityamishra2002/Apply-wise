@@ -7,6 +7,7 @@ import jwt
 import pytest
 from docx import Document
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
 from app.main import app
@@ -598,27 +599,44 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     assert client.post("/api/v1/extension/pair", json={"code": code}).status_code == 401
 
 
-def test_extension_capture_returns_structured_missing_field_error() -> None:
-    token = register_user("extension-errors@example.com")["tokens"]["access_token"]
+@pytest.mark.parametrize(
+    ("payload_patch", "status_code", "error_code", "details_key", "details_value"),
+    [
+        ({"title": ""}, 422, "missing_title", "missing_fields", ["title"]),
+        ({"company": ""}, 422, "missing_company", "missing_fields", ["company"]),
+        ({"url": ""}, 422, "missing_url", "missing_fields", ["url"]),
+        ({"description": "Too short"}, 422, "short_description", "minimum_length", 40),
+    ],
+)
+def test_extension_capture_returns_structured_validation_errors(
+    payload_patch: dict[str, str],
+    status_code: int,
+    error_code: str,
+    details_key: str,
+    details_value: object,
+) -> None:
+    token = register_user(f"extension-errors-{error_code}@example.com")["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     upload_resume(token)
     pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
     extension_token = client.post("/api/v1/extension/pair", json={"code": pairing.json()["code"]}).json()["extension_token"]
+    payload = {
+        "title": "LinkedIn Engineer",
+        "company": "Example",
+        "location": "",
+        "url": "https://www.linkedin.com/jobs/view/123/",
+        "description": "Build Python services for production users.",
+    }
+    payload.update(payload_patch)
     response = client.post(
         "/api/v1/extension/jobs/capture",
         headers={"Authorization": f"Bearer {extension_token}"},
-        json={
-            "title": "",
-            "company": "Example",
-            "location": "",
-            "url": "https://www.linkedin.com/jobs/view/123/",
-            "description": "Build Python services for production users.",
-        },
+        json=payload,
     )
-    assert response.status_code == 422
+    assert response.status_code == status_code
     assert response.json()["ok"] is False
-    assert response.json()["error_code"] == "missing_title"
-    assert response.json()["details"]["missing_fields"] == ["title"]
+    assert response.json()["error_code"] == error_code
+    assert response.json()["details"][details_key] == details_value
 
 
 def test_extension_capture_returns_structured_missing_resume_error() -> None:
@@ -682,6 +700,34 @@ def test_extension_capture_returns_structured_token_errors() -> None:
     )
     assert expired.status_code == 401
     assert expired.json()["error_code"] == "expired_extension_token"
+
+
+def test_extension_capture_returns_structured_database_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = register_user("extension-db-error@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
+    extension_token = client.post("/api/v1/extension/pair", json={"code": pairing.json()["code"]}).json()["extension_token"]
+
+    async def fail_to_store(*args: object, **kwargs: object) -> object:
+        raise SQLAlchemyError("forced db outage")
+
+    monkeypatch.setattr("app.presentation.api_v1.router.score_and_store_manual_job", fail_to_store)
+    response = client.post(
+        "/api/v1/extension/jobs/capture",
+        headers={"Authorization": f"Bearer {extension_token}"},
+        json={
+            "title": "LinkedIn Engineer",
+            "company": "Example",
+            "location": "",
+            "url": "https://www.linkedin.com/jobs/view/123/",
+            "description": "Build Python services for production users.",
+        },
+    )
+    assert response.status_code == 500
+    assert response.json()["ok"] is False
+    assert response.json()["error_code"] == "database_error"
+    assert response.json()["details"]["error"] == "SQLAlchemyError"
 
 
 def test_linkedin_extension_capture_persists_scores_and_prepares_materials() -> None:

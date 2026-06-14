@@ -431,6 +431,8 @@ function updateDebugReport(patch) {
   };
   const report = document.getElementById("debug-report");
   if (report) report.textContent = JSON.stringify(lastDebugReport, null, 2);
+  const diagnostics = document.getElementById("diagnostics");
+  if (diagnostics) diagnostics.hidden = false;
 }
 
 async function copyDebugReport() {
