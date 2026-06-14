@@ -11,6 +11,8 @@ The maintained product guide is available in two formats:
 - [Product status source](docs/PRODUCT_STATUS.md)
 - [Product status PDF](docs/APPLY_WISE_PRODUCT_STATUS.pdf)
 
+For day-to-day usage steps, see the [Apply Wise user guide](docs/USER_GUIDE.md).
+
 ## Implemented
 
 - Responsive Next.js 15 SaaS interface deployed on Vercel
