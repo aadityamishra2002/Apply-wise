@@ -363,6 +363,18 @@ assert(blockedLabels.includes("Location"));
 assert(blockedLabels.includes("Description has useful detail"));
 assert(blockedLabels.includes("Description is focused on the job"));
 
+const manualFallbackReadyQuality = captureQuality({
+  title: "AI Senior Software Engineer",
+  company: "Sopra Steria",
+  location: "",
+  url: "https://www.linkedin.com/jobs/view/4425607893/",
+  description: "Develop AI services and production software with Python and cloud platforms.",
+});
+const manualFallbackBlocking = manualFallbackReadyQuality.filter((item) => !item.ready && item.blocking).map((item) => item.label);
+assert.strictEqual(manualFallbackBlocking.length, 0);
+assert(manualFallbackReadyQuality.find((item) => item.label === "Location" && !item.blocking));
+assert(manualFallbackReadyQuality.find((item) => item.label === "Description has useful detail" && !item.blocking));
+
 console.log("Extension extraction regression tests passed.");
 }
 
