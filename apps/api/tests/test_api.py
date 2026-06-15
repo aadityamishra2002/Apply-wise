@@ -914,6 +914,11 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"
     assert applied.json()["applied_at"]
+    refreshed_applications = client.get("/api/v1/applications", headers=headers)
+    assert refreshed_applications.status_code == 200
+    refreshed_application = next(item for item in refreshed_applications.json() if item["id"] == application["id"])
+    assert refreshed_application["status"] == "applied"
+    assert refreshed_application["applied_at"] == applied.json()["applied_at"]
     events = client.get(f"/api/v1/applications/{application['id']}/events", headers=headers).json()
     assert any(event["event_type"] == "application_marked_applied" for event in events)
     updated = client.patch(f"/api/v1/applications/{application['id']}", headers=headers, json={"status": "interview"})

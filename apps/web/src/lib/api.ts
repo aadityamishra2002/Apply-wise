@@ -458,7 +458,7 @@ export async function updateApplication(applicationId: string, payload: { status
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("Could not update this application.");
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not update this application."));
   return (await response.json()) as ApplicationRecord;
 }
 

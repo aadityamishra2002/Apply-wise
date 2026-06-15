@@ -17,6 +17,13 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import {
+  APPLIED_CONFIRMATION_TEXT,
+  applicationStatusSuccessMessage,
+  buildApplicationStatusPayload,
+  replaceApplicationRecord,
+  resolveStatusUpdateDecision,
+} from "@/lib/application-status";
+import {
   confirmReviewBeforeApply,
   createAutomationRun,
   createPrepareRun,
@@ -82,6 +89,8 @@ export default function ApplicationsPage() {
   const [resumeDraft, setResumeDraft] = useState<ResumeContentDraft | null>(null);
   const [resumeSaved, setResumeSaved] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -185,13 +194,29 @@ export default function ApplicationsPage() {
 
   async function changeStatus(applicationId: string, status: string, confirmedManualSubmit = false) {
     const token = getAccessToken();
-    if (!token) return;
-    if (status === "applied" && !confirmedManualSubmit && !confirmAppliedStatus()) return;
+    if (!token) {
+      setStatusError("Your session expired. Log in again to update this application.");
+      return;
+    }
+    const decision = resolveStatusUpdateDecision(status, confirmedManualSubmit, confirmAppliedStatus);
+    if (!decision.proceed) {
+      setStatusMessage("Application status unchanged.");
+      setStatusError(null);
+      return;
+    }
     setUpdating(applicationId);
+    setStatusMessage(null);
+    setStatusError(null);
     try {
-      const updated = await updateApplication(applicationId, { status, manual_submission_confirmed: status === "applied" && confirmedManualSubmit }, token);
-      setApplications((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      if (selected?.id === updated.id) void inspect(updated);
+      const updated = await updateApplication(applicationId, buildApplicationStatusPayload(status, decision.manualSubmissionConfirmed), token);
+      setApplications((current) => replaceApplicationRecord(current, updated));
+      setStatusMessage(applicationStatusSuccessMessage(updated.status));
+      if (selected?.id === updated.id) {
+        setSelected(updated);
+        void inspect(updated);
+      }
+    } catch (updateError) {
+      setStatusError(updateError instanceof Error ? updateError.message : "Could not update this application.");
     } finally {
       setUpdating(null);
     }
@@ -363,6 +388,8 @@ export default function ApplicationsPage() {
 
   return (
     <AppShell eyebrow="Application tracker" title="Your pipeline">
+      {statusError ? <p className="mb-4 rounded-xl bg-[#fff4ef] p-3 text-[12px] font-bold text-[#a34f3f]">{statusError}</p> : null}
+      {statusMessage ? <p className="mb-4 rounded-xl bg-[#e8f4ef] p-3 text-[12px] font-bold text-[#176b5b]">{statusMessage}</p> : null}
       {loading ? (
         <div className="grid min-h-[300px] place-items-center text-[#176b5b]"><LoaderCircle className="animate-spin" /></div>
       ) : applications.length ? (
@@ -448,7 +475,7 @@ export default function ApplicationsPage() {
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("pdf")}><Download size={13} />Resume PDF</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedCoverLetterId} onClick={() => downloadPreparedCoverLetter()}><Download size={13} />Cover letter TXT</button>
             <a className="inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={checklist.target_url} rel="noreferrer" target="_blank"><ExternalLink size={13} />Open employer page</a>
-            <button className="inline-flex items-center gap-1 rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f] disabled:opacity-50" disabled={selectedIsApplied || updating === selected.id} onClick={() => void markApplied()}><CheckCircle2 size={13} />Mark applied</button>
+            <button className="inline-flex items-center gap-1 rounded-lg bg-[#fff4ef] px-3 py-2 text-[12px] font-bold text-[#a34f3f] disabled:opacity-50" disabled={selectedIsApplied || updating === selected.id} onClick={() => void markApplied()}>{updating === selected.id ? <LoaderCircle className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}{updating === selected.id ? "Updating..." : "Mark applied"}</button>
           </div>
           <div className="mt-4 rounded-xl bg-[#f6f8f5] p-3">
             <h3 className="text-[12px] font-bold">Preparation run history</h3>
@@ -671,7 +698,7 @@ export default function ApplicationsPage() {
 }
 
 function confirmAppliedStatus(): boolean {
-  return window.confirm("Mark this role as applied only after you manually clicked submit on the employer site. Apply Wise does not submit applications automatically. Continue?");
+  return window.confirm(APPLIED_CONFIRMATION_TEXT);
 }
 
 function eventSummary(event: ApplicationEvent): string {
