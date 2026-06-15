@@ -136,17 +136,19 @@ Latest live smoke result:
 - Owner-scoped access returned `404` for another user trying to generate against the captured job.
 - Extension pairing and extension job capture succeeded with a production extension token.
 - The deployed Jobs page bundle contains the `Generate Tailored Resume` and `Generate Cover Letter` actions.
+- Post-deployment smoke confirmed a captured job remains visible from `/jobs` after refresh, with saved state and application ID preserved.
 
 Issue found and fixed:
 
 - Production smoke testing showed a captured job could generate materials by ID, but was not guaranteed to reappear from `GET /jobs` after a refresh because that endpoint only returned fresh provider-search results.
 - The API now appends the user's persisted scored jobs, including manual and extension-captured jobs, to fresh provider results while avoiding duplicates.
 - Regression coverage confirms a captured and saved job reappears from `/jobs`, preserving saved state, application ID, and approval status.
+- Post-deployment production smoke confirmed the fix on Railway.
 
 Remaining production manual checks:
 
-- After the new backend deployment is live, repeat the LinkedIn extension flow in Brave/Chrome with the user's real paired extension.
-- Confirm the captured LinkedIn job appears on the deployed Jobs page after a full browser refresh.
+- Repeat the LinkedIn extension flow in the user's real Brave/Chrome profile with the user's real paired extension.
+- Confirm the captured LinkedIn job appears on the deployed Jobs page after a full browser refresh from that browser session.
 - Generate the tailored resume and cover letter from that captured job in the deployed web app.
 - Refresh the Jobs page and confirm generated artifacts remain downloadable from the Resume/Applications workspaces.
 

@@ -168,6 +168,7 @@ for item in [
     "Generate stored tailored resumes and cover letters directly from captured jobs on the Jobs page with previews, copy/download actions, ATS suggestions, and model metadata.",
     "Keep persisted manual and extension-captured jobs visible on the Jobs page after refresh by appending stored scored jobs to fresh provider search results.",
     "Verify production API health, database readiness, Gemini-enabled generation, migration-applied generation metadata, authenticated downloads, owner-scoped access, and extension-token capture with a throwaway live smoke test.",
+    "Confirm post-deployment on Railway that captured jobs remain visible from the Jobs page after refresh with saved state and application ID preserved.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
