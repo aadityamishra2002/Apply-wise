@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 14, 2026
+**Last updated:** June 15, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -116,6 +116,39 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 94. Add LinkedIn description recovery for separate `job-details-about-the-job-module` layouts and include extraction diagnostics in the copyable debug report.
 95. Trim LinkedIn visible-text fallback descriptions before job alerts, Premium upsells, more-jobs sections, footer links, and language selectors.
 96. Generate stored tailored resumes and cover letters directly from the Jobs page after job capture, with previews, copy/download actions, missing-skills analysis, ATS suggestions, model metadata, and owner-scoped access.
+97. Keep persisted manual and extension-captured jobs visible in the Jobs page after refresh by appending the user's stored scored jobs to fresh provider search results.
+
+## Production Verification Update
+
+Latest live smoke result:
+
+- Railway API health returned `ok`.
+- Railway database readiness returned `ready`, confirming PostgreSQL connectivity.
+- Gemini, Adzuna, and Remotive feature flags are enabled in production.
+- Production schema accepts and returns generation metadata added by Alembic migration `c81d2f9a7b45`, confirming the migration is applied.
+- A throwaway production account successfully uploaded a DOCX master resume.
+- A LinkedIn-style captured job was scored with match score, ATS score, matching skills, and missing skills.
+- Direct `POST /jobs/{id}/resume-versions` generated and stored a tailored resume with prompt version, provider/model metadata, ATS score, and `created_at`.
+- Direct `POST /jobs/{id}/cover-letters` generated and stored a cover letter with prompt version, provider/model metadata, ATS score, and `created_at`.
+- Stored `GET /resume-versions/{id}` and `GET /cover-letters/{id}` returned the generated artifacts after creation.
+- Authenticated DOCX/PDF resume downloads and TXT cover-letter download returned successfully.
+- Generated smoke-test content did not add the unverified `Kubernetes` skill when it appeared only in the job description.
+- Owner-scoped access returned `404` for another user trying to generate against the captured job.
+- Extension pairing and extension job capture succeeded with a production extension token.
+- The deployed Jobs page bundle contains the `Generate Tailored Resume` and `Generate Cover Letter` actions.
+
+Issue found and fixed:
+
+- Production smoke testing showed a captured job could generate materials by ID, but was not guaranteed to reappear from `GET /jobs` after a refresh because that endpoint only returned fresh provider-search results.
+- The API now appends the user's persisted scored jobs, including manual and extension-captured jobs, to fresh provider results while avoiding duplicates.
+- Regression coverage confirms a captured and saved job reappears from `/jobs`, preserving saved state, application ID, and approval status.
+
+Remaining production manual checks:
+
+- After the new backend deployment is live, repeat the LinkedIn extension flow in Brave/Chrome with the user's real paired extension.
+- Confirm the captured LinkedIn job appears on the deployed Jobs page after a full browser refresh.
+- Generate the tailored resume and cover letter from that captured job in the deployed web app.
+- Refresh the Jobs page and confirm generated artifacts remain downloadable from the Resume/Applications workspaces.
 
 ## Current Production Audit
 
@@ -195,6 +228,26 @@ Still needs manual browser testing:
 - Pair the extension with the user's live Apply Wise account and confirm the captured job appears in the deployed web app.
 - Prepare materials in the web app for that captured job and confirm the generated resume/cover-letter previews are acceptable for user review.
 
+Exact LinkedIn capture to generated-materials test:
+
+1. Reload the unpacked extension in Brave or Chrome.
+2. Open Apply Wise Settings and generate a fresh extension pairing code.
+3. Pair the extension.
+4. Open a LinkedIn job page and expand the full job description.
+5. Click the Apply Wise extension and choose **Re-extract current page**.
+6. Confirm title, company, URL, and a focused 40+ character description are present.
+7. Manually fix any missing required field in the extension popup.
+8. Click **Send to Apply Wise**.
+9. Open Apply Wise **Jobs**.
+10. Select the captured job.
+11. Confirm match score, ATS score, matching skills, and missing skills are shown.
+12. Click **Generate Tailored Resume** and review the preview.
+13. Use **Copy**, **DOCX**, and **PDF** actions for the resume.
+14. Click **Generate Cover Letter** and review the preview.
+15. Use **Copy** and **TXT** actions for the cover letter.
+16. Refresh the Jobs page and confirm the captured job still appears.
+17. Open Applications and continue the manual Review Application workflow before applying.
+
 ## Truthfulness Rules
 
 Generated application drafts use stored resume evidence only. The current implementation does not invent employers, skills, projects, responsibilities, or achievements. Every draft remains review-required before use.
@@ -265,7 +318,7 @@ LinkedIn extension smoke test:
    - Location: `Noida, Uttar Pradesh, India`
    - Description: only the actual job description, without navigation, Premium prompts, recommended jobs, footer, or unrelated roles.
 5. Open **Extraction diagnostics** and confirm each field shows a LinkedIn selector instead of `missing`.
-6. Confirm **Send to Apply Wise** remains disabled if title, company, location, URL, or focused description is missing.
+6. Confirm **Send to Apply Wise** remains disabled if title, company, URL, or a focused 40+ character description is missing. Location is optional when LinkedIn hides it.
 7. Pair the extension from Apply Wise Settings, send the job, then verify the saved job appears in Apply Wise Jobs/Applications and ATS/match scoring is shown.
 
 Additional extractor checks:

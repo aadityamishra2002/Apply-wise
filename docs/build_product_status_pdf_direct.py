@@ -68,7 +68,7 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated June 6, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Updated June 15, 2026  |  Live: https://apply-wise-1.vercel.app", small),
     Spacer(1, 4),
     para("What is live", heading),
     para("Apply Wise is a deployed web product for resume-aware job discovery, truthful application preparation, and pipeline tracking. Users can register publicly and maintain private workspaces."),
@@ -165,6 +165,9 @@ for item in [
     "Add LinkedIn visible job-card fallback for company-above-title layouts plus body text length/first-1000 diagnostics and PrismHR regression coverage.",
     "Verify extension capture flow in automated tests from LinkedIn payload submission through saved application persistence, ATS/match scoring, tailored resume generation, cover letter generation, and audit events.",
     "Add extraction regression coverage for LinkedIn, Naukri, Workday, one generic company career page, and noisy/missing-field validation.",
+    "Generate stored tailored resumes and cover letters directly from captured jobs on the Jobs page with previews, copy/download actions, ATS suggestions, and model metadata.",
+    "Keep persisted manual and extension-captured jobs visible on the Jobs page after refresh by appending stored scored jobs to fresh provider search results.",
+    "Verify production API health, database readiness, Gemini-enabled generation, migration-applied generation metadata, authenticated downloads, owner-scoped access, and extension-token capture with a throwaway live smoke test.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

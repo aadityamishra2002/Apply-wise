@@ -5,6 +5,7 @@ import ipaddress
 import json
 import re
 from secrets import token_urlsafe
+from types import SimpleNamespace
 from typing import Annotated
 from urllib.parse import urlparse
 from uuid import UUID
@@ -15,12 +16,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
-from app.application.jobs.ats import AtsAnalysisService, AtsWeights
+from app.application.jobs.ats import AtsAnalysisService, AtsResult, AtsWeights
 from app.application.exports.service import ResumeExportService, download_filename
 from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
@@ -765,10 +766,20 @@ async def search_jobs(
     )
     await session.commit()
     applications = await saved_applications_by_job(session, user.id, stored_job_ids)
-    return [
+    responses = [
         job_response(match, ats_results[match.job.id], approvals[match.job.id], applications.get(match.job.id))
         for match in matches
     ]
+    responses.extend(
+        await stored_scored_job_responses(
+            session,
+            user.id,
+            exclude_job_ids=set(stored_job_ids),
+            query=effective_query,
+            location=effective_location,
+        )
+    )
+    return responses
 
 
 @router.patch("/jobs/{job_id}/approval", response_model=dict[str, str])
@@ -2748,6 +2759,75 @@ async def saved_applications_by_job(session: AsyncSession, user_id: UUID, job_id
         return {}
     rows = await session.execute(select(Application).where(Application.user_id == user_id, Application.job_id.in_(job_ids)))
     return {application.job_id: application for application in rows.scalars()}
+
+
+async def stored_scored_job_responses(
+    session: AsyncSession,
+    user_id: UUID,
+    exclude_job_ids: set[UUID],
+    query: str,
+    location: str,
+) -> list[JobResponse]:
+    conditions = [JobMatch.user_id == user_id]
+    if exclude_job_ids:
+        conditions.append(JobMatch.job_id.notin_(list(exclude_job_ids)))
+    if query.strip():
+        pattern = f"%{query.strip()}%"
+        conditions.append(or_(Job.title.ilike(pattern), Job.company.ilike(pattern), Job.description.ilike(pattern)))
+    if location.strip():
+        conditions.append(Job.location.ilike(f"%{location.strip()}%"))
+    rows = (
+        await session.execute(
+            select(JobMatch, Job)
+            .join(Job, JobMatch.job_id == Job.id)
+            .where(*conditions)
+            .order_by(JobMatch.created_at.desc())
+            .limit(50)
+        )
+    ).all()
+    job_ids = [job.id for _match, job in rows]
+    applications = await saved_applications_by_job(session, user_id, job_ids)
+    return [stored_job_response(match, job, applications.get(job.id)) for match, job in rows]
+
+
+def stored_job_response(match: JobMatch, job: Job, application: Application | None = None) -> JobResponse:
+    experience_match = 90 if "senior" in job.title.lower() else 100
+    ats = AtsResult(
+        score=round(float(match.ats_score or 0)),
+        breakdown={str(key): round(float(value)) for key, value in (match.ats_breakdown or {}).items()},
+        recommendations=tuple(str(item) for item in (match.ats_recommendations or [])),
+    )
+    summary_match = SimpleNamespace(
+        matching_skills=list(match.matching_skills or []),
+        missing_skills=list(match.missing_skills or []),
+        experience_match=experience_match,
+    )
+    reasons = recommendation_reasons(summary_match, ats)
+    return JobResponse(
+        id=str(job.id),
+        title=job.title,
+        company=job.company,
+        location=job.location,
+        work_mode="Not specified",
+        salary=job.salary,
+        description=job.description,
+        source=job.source,
+        url=job.url,
+        posted_at=None,
+        match_score=round(float(match.match_score or 0)),
+        matching_skills=list(match.matching_skills or []),
+        missing_skills=list(match.missing_skills or []),
+        experience_match=experience_match,
+        ats_score=ats.score,
+        ats_breakdown=ats.breakdown,
+        ats_recommendations=list(ats.recommendations),
+        recommendation_summary=reasons[0],
+        recommendation_reasons=reasons,
+        high_fit=ats.score >= settings.ats_high_fit_threshold,
+        approval_status=match.approval_status,
+        saved=application is not None,
+        application_id=str(application.id) if application else None,
+    )
 
 
 def job_response(match, ats, approval_status: str = "review_required", application: Application | None = None) -> JobResponse:

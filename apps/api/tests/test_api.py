@@ -428,6 +428,13 @@ def test_manual_job_capture_is_scored_and_can_be_saved() -> None:
     approval = client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"})
     assert approval.status_code == 200
     assert approval.json()["approval_status"] == "approved"
+    refreshed_jobs = client.get("/api/v1/jobs?query=Platform%20Engineer&location=Remote", headers=headers)
+    assert refreshed_jobs.status_code == 200
+    refreshed_capture = next(job for job in refreshed_jobs.json() if job["id"] == captured.json()["id"])
+    assert refreshed_capture["title"] == "Platform Engineer"
+    assert refreshed_capture["saved"] is True
+    assert refreshed_capture["application_id"] == saved.json()["id"]
+    assert refreshed_capture["approval_status"] == "approved"
 
 
 def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
