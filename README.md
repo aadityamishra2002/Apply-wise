@@ -13,6 +13,24 @@ The maintained product guide is available in two formats:
 
 For day-to-day usage steps, see the [Apply Wise user guide](docs/USER_GUIDE.md).
 
+## Documentation Source Of Truth
+
+The project documentation is maintained as part of normal development. Future contributors should use these files before relying on chat history or assumptions:
+
+- [Developer guide](docs/DEVELOPER_GUIDE.md) - repo map, local setup, documentation rules, API ownership, database ownership, extension architecture, and 30-minute onboarding
+- [Feature map](docs/FEATURE_MAP.md) - where each major feature lives across backend, frontend, extension, and database tables
+- [Troubleshooting guide](docs/TROUBLESHOOTING.md) - common local, production, resume, generation, application, and extension failures
+- [Product status](docs/PRODUCT_STATUS.md) - shipped capabilities, beta readiness, current limitations, and testing instructions
+
+Documentation maintenance is required for every meaningful change:
+
+- New feature: update `FEATURE_MAP.md`, `PRODUCT_STATUS.md`, and `TROUBLESHOOTING.md` if a failure mode or support path was added.
+- New API endpoint: document request/response format, related files, and database tables touched.
+- New extension feature: update extension architecture notes, debugging steps, common failure modes, and the extension README.
+- New database migration: update the database map and table ownership notes.
+
+Before closing any development task, verify that the feature is implemented, tests are passing, and documentation is updated.
+
 ## Implemented
 
 - Responsive Next.js 15 SaaS interface deployed on Vercel
