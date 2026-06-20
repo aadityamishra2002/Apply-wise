@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   CalendarPlus,
@@ -449,7 +450,8 @@ export default function ApplicationsPage() {
         <section className="rounded-2xl border border-dashed border-[#d5dedb] bg-white p-8 text-center">
           <BriefcaseBusiness className="mx-auto text-[#91a09c]" />
           <h2 className="mt-3 text-[16px] font-bold">No applications yet</h2>
-          <p className="mt-2 text-[12px] text-[#71807c]">Save a recommended job to start your tracker.</p>
+          <p className="mx-auto mt-2 max-w-lg text-[12px] leading-5 text-[#71807c]">Capture a job with the extension or save a scored role from Jobs. Apply Wise helps prepare and track the application, but you still submit manually on LinkedIn, Easy Apply, or the employer site.</p>
+          <Link className="mt-4 inline-flex rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white" href="/jobs">Capture or save a job</Link>
         </section>
       )}
 

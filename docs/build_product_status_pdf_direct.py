@@ -68,7 +68,7 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated June 15, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Updated June 20, 2026  |  Live: https://apply-wise-1.vercel.app", small),
     Spacer(1, 4),
     para("What is live", heading),
     para("Apply Wise is a deployed web product for resume-aware job discovery, truthful application preparation, and pipeline tracking. Users can register publicly and maintain private workspaces."),
@@ -169,6 +169,10 @@ for item in [
     "Keep persisted manual and extension-captured jobs visible on the Jobs page after refresh by appending stored scored jobs to fresh provider search results.",
     "Verify production API health, database readiness, Gemini-enabled generation, migration-applied generation metadata, authenticated downloads, owner-scoped access, and extension-token capture with a throwaway live smoke test.",
     "Confirm post-deployment on Railway that captured jobs remain visible from the Jobs page after refresh with saved state and application ID preserved.",
+    "Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.",
+    "Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.",
+    "Bump the unpacked extension to version 0.3.3 with clearer token-expiry recovery and company-name manual fallback guidance.",
+    "Verify the live beta flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -199,6 +203,7 @@ for item in [
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Payment checkout, webhooks, and paid-plan activation are not connected.",
     "Assisted autofill is review-gated behind Review Application confirmation; direct file upload and real Playwright browser control remain future work.",
+    "Real authenticated LinkedIn extension capture still needs manual verification in the user's Brave or Chrome profile after each unpacked extension reload.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

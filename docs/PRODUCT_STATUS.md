@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 15, 2026
+**Last updated:** June 20, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -117,11 +117,16 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 95. Trim LinkedIn visible-text fallback descriptions before job alerts, Premium upsells, more-jobs sections, footer links, and language selectors.
 96. Generate stored tailored resumes and cover letters directly from the Jobs page after job capture, with previews, copy/download actions, missing-skills analysis, ATS suggestions, model metadata, and owner-scoped access.
 97. Keep persisted manual and extension-captured jobs visible in the Jobs page after refresh by appending the user's stored scored jobs to fresh provider search results.
+98. Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.
+99. Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.
+100. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance.
+101. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
 
 ## Production Verification Update
 
 Latest live smoke result:
 
+- June 20 beta-readiness smoke used a disposable production account and passed the main API-backed user flow.
 - Railway API health returned `ok`.
 - Railway database readiness returned `ready`, confirming PostgreSQL connectivity.
 - Gemini, Adzuna, and Remotive feature flags are enabled in production.
@@ -137,6 +142,11 @@ Latest live smoke result:
 - Extension pairing and extension job capture succeeded with a production extension token.
 - The deployed Jobs page bundle contains the `Generate Tailored Resume` and `Generate Cover Letter` actions.
 - Post-deployment smoke confirmed a captured job remains visible from `/jobs` after refresh, with saved state and application ID preserved.
+- The captured job returned match score, ATS score, matching skills, and missing skills in production.
+- Manual application submission remains enforced: marking Applied without confirmation returned `409`, while confirmed Applied status persisted after refresh.
+- Missing-resume extension capture returned a structured `missing_resume` error with a clear upload-resume action.
+- Owner-scoped generation returned `404` for another user trying to generate materials for the captured job.
+- The current beta-onboarding patch has been locally validated and will appear after the next Vercel/Railway deployment from `main`.
 
 Issue found and fixed:
 
@@ -151,6 +161,24 @@ Remaining production manual checks:
 - Confirm the captured LinkedIn job appears on the deployed Jobs page after a full browser refresh from that browser session.
 - Generate the tailored resume and cover letter from that captured job in the deployed web app.
 - Refresh the Jobs page and confirm generated artifacts remain downloadable from the Resume/Applications workspaces.
+
+## Beta Readiness Status
+
+Current status: **ready for controlled beta testing after the latest `main` deployment completes.**
+
+What is ready for beta:
+
+- Public registration/login, resume upload, live job search, manual job paste/import, extension capture, ATS/match scoring, application tracking, generated resume drafts, generated cover letters, authenticated downloads, activity timelines, and manual Applied tracking.
+- First-time users now see a practical checklist instead of guessing the next step.
+- Empty/error states now guide users toward resume upload, extension pairing, job capture, manual company correction, and manual submission.
+- The extension tells users how to recover from expired pairing tokens and how to manually fix missing company fields before sending.
+
+Still needs manual beta verification:
+
+- Reload the unpacked extension in the user's real Brave/Chrome profile and confirm the popup shows version `0.3.3`.
+- Capture a real LinkedIn job from the user's authenticated LinkedIn session and confirm the saved job appears in the deployed Jobs page.
+- Generate materials from that real captured job and review the output quality before using it externally.
+- Track any employer-site extraction/autofill misses with the debug report so selectors can be hardened quickly.
 
 ## Current Production Audit
 
@@ -307,6 +335,7 @@ cd apps\web
 cd ..\..
 & 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --check apps\extension\popup.js
 & 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' apps\extension\tests\extraction-regression.test.js
+& 'C:\Users\aadit\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' apps\extension\tests\manifest-popup-contract.test.js
 ```
 
 LinkedIn extension smoke test:

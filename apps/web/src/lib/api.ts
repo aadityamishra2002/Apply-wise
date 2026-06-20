@@ -129,9 +129,12 @@ export type DashboardSummary = {
   applications: number;
   interviews: number;
   saved_jobs: number;
+  applied_applications: number;
+  captured_jobs: number;
   average_match_score: number | null;
   weekly_activity: number[];
   has_resume: boolean;
+  has_extension_pairing: boolean;
   has_application_profile: boolean;
   prepared_applications: number;
   reviewed_applications: number;

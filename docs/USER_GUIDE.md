@@ -54,10 +54,11 @@ Pairing codes expire after 10 minutes. If pairing fails, generate a fresh code f
    - Job URL
    - Description
 6. If title, company, URL, or description is missing, paste or fix it directly in the extension popup.
-7. Check **Capture readiness**.
-8. Click **Send to Apply Wise**.
-9. Open Apply Wise and go to **Jobs**.
-10. Select the captured job.
+7. If a generic company career page misses the company name, copy the employer name from the page header or URL and paste it into the Company field.
+8. Check **Capture readiness**.
+9. Click **Send to Apply Wise**.
+10. Open Apply Wise and go to **Jobs**.
+11. Select the captured job.
 
 ## Use The Website Without The Extension
 

@@ -183,7 +183,7 @@ assert.strictEqual(fixtureManual.description, "");
 assert.strictEqual(fixtureManual.extractionLayer, "manual_required");
 const manualQuality = captureQuality(fixtureManual);
 assert(manualQuality.filter((item) => !item.ready && item.blocking).map((item) => item.label).includes("Job title"));
-assert(manualQuality.filter((item) => !item.ready && item.blocking).map((item) => item.label).includes("Company"));
+assert(manualQuality.filter((item) => !item.ready && item.blocking).some((item) => item.label.startsWith("Company is required")));
 
 const linkedInView = await runExtraction("https://www.linkedin.com/jobs/view/4425607893/", {
   title: "AI Senior Software Engineer | LinkedIn",
@@ -444,7 +444,7 @@ const blockedQuality = captureQuality({
 });
 const blockedLabels = blockedQuality.filter((item) => !item.ready).map((item) => item.label);
 assert(blockedLabels.includes("Job title"));
-assert(blockedLabels.includes("Company"));
+assert(blockedLabels.some((label) => label.startsWith("Company is required")));
 assert(blockedLabels.includes("Location"));
 assert(blockedLabels.includes("Description has useful detail"));
 assert(blockedLabels.includes("Description is focused on the job"));

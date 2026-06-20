@@ -232,9 +232,12 @@ class DashboardSummaryResponse(BaseModel):
     applications: int
     interviews: int
     saved_jobs: int
+    applied_applications: int
+    captured_jobs: int
     average_match_score: float | None
     weekly_activity: list[int]
     has_resume: bool
+    has_extension_pairing: bool
     has_application_profile: bool
     prepared_applications: int
     reviewed_applications: int
@@ -597,7 +600,26 @@ async def dashboard_summary(
             Application.status == ApplicationStatus.SAVED,
         )
     )
+    applied_applications = await session.scalar(
+        select(func.count()).select_from(Application).where(
+            Application.user_id == user.id,
+            Application.status.in_([ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEW, ApplicationStatus.OFFER]),
+        )
+    )
+    captured_jobs = await session.scalar(
+        select(func.count()).select_from(ActivityLog).where(
+            ActivityLog.user_id == user.id,
+            ActivityLog.event_type.in_(["job_captured", "extension_job_captured"]),
+        )
+    )
     has_resume = await ResumeService(session).get_active(user.id) is not None
+    has_extension_pairing = bool(
+        await session.scalar(
+            select(func.count())
+            .select_from(ExtensionPairingCode)
+            .where(ExtensionPairingCode.user_id == user.id, ExtensionPairingCode.used_at.is_not(None))
+        )
+    )
     user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
     has_application_profile = bool(user_profile and (user_profile.full_name or user_profile.phone or user_profile.linkedin_url or user_profile.github_url or user_profile.portfolio_url))
     prepared_applications = await session.scalar(
@@ -631,9 +653,12 @@ async def dashboard_summary(
         applications=applications or 0,
         interviews=interviews or 0,
         saved_jobs=saved_jobs or 0,
+        applied_applications=applied_applications or 0,
+        captured_jobs=captured_jobs or 0,
         average_match_score=round(float(average_match_score), 1) if average_match_score is not None else None,
         weekly_activity=weekly_activity,
         has_resume=has_resume,
+        has_extension_pairing=has_extension_pairing,
         has_application_profile=has_application_profile,
         prepared_applications=prepared_applications or 0,
         reviewed_applications=reviewed_applications or 0,

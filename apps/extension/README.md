@@ -2,7 +2,7 @@
 
 This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It can inspect common application-form fields and fill user-approved fields from an Apply Wise autofill plan. It never submits applications.
 
-Current extension version: `0.3.2`.
+Current extension version: `0.3.3`.
 
 ## Install Locally
 
@@ -26,7 +26,7 @@ Manifest V3 note: the extension intentionally does not use persistent `content_s
 1. Open a job page.
 2. Click the Apply Wise extension.
 3. Review the extracted title, company, location, URL, and description.
-4. Review **Capture readiness**. Fix any required field marked **Needs review** or click **Re-extract current page** after opening the full job description. Location is optional.
+4. Review **Capture readiness**. Fix any required field marked **Needs review** or click **Re-extract current page** after opening the full job description. Company is required; paste the employer name manually if a generic page misses it. Location is optional.
 5. Review **Extraction diagnostics** and **LinkedIn debug report** to see which layer produced the title, company, location, description, token/backend status, response body, and validation errors.
 6. Click **Send to Apply Wise** after all readiness checks pass.
 7. Open Apply Wise, prepare the application materials, and review the generated resume and cover letter.
@@ -71,7 +71,7 @@ Manual LinkedIn smoke checklist:
 1. Open `brave://extensions`.
 2. Enable **Developer mode**.
 3. Find **Apply Wise Job Capture** and click **Reload**.
-4. Confirm the popup shows version `0.3.2`.
+4. Confirm the popup shows version `0.3.3`.
 5. Open a LinkedIn job detail page, for example `https://www.linkedin.com/jobs/view/4424855234/`.
 6. Click the extension and confirm title, company, URL, and description are filled. Location may be blank if LinkedIn hides it.
 7. If anything required is blank, paste/fix it directly in the popup.

@@ -55,7 +55,11 @@ export default function JobsPage() {
 
   useEffect(() => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      setError("Log in again to load jobs and captured roles.");
+      return;
+    }
     void Promise.all([loadResumeProfile(token).catch(() => null), loadJobRecommendations(token)])
       .then(([profile, items]) => {
         setHasResume(Boolean(profile));
@@ -155,7 +159,8 @@ export default function JobsPage() {
       setGeneratedResume(version);
       setGenerationStatus("Tailored resume generated and stored.");
     } catch (generateError) {
-      setError(generateError instanceof Error ? generateError.message : "Could not generate a tailored resume.");
+      const message = generateError instanceof Error ? generateError.message : "Could not generate a tailored resume.";
+      setError(`${message} Confirm your master resume is uploaded and the job has a complete title, company, URL, and description.`);
     } finally {
       setPreparing(null);
     }
@@ -172,7 +177,8 @@ export default function JobsPage() {
       setGeneratedCoverLetter(letter);
       setGenerationStatus("Cover letter generated and stored.");
     } catch (generateError) {
-      setError(generateError instanceof Error ? generateError.message : "Could not generate a cover letter.");
+      const message = generateError instanceof Error ? generateError.message : "Could not generate a cover letter.";
+      setError(`${message} Confirm your master resume is uploaded and the job has a complete title, company, URL, and description.`);
     } finally {
       setPreparing(null);
     }
@@ -225,11 +231,12 @@ export default function JobsPage() {
               <p className="text-[11px] leading-5 text-[#71807c] sm:col-span-2">If a site blocks server-side import, paste the details below or use the browser extension.</p>
             </div>
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, title: event.target.value })} placeholder="Job title" value={manualJob.title} />
-            <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, company: event.target.value })} placeholder="Company" value={manualJob.company} />
+            <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, company: event.target.value })} placeholder="Company (required)" value={manualJob.company} />
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, location: event.target.value })} placeholder="Location" value={manualJob.location} />
             <input className="rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px]" onChange={(event) => setManualJob({ ...manualJob, url: event.target.value })} placeholder="Job page URL" value={manualJob.url} />
             <textarea className="min-h-28 rounded-lg border border-[#dce7e2] px-3 py-2 text-[12px] sm:col-span-2" onChange={(event) => setManualJob({ ...manualJob, description: event.target.value })} placeholder="Paste the job description" value={manualJob.description} />
-            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white sm:col-span-2" onClick={() => void captureJob()} type="button">Score captured job</button>
+            <p className="text-[11px] leading-5 text-[#71807c] sm:col-span-2">If a generic career page misses the company, copy it from the page header or employer site and paste it here before scoring.</p>
+            <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60 sm:col-span-2" disabled={!manualJob.title.trim() || !manualJob.company.trim() || !manualJob.url.trim() || manualJob.description.trim().length < 40} onClick={() => void captureJob()} type="button">Score captured job</button>
           </div>
         ) : null}
       </div>
@@ -366,13 +373,13 @@ export default function JobsPage() {
       ) : (
         <section className="rounded-2xl border border-[#e4e8e3] bg-white p-8 text-center small-shadow">
           <Search className="mx-auto text-[#91a09c]" />
-          <h2 className="mt-4 text-[17px] font-bold">{hasResume ? "No matching jobs found yet" : "Upload your resume first"}</h2>
+          <h2 className="mt-4 text-[17px] font-bold">{hasResume ? "No jobs captured or matched yet" : "Upload your resume first"}</h2>
           <p className="mx-auto mt-2 max-w-xl text-[13px] text-[#71807c]">
             {hasResume
               ? searchAttempted
-                ? "Try a broader role keyword, remove the location filter, or paste a job description from any career page to score it directly."
-                : "Your resume is ready. Search by role, location, or paste a job from a career page to get ATS and match scoring."
-              : "Recommendations are scored from your persisted resume evidence, so upload your master resume before searching."}
+                ? "Try a broader role keyword, remove the location filter, paste a job description, or capture a job with the browser extension."
+                : "Your resume is ready. Search by role, paste a job, or use the browser extension to capture LinkedIn and employer-site roles."
+              : "Recommendations, ATS scores, and generated drafts need your persisted resume evidence. Upload your master resume before searching or capturing jobs."}
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link className="inline-flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white" href={hasResume ? "/jobs" : "/resume"}><FileText size={15} />{hasResume ? "Search again" : "Add resume"}</Link>

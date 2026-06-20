@@ -388,7 +388,7 @@ function captureQuality(payload) {
   const noisePattern = /(recommended jobs|similar jobs|more jobs|job alert|linkedin premium|premium access|reactivate premium|try premium|notifications|language selector|select language|sign in to create job alert|people also viewed|footer|referrals increase your chances|can't find top talent|post a job|linkedin corporation)/i;
   return [
     { label: "Job title", ready: Boolean(payload.title), blocking: true },
-    { label: "Company", ready: Boolean(payload.company), blocking: true },
+    { label: "Company is required. Paste the employer name if the page extractor missed it.", ready: Boolean(payload.company), blocking: true },
     { label: "Location", ready: Boolean(payload.location), blocking: false },
     { label: "Job URL", ready: Boolean(payload.url) && /^https?:\/\//.test(payload.url), blocking: true },
     { label: "Description has at least 40 characters", ready: description.length >= 40, blocking: true },

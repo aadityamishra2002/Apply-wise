@@ -101,9 +101,12 @@ def test_dashboard_summary_starts_empty() -> None:
         "applications": 0,
         "interviews": 0,
         "saved_jobs": 0,
+        "applied_applications": 0,
+        "captured_jobs": 0,
         "average_match_score": None,
         "weekly_activity": [0, 0, 0, 0, 0, 0, 0],
         "has_resume": False,
+        "has_extension_pairing": False,
         "has_application_profile": False,
         "prepared_applications": 0,
         "reviewed_applications": 0,
@@ -623,9 +626,11 @@ def test_extension_pairing_code_is_one_time_and_token_is_capture_scoped() -> Non
     pairing = client.post("/api/v1/extension/pairing-codes", headers=headers)
     assert pairing.status_code == 201
     code = pairing.json()["code"]
+    assert client.get("/api/v1/dashboard/summary", headers=headers).json()["has_extension_pairing"] is False
 
     exchanged = client.post("/api/v1/extension/pair", json={"code": code})
     assert exchanged.status_code == 200
+    assert client.get("/api/v1/dashboard/summary", headers=headers).json()["has_extension_pairing"] is True
     extension_headers = {"Authorization": f"Bearer {exchanged.json()['extension_token']}"}
     captured = client.post(
         "/api/v1/extension/jobs/capture",
@@ -928,6 +933,7 @@ def test_application_status_update_changes_dashboard_summary() -> None:
     assert summary["applications"] == 1
     assert summary["interviews"] == 1
     assert summary["saved_jobs"] == 0
+    assert summary["applied_applications"] == 1
     assert sum(summary["weekly_activity"]) == 1
     analytics = client.get("/api/v1/analytics/summary", headers=headers).json()
     assert analytics["total_applications"] == 1

@@ -8,7 +8,7 @@ const popupHtml = fs.readFileSync(path.join(extensionRoot, "popup.html"), "utf8"
 const popupJs = fs.readFileSync(path.join(extensionRoot, "popup.js"), "utf8");
 
 assert.strictEqual(manifest.manifest_version, 3);
-assert.strictEqual(manifest.version, "0.3.2");
+assert.strictEqual(manifest.version, "0.3.3");
 assert.deepStrictEqual(manifest.action, {
   default_title: "Capture job with Apply Wise",
   default_popup: "popup.html",
