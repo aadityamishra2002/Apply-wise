@@ -173,6 +173,7 @@ for item in [
     "Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.",
     "Bump the unpacked extension to version 0.3.3 with clearer token-expiry recovery and company-name manual fallback guidance.",
     "Verify the live beta flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.",
+    "Confirm Railway serves the beta dashboard-summary fields and Vercel client chunks include the updated dashboard, Jobs, and Applications guidance.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [

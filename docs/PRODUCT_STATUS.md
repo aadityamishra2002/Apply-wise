@@ -146,7 +146,7 @@ Latest live smoke result:
 - Manual application submission remains enforced: marking Applied without confirmation returned `409`, while confirmed Applied status persisted after refresh.
 - Missing-resume extension capture returned a structured `missing_resume` error with a clear upload-resume action.
 - Owner-scoped generation returned `404` for another user trying to generate materials for the captured job.
-- The current beta-onboarding patch has been locally validated and will appear after the next Vercel/Railway deployment from `main`.
+- The current beta-onboarding patch is deployed: Railway serves the new dashboard-summary fields and Vercel client chunks include the updated dashboard, Jobs, and Applications guidance.
 
 Issue found and fixed:
 
@@ -164,7 +164,7 @@ Remaining production manual checks:
 
 ## Beta Readiness Status
 
-Current status: **ready for controlled beta testing after the latest `main` deployment completes.**
+Current status: **ready for controlled beta testing.**
 
 What is ready for beta:
 
