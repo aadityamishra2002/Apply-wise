@@ -118,11 +118,12 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 96. Generate stored tailored resumes and cover letters directly from the Jobs page after job capture, with previews, copy/download actions, missing-skills analysis, ATS suggestions, model metadata, and owner-scoped access.
 97. Keep persisted manual and extension-captured jobs visible in the Jobs page after refresh by appending the user's stored scored jobs to fresh provider search results.
 98. Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.
-99. Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.
-100. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance.
-101. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
-102. Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.
-103. Add resume template management with DOCX template upload, active-template selection, rename/delete controls, active-template preview, template-aware tailored-resume generation, generated-version template provenance, and DOCX/PDF downloads that resolve selected template, active fallback template, or the built-in ATS-friendly template.
+99. Show explicit Assisted Apply readiness blockers and next steps for approval, prepared materials, Review Application confirmation, site autofill support, and manual final submission.
+100. Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.
+101. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance.
+102. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
+103. Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.
+104. Add resume template management with DOCX template upload, active-template selection, rename/delete controls, active-template preview, template-aware tailored-resume generation, generated-version template provenance, and DOCX/PDF downloads that resolve selected template, active fallback template, or the built-in ATS-friendly template.
 
 ## Resume Template System Verification Update
 

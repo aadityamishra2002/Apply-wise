@@ -45,6 +45,12 @@ export type AssistedApplicationChecklist = {
   resume_version_id: string | null;
   cover_letter_prepared: boolean;
   cover_letter_id: string | null;
+  review_confirmed: boolean;
+  autofill_supported: boolean;
+  resume_upload_supported: boolean;
+  ready_for_assisted_apply: boolean;
+  blocking_reasons: string[];
+  next_steps: string[];
   target_url: string;
   manual_final_submission_required: boolean;
 };

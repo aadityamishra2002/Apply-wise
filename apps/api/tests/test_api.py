@@ -1234,17 +1234,24 @@ def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -
     checklist_url = f"/api/v1/applications/{application['id']}/assisted-checklist"
     checklist = client.get(checklist_url, headers=headers)
     assert checklist.status_code == 200
-    assert checklist.json() == {
-        "application_id": application["id"],
-        "duplicate_prevention": True,
-        "ats_approved": False,
-        "resume_prepared": False,
-        "resume_version_id": None,
-        "cover_letter_prepared": False,
-        "cover_letter_id": None,
-        "target_url": job["url"],
-        "manual_final_submission_required": True,
-    }
+    initial = checklist.json()
+    assert initial["application_id"] == application["id"]
+    assert initial["duplicate_prevention"] is True
+    assert initial["ats_approved"] is False
+    assert initial["resume_prepared"] is False
+    assert initial["resume_version_id"] is None
+    assert initial["cover_letter_prepared"] is False
+    assert initial["cover_letter_id"] is None
+    assert initial["review_confirmed"] is False
+    assert initial["autofill_supported"] is False
+    assert initial["resume_upload_supported"] is False
+    assert initial["ready_for_assisted_apply"] is False
+    assert "Approve this role" in " ".join(initial["blocking_reasons"])
+    assert "Generate a tailored resume" in " ".join(initial["blocking_reasons"])
+    assert "Confirm the Review Application" in " ".join(initial["blocking_reasons"])
+    assert "not supported" in " ".join(initial["blocking_reasons"])
+    assert initial["target_url"] == job["url"]
+    assert initial["manual_final_submission_required"] is True
 
     approval = client.patch(f"/api/v1/jobs/{job['id']}/approval", headers=headers, json={"approval_status": "approved"})
     assert approval.status_code == 200
@@ -1255,6 +1262,10 @@ def test_assisted_application_checklist_tracks_readiness_without_auto_submit() -
     assert prepared["resume_version_id"]
     assert prepared["cover_letter_prepared"] is True
     assert prepared["cover_letter_id"]
+    assert prepared["review_confirmed"] is False
+    assert prepared["ready_for_assisted_apply"] is False
+    assert "Confirm the Review Application" in " ".join(prepared["blocking_reasons"])
+    assert "not supported" in " ".join(prepared["blocking_reasons"])
     assert prepared["manual_final_submission_required"] is True
 
 
@@ -1413,6 +1424,13 @@ def test_review_before_apply_packages_materials_and_manual_attention() -> None:
     confirmed_review = client.post(f"/api/v1/applications/{saved['id']}/review-before-apply/confirm", headers=headers)
     assert confirmed_review.status_code == 200
     assert confirmed_review.json()["review_confirmed"] is True
+    assert client.patch(f"/api/v1/jobs/{captured.json()['id']}/approval", headers=headers, json={"approval_status": "approved"}).status_code == 200
+    ready_checklist = client.get(f"/api/v1/applications/{saved['id']}/assisted-checklist", headers=headers).json()
+    assert ready_checklist["review_confirmed"] is True
+    assert ready_checklist["autofill_supported"] is True
+    assert ready_checklist["ready_for_assisted_apply"] is True
+    assert ready_checklist["blocking_reasons"] == []
+    assert "extension autofill plan" in " ".join(ready_checklist["next_steps"])
     summary = client.get("/api/v1/dashboard/summary", headers=headers).json()
     assert summary["has_resume"] is True
     assert summary["prepared_applications"] == 1

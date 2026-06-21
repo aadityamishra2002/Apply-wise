@@ -288,6 +288,12 @@ class AssistedApplicationChecklistResponse(BaseModel):
     resume_version_id: str | None
     cover_letter_prepared: bool
     cover_letter_id: str | None
+    review_confirmed: bool
+    autofill_supported: bool
+    resume_upload_supported: bool
+    ready_for_assisted_apply: bool
+    blocking_reasons: list[str]
+    next_steps: list[str]
     target_url: str
     manual_final_submission_required: bool = True
 
@@ -1702,14 +1708,47 @@ async def assisted_application_checklist(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     application, job, match = result
+    capability = capability_for_url(job.url)
+    review_confirmed = bool(
+        await session.scalar(
+            select(func.count())
+            .select_from(ApplicationEvent)
+            .where(ApplicationEvent.application_id == application.id, ApplicationEvent.event_type == "review_before_apply_confirmed")
+        )
+    )
+    ats_approved = bool(match and match.approval_status == "approved")
+    resume_prepared = application.resume_version_id is not None
+    cover_letter_prepared = application.cover_letter_id is not None
+    blocking_reasons: list[str] = []
+    next_steps: list[str] = []
+    if not ats_approved:
+        blocking_reasons.append("Approve this role from Jobs before assisted application.")
+        next_steps.append("Review the job match and approve the role if you want to proceed.")
+    if not resume_prepared or not cover_letter_prepared:
+        blocking_reasons.append("Generate a tailored resume and cover letter before filling employer forms.")
+        next_steps.append("Use Prepare materials to generate truthful application drafts.")
+    if not review_confirmed:
+        blocking_reasons.append("Confirm the Review Application package before loading extension autofill.")
+        next_steps.append("Open Review Application and confirm that the job, materials, fields, and warnings were reviewed.")
+    if not capability.autofill_supported:
+        blocking_reasons.append("Assisted autofill is not supported for this employer site yet.")
+        next_steps.append("Use Apply Wise materials, then fill the employer form manually.")
+    if not blocking_reasons:
+        next_steps.append("Open the employer page, load the extension autofill plan, preview fields, approve filling, then submit manually.")
     return AssistedApplicationChecklistResponse(
         application_id=str(application.id),
         duplicate_prevention=True,
-        ats_approved=bool(match and match.approval_status == "approved"),
-        resume_prepared=application.resume_version_id is not None,
+        ats_approved=ats_approved,
+        resume_prepared=resume_prepared,
         resume_version_id=str(application.resume_version_id) if application.resume_version_id else None,
-        cover_letter_prepared=application.cover_letter_id is not None,
+        cover_letter_prepared=cover_letter_prepared,
         cover_letter_id=str(application.cover_letter_id) if application.cover_letter_id else None,
+        review_confirmed=review_confirmed,
+        autofill_supported=capability.autofill_supported,
+        resume_upload_supported=capability.resume_upload_supported,
+        ready_for_assisted_apply=not blocking_reasons,
+        blocking_reasons=blocking_reasons,
+        next_steps=next_steps,
         target_url=job.url,
     )
 

@@ -3,7 +3,7 @@
 ## Last Reviewed
 
 - Date: 2026-06-21
-- Commit: cd6e0a6
+- Commit: 85e6f04
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -29,7 +29,7 @@ This file maps major product features to the code and data they use. Update it w
 | Generated artifact download | Jobs/Application preview actions | Resume export and cover-letter download endpoints | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `cover_letters`, `application_events` |
 | Application tracking | Applications board | Application routes in `router.py` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `interviews` |
 | Mark as Applied | Applications board confirmation | `PATCH /applications/{id}` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `activity_logs` |
-| Review Application | Application detail workflow | Review endpoints in `router.py` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `resume_versions`, `cover_letters` |
+| Review Application and Assisted Apply readiness | Application detail workflow | `GET /applications/{id}/review-before-apply`, `POST /applications/{id}/review-before-apply/confirm`, `GET /applications/{id}/assisted-checklist` in `router.py` | `apps/web/src/app/applications/page.tsx`, `apps/web/src/lib/api.ts` | `applications`, `application_events`, `job_matches`, `resume_versions`, `cover_letters` |
 | Assisted autofill plan | Extension after Review Application confirmation | `GET /extension/applications/{id}/autofill-plan` | `apps/extension/popup.js` | `user_profiles`, resume tables, `application_events` |
 | Extension resume download for upload | Extension PDF/DOCX download buttons | `GET /extension/applications/{id}/resume-download` | `apps/extension/popup.js` | `resume_versions`, `application_events` |
 | Application profile | Settings page | `GET/PUT /settings/profile` | `apps/web/src/app/settings/page.tsx` | `user_profiles` |

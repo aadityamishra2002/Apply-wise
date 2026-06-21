@@ -383,6 +383,7 @@ export default function ApplicationsPage() {
   const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
   const preparedCoverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
   const selectedIsApplied = selected?.status === "applied" || selected?.status === "interview" || selected?.status === "offer";
+  const guidedReadyCount = checklist ? [checklist.ats_approved, checklist.resume_prepared, checklist.cover_letter_prepared, checklist.review_confirmed, checklist.autofill_supported, selectedIsApplied].filter(Boolean).length : 0;
   const archivedStatuses = new Set(["rejected", "withdrawn"]);
   const visibleApplications = applications.filter((application) => showArchived ? archivedStatuses.has(application.status) : !archivedStatuses.has(application.status));
   const archivedCount = applications.filter((application) => archivedStatuses.has(application.status)).length;
@@ -462,14 +463,34 @@ export default function ApplicationsPage() {
               <h2 className="text-[16px] font-bold">Guided application workflow</h2>
               <p className="mt-1 text-[12px] text-[#71807c]">Prepare truthful materials, review the employer page, then mark the role applied after you submit manually.</p>
             </div>
-            <p className="rounded-full bg-[#f6f8f5] px-3 py-1 text-[11px] font-bold text-[#176b5b]">{[checklist.ats_approved, checklist.resume_prepared, checklist.cover_letter_prepared, selectedIsApplied].filter(Boolean).length}/4 ready</p>
+            <p className={`rounded-full px-3 py-1 text-[11px] font-bold ${checklist.ready_for_assisted_apply ? "bg-[#e8f4ef] text-[#176b5b]" : "bg-[#fff4ef] text-[#a34f3f]"}`}>{checklist.ready_for_assisted_apply ? "Assisted apply ready" : `${guidedReadyCount}/6 ready`}</p>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <WorkflowStep label="Approve 80+ ATS role" ready={checklist.ats_approved} detail="Approve high-fit roles from the Jobs page before preparing." />
-            <WorkflowStep label="Prepare resume and cover letter" ready={checklist.resume_prepared && checklist.cover_letter_prepared} detail="Drafts use only your stored resume evidence." />
-            <WorkflowStep label="Review employer page" ready={Boolean(checklist.target_url)} detail="Open the job page and review fields before submitting." />
+            <WorkflowStep label="Prepare resume" ready={checklist.resume_prepared} detail="Use only verified resume evidence for tailored content." />
+            <WorkflowStep label="Prepare cover letter" ready={checklist.cover_letter_prepared} detail="Review the draft before using it on the employer site." />
+            <WorkflowStep label="Confirm application review" ready={checklist.review_confirmed} detail="Review job details, scores, materials, fields, and warnings first." />
+            <WorkflowStep label="Extension autofill support" ready={checklist.autofill_supported} detail={checklist.autofill_supported ? "Preview and approve fields in the extension." : "Use manual entry for this employer site."} />
             <WorkflowStep label="Mark applied after submission" ready={Boolean(selectedIsApplied)} detail="This stores your first applied date for analytics." />
           </div>
+          {checklist.blocking_reasons.length ? (
+            <div className="mt-4 rounded-xl bg-[#fff4ef] p-4">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#a34f3f]">Before assisted filling</h3>
+              <div className="mt-2 space-y-2">
+                {checklist.blocking_reasons.map((reason) => <p className="text-[12px] font-bold text-[#a34f3f]" key={reason}>{reason}</p>)}
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl bg-[#e8f4ef] p-4 text-[12px] font-bold text-[#176b5b]">Ready for assisted filling. The extension still requires preview and approval, and final submission stays manual.</p>
+          )}
+          {checklist.next_steps.length ? (
+            <div className="mt-4 rounded-xl bg-[#f6f8f5] p-4">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#71807c]">Next step</h3>
+              <div className="mt-2 space-y-2">
+                {checklist.next_steps.map((step) => <p className="text-[12px] leading-5 text-[#65736f]" key={step}>{step}</p>)}
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void prepare(selected.id)}><WandSparkles size={13} />Prepare materials</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={updating === selected.id} onClick={() => void queuePrepareRun()}><Clock3 size={13} />Queue prepare run</button>

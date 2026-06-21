@@ -56,7 +56,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Distinct ATS-readiness scoring with keyword, section, formatting, and parse-readiness breakdowns
 - ATS keyword fallback that extracts important skills and job terms from descriptions when provider data is sparse
 - Persisted `80+` ATS review queue with explicit approve or dismiss controls
-- Duplicate-application prevention and an assisted-application readiness checklist with manual final submission
+- Duplicate-application prevention and an assisted-application readiness checklist with explicit blockers, next steps, and manual final submission
 - Dry-run automation adapter registry for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, and generic career pages
 - Application-level dry-run plans with per-site capability flags and a hard stop before final submit
 - Tracked assisted-application dry-run records with blocked/ready status, warnings, next actions, and audit timeline events
@@ -68,7 +68,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Extension field detection uses ARIA-linked labels, nearby question text, and common employer-form data attributes
 - LinkedIn extraction uses scoped selectors, meta tags, JSON-LD, visible-text fallback, editable manual fallback, copyable debug reports, direct/recommended-job URL support, and structured backend capture errors
 - Site-aware extension capture for LinkedIn, Indeed, Naukri, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages
-- Guided application workflow for approve, prepare, download, employer-page review, and applied-date tracking
+- Guided application workflow for approve, prepare, Review Application confirmation, extension autofill readiness, download, employer-page review, and applied-date tracking
 - Saved-job deep links from recommendations into the exact application workflow
 - Persisted saved-job state in recommendations and manual capture handoff
 - Saved jobs, application statuses, dashboard metrics, and application analytics
