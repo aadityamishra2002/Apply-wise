@@ -35,13 +35,15 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_resume_templates_user_id"), "resume_templates", ["user_id"])
     op.create_index(op.f("ix_resume_templates_is_active"), "resume_templates", ["is_active"])
-    op.add_column("resume_versions", sa.Column("template_id", sa.Uuid(), nullable=True))
-    op.create_foreign_key("fk_resume_versions_template_id_resume_templates", "resume_versions", "resume_templates", ["template_id"], ["id"])
+    with op.batch_alter_table("resume_versions") as batch_op:
+        batch_op.add_column(sa.Column("template_id", sa.Uuid(), nullable=True))
+        batch_op.create_foreign_key("fk_resume_versions_template_id_resume_templates", "resume_templates", ["template_id"], ["id"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_resume_versions_template_id_resume_templates", "resume_versions", type_="foreignkey")
-    op.drop_column("resume_versions", "template_id")
+    with op.batch_alter_table("resume_versions") as batch_op:
+        batch_op.drop_constraint("fk_resume_versions_template_id_resume_templates", type_="foreignkey")
+        batch_op.drop_column("template_id")
     op.drop_index(op.f("ix_resume_templates_is_active"), table_name="resume_templates")
     op.drop_index(op.f("ix_resume_templates_user_id"), table_name="resume_templates")
     op.drop_table("resume_templates")
