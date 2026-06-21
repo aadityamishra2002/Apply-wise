@@ -3,7 +3,7 @@
 ## Last Reviewed
 
 - Date: 2026-06-21
-- Commit: 85e6f04
+- Commit: 2f99720
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
