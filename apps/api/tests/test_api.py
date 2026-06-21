@@ -8,6 +8,7 @@ import httpx
 import jwt
 import pytest
 from docx import Document
+from docx.shared import Inches, Pt
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -493,6 +494,154 @@ def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
     assert review.status_code == 200
     assert review.json()["resume_version_id"] == resume_body["id"]
     assert review.json()["cover_letter_id"] == letter_body["id"]
+
+
+def test_resume_template_upload_select_rename_delete_and_preview() -> None:
+    token = register_user("template-owner@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+
+    templates = client.get("/api/v1/resume-templates", headers=headers)
+    assert templates.status_code == 200
+    assert templates.json()[0]["id"] == "default"
+    assert templates.json()[0]["is_active"] is True
+
+    uploaded = client.post(
+        "/api/v1/resume-templates",
+        headers=headers,
+        files={"file": ("controlled-template.docx", make_resume_template_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert uploaded.status_code == 201
+    template = uploaded.json()
+    assert template["is_active"] is True
+    assert template["source"] == "custom"
+    assert "SUMMARY" in template["placeholders"]
+    assert "EXPERIENCE" in template["placeholders"]
+
+    preview = client.get("/api/v1/resume-templates/active/preview", headers=headers)
+    assert preview.status_code == 200
+    assert preview.json()["template"]["id"] == template["id"]
+    assert preview.json()["section_order"][:2] == ["SUMMARY", "EXPERIENCE"]
+    assert "SKILLS" in preview.json()["missing_placeholders"]
+    assert preview.json()["preview"]["EXPERIENCE"]
+
+    renamed = client.patch(f"/api/v1/resume-templates/{template['id']}", headers=headers, json={"name": "Founder Resume Layout"})
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "Founder Resume Layout"
+
+    selected_default = client.post("/api/v1/resume-templates/default/select", headers=headers)
+    assert selected_default.status_code == 200
+    assert selected_default.json()["is_active"] is True
+    selected_custom = client.patch(f"/api/v1/resume-templates/{template['id']}/activate", headers=headers)
+    assert selected_custom.status_code == 200
+    assert selected_custom.json()["is_active"] is True
+
+    deleted = client.delete(f"/api/v1/resume-templates/{template['id']}", headers=headers)
+    assert deleted.status_code == 204
+    after_delete = client.get("/api/v1/resume-templates", headers=headers)
+    assert [item["id"] for item in after_delete.json()] == ["default"]
+    assert after_delete.json()[0]["is_active"] is True
+
+
+def test_resume_generation_exports_with_selected_template_and_default_fallback() -> None:
+    token = register_user("template-generation@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    uploaded = client.post(
+        "/api/v1/resume-templates/upload",
+        headers=headers,
+        files={"file": ("controlled-template.docx", make_resume_template_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert uploaded.status_code == 201
+    template_id = uploaded.json()["id"]
+    assert client.patch(f"/api/v1/resume-templates/{template_id}", headers=headers, json={"name": "Controlled Layout"}).status_code == 200
+
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Platform Engineer",
+            "company": "Example Career Site",
+            "location": "Remote",
+            "url": "https://example.com/careers/template-platform-engineer",
+            "description": "Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.",
+        },
+    )
+    assert captured.status_code == 201
+    resume = client.post(f"/api/v1/jobs/{captured.json()['id']}/resume-versions", headers=headers)
+    assert resume.status_code == 201
+    body = resume.json()
+    assert body["template_id"] == template_id
+    assert body["template_name"] == "Controlled Layout"
+    assert body["resume_content"]["projects"]
+    assert body["resume_content"]["education"]
+    assert body["resume_content"]["certifications"]
+
+    docx = client.get(f"/api/v1/resume-versions/{body['id']}/download?format=docx", headers=headers)
+    assert docx.status_code == 200
+    rendered = Document(BytesIO(docx.content))
+    rendered_text = "\n".join(paragraph.text for paragraph in rendered.paragraphs)
+    assert "{{" not in rendered_text
+    assert "Northstar Labs" in rendered_text
+    assert "Apply Wise Copilot" in rendered_text
+    assert "State University" in rendered_text
+    summary_paragraph = next(paragraph for paragraph in rendered.paragraphs if "Product engineer" in paragraph.text)
+    assert summary_paragraph.runs[0].bold is True
+    assert any(paragraph.style.name == "List Bullet" and "Senior Product Engineer" in paragraph.text for paragraph in rendered.paragraphs)
+
+    pdf = client.get(f"/api/v1/resume-versions/{body['id']}/download?format=pdf", headers=headers)
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"].startswith("application/pdf")
+    pdf_document = fitz.open(stream=pdf.content, filetype="pdf")
+    pdf_text = "\n".join(page.get_text() for page in pdf_document)
+    pdf_document.close()
+    assert "Northstar Labs" in pdf_text
+    assert "Apply Wise Copilot" in pdf_text
+
+    assert client.delete(f"/api/v1/resume-templates/{template_id}", headers=headers).status_code == 204
+    fallback_docx = client.get(f"/api/v1/resume-versions/{body['id']}/download?format=docx", headers=headers)
+    assert fallback_docx.status_code == 200
+    fallback_rendered = Document(BytesIO(fallback_docx.content))
+    fallback_text = "\n".join(paragraph.text for paragraph in fallback_rendered.paragraphs)
+    assert "Built-In" not in fallback_text
+    assert "Northstar Labs" in fallback_text
+    exported = client.get("/api/v1/account/export", headers=headers)
+    assert exported.status_code == 200
+    assert exported.json()["resume_versions"][0]["template_id"] is None
+
+
+def test_resume_download_uses_active_template_when_version_has_no_template_id() -> None:
+    token = register_user("template-active-fallback@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Backend Engineer",
+            "company": "Fallback Example",
+            "location": "Remote",
+            "url": "https://example.com/careers/template-fallback-engineer",
+            "description": "Build Python and FastAPI APIs with PostgreSQL and Docker.",
+        },
+    )
+    assert captured.status_code == 201
+    resume = client.post(f"/api/v1/jobs/{captured.json()['id']}/resume-versions", headers=headers)
+    assert resume.status_code == 201
+    assert resume.json()["template_id"] is None
+    uploaded = client.post(
+        "/api/v1/resume-templates/upload",
+        headers=headers,
+        files={"file": ("controlled-template.docx", make_resume_template_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert uploaded.status_code == 201
+
+    docx = client.get(f"/api/v1/resume-versions/{resume.json()['id']}/download?format=docx", headers=headers)
+    assert docx.status_code == 200
+    rendered = Document(BytesIO(docx.content))
+    rendered_text = "\n".join(paragraph.text for paragraph in rendered.paragraphs)
+    assert "Selected Experience" in rendered_text
+    assert "Northstar Labs" in rendered_text
 
 
 def test_job_resume_generation_fails_when_resume_is_missing() -> None:
@@ -1598,6 +1747,30 @@ def make_resume_docx() -> bytes:
     document.add_paragraph("Built a React and FastAPI workflow that parses resumes, scores jobs, and tracks applications.")
     document.add_heading("Skills", level=1)
     document.add_paragraph("React TypeScript Python FastAPI PostgreSQL Docker")
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def make_resume_template_docx() -> bytes:
+    document = Document()
+    section = document.sections[0]
+    section.top_margin = Inches(0.4)
+    section.bottom_margin = Inches(0.4)
+    section.left_margin = Inches(0.45)
+    section.right_margin = Inches(0.45)
+    name = document.add_paragraph()
+    name.add_run("{{NAME}}").font.size = Pt(18)
+    contact = document.add_paragraph()
+    contact.add_run("{{CONTACT}}").font.size = Pt(9)
+    document.add_heading("Profile", level=1)
+    summary = document.add_paragraph()
+    summary_run = summary.add_run("{{SUMMARY}}")
+    summary_run.bold = True
+    summary_run.font.name = "Arial"
+    document.add_heading("Selected Experience", level=1)
+    experience = document.add_paragraph(style="List Bullet")
+    experience.add_run("{{EXPERIENCE}}")
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()

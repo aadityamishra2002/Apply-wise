@@ -105,11 +105,24 @@ def build_fallback_materials(job: Job, profile: ResumeProfile) -> TailoredMateri
             "draft_type": "deterministic_evidence_grounded",
             "target_role": job.title,
             "target_company": job.company,
+            "professional_summary": build_professional_summary(profile),
             "skills": list(profile.skills),
             "tailored_bullets": build_tailored_bullets(job, profile),
             "experience": [
                 {"title": experience.title, "company": experience.company, "description": experience.description}
                 for experience in profile.experiences
+            ],
+            "projects": [
+                {"name": project.name, "description": project.description, "technologies": list(project.technologies)}
+                for project in profile.projects
+            ],
+            "education": [
+                {"institution": education.institution, "degree": education.degree, "year": education.year}
+                for education in profile.education
+            ],
+            "certifications": [
+                {"name": certification.name, "issuer": certification.issuer, "year": certification.year}
+                for certification in profile.certifications
             ],
             "source_resume_id": str(profile.id),
         },
@@ -117,6 +130,37 @@ def build_fallback_materials(job: Job, profile: ResumeProfile) -> TailoredMateri
         provenance="deterministic_evidence_grounded",
         generation_status="fallback_no_provider",
     )
+
+
+def build_professional_summary(profile: ResumeProfile) -> str:
+    extracted_summary = extract_summary_from_resume_text(profile.extracted_text)
+    if extracted_summary:
+        return extracted_summary
+    if profile.experiences:
+        experience = profile.experiences[0]
+        skills = ", ".join(profile.skills[:4])
+        skills_sentence = f" Skills include {skills}." if skills else ""
+        return f"Experienced {experience.title} with verified experience at {experience.company}.{skills_sentence}"
+    if profile.skills:
+        return f"Candidate with verified skills in {', '.join(profile.skills[:5])}."
+    return "Resume-backed candidate profile available for manual review."
+
+
+def extract_summary_from_resume_text(text: str) -> str:
+    lines = [line.strip(" -•\t") for line in text.splitlines() if line.strip(" -•\t")]
+    headings = {"summary", "experience", "education", "skills", "projects", "certifications"}
+    for index, line in enumerate(lines):
+        if line.lower() != "summary":
+            continue
+        summary_lines: list[str] = []
+        for candidate in lines[index + 1 :]:
+            if candidate.lower() in headings:
+                break
+            summary_lines.append(candidate)
+        summary = " ".join(summary_lines).strip()
+        if summary:
+            return summary[:1200]
+    return ""
 
 
 def build_tailored_bullets(job: Job, profile: ResumeProfile) -> list[str]:
@@ -155,6 +199,18 @@ def build_evidence(profile: ResumeProfile) -> dict:
         "experience": [
             {"title": experience.title, "company": experience.company, "description": experience.description}
             for experience in profile.experiences
+        ],
+        "projects": [
+            {"name": project.name, "description": project.description, "technologies": list(project.technologies)}
+            for project in profile.projects
+        ],
+        "education": [
+            {"institution": education.institution, "degree": education.degree, "year": education.year}
+            for education in profile.education
+        ],
+        "certifications": [
+            {"name": certification.name, "issuer": certification.issuer, "year": certification.year}
+            for certification in profile.certifications
         ],
     }
 

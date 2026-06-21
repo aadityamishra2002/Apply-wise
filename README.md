@@ -44,6 +44,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Resume section, skill, structured experience, education, certification, and project extraction
 - Resume profile update and re-parse APIs with a web editor for structured skills, experience, education, certifications, and projects
 - Resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application
+- Resume template workspace for uploading DOCX templates, selecting the active layout, renaming/deleting templates, previewing placeholder mapping, and tracking which template generated each resume version
 - Live Adzuna job discovery for India with keyword search and attribution
 - Live Remotive remote-job discovery with respectful short-lived caching and attribution
 - Direct role and location search on the Jobs page
@@ -82,7 +83,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
 - Editable tailored-resume workspace for summary, skills, and experience text
-- Authenticated DOCX and PDF downloads for tailored resume versions
+- Authenticated DOCX and PDF downloads for tailored resume versions using the selected DOCX template, active fallback template, or built-in ATS-friendly template
 - Authenticated TXT downloads for persisted cover letters
 - Editable cover-letter workspace with authenticated save and download
 - Persisted subscription foundation with free-tier status and owner bypass
@@ -179,3 +180,21 @@ For the current MVP push, changes are going directly to `prod` after local tests
 ## Chrome Extension MVP
 
 Load the unpacked extension from [`apps/extension`](apps/extension) and follow its [local installation guide](apps/extension/README.md). The extension uses one-time pairing codes from Apply Wise Settings and receives a scoped token for capture, autofill planning, and assisted-application audit events.
+
+## Resume Template API Examples
+
+All endpoints require the normal bearer access token.
+
+```bash
+curl -H "Authorization: Bearer <token>" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates
+```
+
+```bash
+curl -X POST -H "Authorization: Bearer <token>" -F "file=@my-template.docx" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates/upload
+```
+
+```bash
+curl -X POST -H "Authorization: Bearer <token>" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates/<template_id>/select
+```
+
+Template screenshots are documented in [`docs/screenshots/resume-templates/README.md`](docs/screenshots/resume-templates/README.md); capture fresh screenshots after each meaningful UI change.

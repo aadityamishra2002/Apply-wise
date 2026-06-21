@@ -631,6 +631,7 @@ export default function ApplicationsPage() {
         <section className="mt-5 rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
           <div className="flex items-center gap-2 text-[#176b5b]"><FileText size={17} /><h2 className="text-[16px] font-bold">Editable tailored resume</h2></div>
           <p className="mt-2 text-[12px] text-[#71807c]">Edit only truthful resume evidence. Saved changes are used for DOCX and PDF downloads.</p>
+          {resumeVersion ? <p className="mt-2 text-[11px] font-bold text-[#176b5b]">Export template: {resumeVersion.template_name}</p> : null}
           <label className="mt-4 block text-[12px] font-bold text-[#53645f]">Professional summary
             <textarea className="mt-2 min-h-28 w-full rounded-xl border border-[#dce7e2] p-3 text-[12px] font-normal leading-6 outline-none focus:border-[#79b6a8]" onChange={(event) => updateResumeDraft({ professional_summary: event.target.value })} value={resumeDraft.professional_summary ?? ""} />
           </label>

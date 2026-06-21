@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -258,6 +258,20 @@ class JobMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class ResumeTemplate(Base):
+    __tablename__ = "resume_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(255))
+    template_bytes: Mapped[bytes] = mapped_column(LargeBinary)
+    placeholders: Mapped[list[str]] = mapped_column(JSON_TYPE, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ResumeVersion(Base):
     __tablename__ = "resume_versions"
 
@@ -265,6 +279,7 @@ class ResumeVersion(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     master_resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("master_resumes.id"), index=True)
+    template_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("resume_templates.id"))
     ats_score: Mapped[float] = mapped_column(Float)
     resume_content: Mapped[dict] = mapped_column(JSON_TYPE)
     prompt_version: Mapped[str] = mapped_column(String(64), default="applywise-tailoring-v1")

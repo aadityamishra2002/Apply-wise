@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-20
-- Commit: c99c8a4
+- Date: 2026-06-21
+- Commit: cd6e0a6
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -75,6 +75,52 @@ Relevant files:
 ### Parsed Resume Looks Wrong
 
 Current parsing is deterministic and review-required. Use the resume editor to correct skills, experience, education, certifications, and projects. If parser behavior changes, update tests and `FEATURE_MAP.md`.
+
+### Resume Template Upload Fails
+
+Check:
+
+- File is a DOCX template.
+- File is under the configured upload size limit.
+- Template includes at least one supported placeholder.
+- User is authenticated.
+
+Supported placeholders:
+
+- `{{NAME}}`
+- `{{CONTACT}}`
+- `{{SUMMARY}}` or `{{PROFESSIONAL_SUMMARY}}`
+- `{{SKILLS}}`
+- `{{EXPERIENCE}}`
+- `{{PROJECTS}}`
+- `{{EDUCATION}}`
+- `{{CERTIFICATIONS}}`
+
+Relevant files:
+
+- `apps/api/app/application/exports/service.py`
+- `apps/api/app/presentation/api_v1/router.py`
+- `apps/web/src/app/resume/templates/page.tsx`
+
+### Generated Resume Does Not Match My Template
+
+Check:
+
+- The intended template is marked active on `/resume/templates`.
+- The generated resume version shows the expected template name.
+- The template uses supported placeholders in the section positions you want to control.
+- Missing placeholders are expected to be appended after mapped content so verified sections are not lost.
+
+DOCX export preserves the uploaded template structure where placeholders exist. PDF export follows the selected template section order first, then appends remaining supported sections in a clean ATS-friendly layout.
+
+### Old Resume Version Uses A Deleted Template
+
+Expected behavior:
+
+- If a generated resume version references a deleted template, download resolves to the active custom template.
+- If no custom template is active, download uses the built-in ATS-friendly template.
+
+If fallback fails, check `resume_versions.template_id`, active `resume_templates`, and the download endpoint response body.
 
 ## Job And Generation Issues
 

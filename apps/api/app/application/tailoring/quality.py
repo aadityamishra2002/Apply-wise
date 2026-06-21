@@ -32,6 +32,8 @@ def build_evidence_text(profile: ResumeProfile) -> str:
         parts.extend([education.institution, education.degree, education.year or ""])
     for certification in profile.certifications:
         parts.extend([certification.name, certification.issuer or "", certification.year or ""])
+    for project in profile.projects:
+        parts.extend([project.name, project.description, *project.technologies])
     return " ".join(parts).lower()
 
 
@@ -58,6 +60,7 @@ def flatten_list_text(values: list) -> list[str]:
 
 def find_unsupported_skills(generated_text: str, resume_content: dict, profile: ResumeProfile) -> list[QualityWarning]:
     known_skills = {skill.lower() for skill in profile.skills}
+    known_skills.update(technology.lower() for project in profile.projects for technology in project.technologies)
     warnings: list[QualityWarning] = []
     for skill in resume_content.get("skills", []):
         skill_name = str(skill).strip()

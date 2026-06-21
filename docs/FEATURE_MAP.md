@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-20
-- Commit: c99c8a4
+- Date: 2026-06-21
+- Commit: cd6e0a6
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -18,12 +18,13 @@ This file maps major product features to the code and data they use. Update it w
 | Password reset | Forgot/reset password pages | `auth.py`, identity services/repositories | `apps/web/src/app/forgot-password/page.tsx`, `apps/web/src/app/reset-password/page.tsx` | `password_reset_tokens`, `refresh_tokens` |
 | Resume upload and parsing | Resume workspace | `router.py`, `app/application/resumes/service.py` | `apps/web/src/app/resume/page.tsx`, `apps/web/src/lib/api.ts` | `master_resumes`, `resume_skills`, `resume_experiences`, `resume_education`, `resume_certifications`, `resume_projects`, `activity_logs` |
 | Resume profile editing | Resume workspace editor | Resume service and `PATCH /resumes/me` | `apps/web/src/app/resume/page.tsx` | Resume child tables |
+| Resume template management | Resume Templates page | `GET/POST/PATCH/DELETE /resume-templates`, `PATCH /resume-templates/{id}/activate`, `POST /resume-templates/{id}/select`, `GET /resume-templates/active/preview`, export service | `apps/web/src/app/resume/templates/page.tsx`, `apps/web/src/app/resume/page.tsx`, `apps/web/src/lib/api.ts` | `resume_templates`, `resume_versions`, `activity_logs` |
 | Job search | Jobs page | `router.py`, provider factory, Adzuna/Remotive providers | `apps/web/src/app/jobs/page.tsx` | `jobs`, `job_matches`, `job_preferences`, `activity_logs` |
 | Manual job paste | Jobs page manual capture form | `POST /jobs/manual` in `router.py` | `apps/web/src/app/jobs/page.tsx` | `jobs`, `job_matches`, `applications`, `activity_logs` |
 | Public URL import | Jobs page URL import | `POST /jobs/import-url`, HTML extraction helpers | `apps/web/src/app/jobs/page.tsx` | `jobs`, `job_matches`, `activity_logs` |
 | Extension job capture | Chrome/Brave extension popup | `POST /extension/jobs/capture`, extension token dependencies | `apps/extension/popup.js`, `apps/extension/popup.html` | `extension_pairing_codes`, `jobs`, `job_matches`, `applications`, `activity_logs` |
 | ATS and match scoring | Jobs page score cards, 80+ queue | Job matching and ATS services, `GET /jobs` | `apps/web/src/app/jobs/page.tsx` | `job_matches`, `activity_logs` |
-| Resume generation | Jobs page and Applications workflow | `POST /jobs/{id}/resume-versions`, tailoring service, export service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `applications`, `application_events`, `activity_logs` |
+| Resume generation | Jobs page and Applications workflow | `POST /jobs/{id}/resume-versions`, tailoring service, template-aware export service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `resume_templates`, `applications`, `application_events`, `activity_logs` |
 | Cover letter generation | Jobs page and Applications workflow | `POST /jobs/{id}/cover-letters`, tailoring service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `cover_letters`, `applications`, `application_events`, `activity_logs` |
 | Generated artifact download | Jobs/Application preview actions | Resume export and cover-letter download endpoints | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `cover_letters`, `application_events` |
 | Application tracking | Applications board | Application routes in `router.py` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `interviews` |
@@ -49,6 +50,17 @@ When adding or changing an endpoint, add a row or note with:
 - Related frontend/extension files
 - Tables touched
 - Tests added or updated
+
+## Resume Template API Summary
+
+| Method/path | Purpose | Request | Response | Tables touched |
+|---|---|---|---|---|
+| `GET /resume-templates` | List built-in default and custom user templates | None | Array of template metadata with active state and placeholders | `resume_templates` |
+| `POST /resume-templates` or `POST /resume-templates/upload` | Upload and activate a DOCX template | Multipart `file` with supported placeholders | Template metadata | `resume_templates`, `activity_logs` |
+| `GET /resume-templates/active/preview` | Preview active-template section mapping | None | Active template, section order, missing placeholders, preview sections | `resume_templates` |
+| `PATCH /resume-templates/{template_id}` | Rename a custom template | `{ "name": "..." }` | Template metadata | `resume_templates`, `activity_logs` |
+| `PATCH /resume-templates/{template_id}/activate` or `POST /resume-templates/{template_id}/select` | Select a custom template or `default` | None | Selected template metadata | `resume_templates`, `activity_logs` |
+| `DELETE /resume-templates/{template_id}` | Delete a custom template and clear version references | None | `204 No Content` | `resume_templates`, `resume_versions`, `activity_logs` |
 
 ## Extension Feature Documentation Rule
 

@@ -1,6 +1,6 @@
 # Apply Wise User Guide
 
-Last updated: 2026-06-15
+Last updated: 2026-06-21
 
 Use this guide when you want the fastest, most useful workflow from Apply Wise and the browser extension.
 
@@ -9,7 +9,8 @@ Use this guide when you want the fastest, most useful workflow from Apply Wise a
 1. Log in to Apply Wise: https://apply-wise-1.vercel.app
 2. Upload your latest master resume from the **Resume** page.
 3. Review the extracted profile and fix anything important before applying.
-4. Go to **Settings** and complete your application profile:
+4. Optional: open **Resume Templates** from the Resume page and select the DOCX layout you want future tailored resumes to use.
+5. Go to **Settings** and complete your application profile:
    - Name
    - Email
    - Phone
@@ -17,12 +18,34 @@ Use this guide when you want the fastest, most useful workflow from Apply Wise a
    - LinkedIn
    - GitHub
    - Portfolio
-5. Search or capture jobs.
-6. Focus first on jobs with stronger match and ATS scores.
-7. Generate a tailored resume and cover letter for each selected job.
-8. Review every generated draft before using it.
-9. Apply manually on the employer site.
-10. Track the application status in Apply Wise.
+6. Search or capture jobs.
+7. Focus first on jobs with stronger match and ATS scores.
+8. Generate a tailored resume and cover letter for each selected job.
+9. Review every generated draft before using it.
+10. Apply manually on the employer site.
+11. Track the application status in Apply Wise.
+
+## Use Resume Templates
+
+1. Go to **Resume**.
+2. Open **Resume Templates**.
+3. Upload a DOCX template if you want Apply Wise to use your own layout.
+4. Make sure your DOCX includes at least one supported placeholder:
+   - `{{NAME}}`
+   - `{{CONTACT}}`
+   - `{{SUMMARY}}`
+   - `{{SKILLS}}`
+   - `{{EXPERIENCE}}`
+   - `{{PROJECTS}}`
+   - `{{EDUCATION}}`
+   - `{{CERTIFICATIONS}}`
+5. Select the template you want to use.
+6. Use **Preview active template** to confirm where content will go.
+7. Generate a tailored resume from a job.
+8. Check the generated resume preview and confirm the template name shown for that resume version.
+9. Download DOCX or PDF.
+
+If you do not upload a template, Apply Wise uses the built-in ATS-friendly template.
 
 ## One-Time Extension Setup
 

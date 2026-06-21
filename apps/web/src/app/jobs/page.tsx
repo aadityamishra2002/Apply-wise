@@ -319,6 +319,8 @@ export default function JobsPage() {
                 </div>
                 {generationStatus ? <p className="mt-3 rounded-lg bg-[#e8f4ef] p-2 text-[11px] font-bold text-[#176b5b]">{generationStatus}</p> : null}
                 {generatedResume ? (
+                  <>
+                  <p className="mt-3 rounded-lg bg-white p-2 text-[11px] font-bold text-[#176b5b]">Export template: {generatedResume.template_name}</p>
                   <GeneratedPreview
                     actions={(
                       <>
@@ -331,6 +333,7 @@ export default function JobsPage() {
                     value={formatResumePreview(generatedResume.resume_content)}
                     warnings={generatedResume.quality_warnings}
                   />
+                  </>
                 ) : null}
                 {generatedResume?.missing_skills_analysis?.length ? (
                   <div className="mt-3 rounded-lg bg-white p-3">

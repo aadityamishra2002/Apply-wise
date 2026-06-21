@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 20, 2026
+**Last updated:** June 21, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -122,6 +122,30 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 100. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance.
 101. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
 102. Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.
+103. Add resume template management with DOCX template upload, active-template selection, rename/delete controls, active-template preview, template-aware tailored-resume generation, generated-version template provenance, and DOCX/PDF downloads that resolve selected template, active fallback template, or the built-in ATS-friendly template.
+
+## Resume Template System Verification Update
+
+Local verification completed on June 21, 2026:
+
+- Custom DOCX templates can be uploaded from the new `/resume/templates` page.
+- Templates are validated for supported placeholders before being stored.
+- Users can list templates, select the active template, rename custom templates, delete custom templates, and preview how supported resume sections map into the active layout.
+- Supported placeholders are `{{NAME}}`, `{{CONTACT}}`, `{{SUMMARY}}`, `{{PROFESSIONAL_SUMMARY}}`, `{{SKILLS}}`, `{{EXPERIENCE}}`, `{{PROJECTS}}`, `{{EDUCATION}}`, and `{{CERTIFICATIONS}}`.
+- Generated resume versions store the selected `template_id` when a custom template is active.
+- Resume version responses show `template_id` and `template_name` so the web app can show which template was used.
+- DOCX downloads preserve the selected template document structure and replace placeholders with structured resume content.
+- Missing placeholders are handled gracefully by appending generated sections after the mapped template content.
+- PDF downloads follow the selected template's section order first, then append supported sections that were not present as placeholders.
+- If a stored version references a deleted template, downloads fall back to the current active template, then to the built-in ATS template.
+- Account export includes resume-template metadata and resume-version template references without exposing raw template bytes.
+
+Manual verification still recommended after deployment:
+
+- Upload a real personal DOCX template in production.
+- Generate a resume from a captured job.
+- Download DOCX and confirm fonts, margins, headings, spacing, bullet styles, and section order match the template closely.
+- Download PDF and confirm all supported sections are present.
 
 ## Production Verification Update
 

@@ -3,6 +3,7 @@ from hashlib import sha256
 from html.parser import HTMLParser
 import ipaddress
 import json
+from pathlib import Path
 import re
 from secrets import token_urlsafe
 from types import SimpleNamespace
@@ -16,13 +17,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.jobs.ats import AtsAnalysisService, AtsResult, AtsWeights
-from app.application.exports.service import ResumeExportService, download_filename
+from app.application.exports.service import ResumeExportService, download_filename, extract_placeholders_from_docx
 from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
@@ -33,7 +34,7 @@ from app.application.tailoring.service import GeminiTailoringService, TailoredMa
 from app.core.config import get_settings
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
-from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeVersion, Subscription, User, UserProfile
+from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeTemplate, ResumeVersion, Subscription, User, UserProfile
 from app.infrastructure.db.session import get_session, session_factory
 from app.infrastructure.providers.factory import create_job_provider
 from app.presentation.api_v1.auth import bearer_scheme, get_current_user, router as auth_router
@@ -297,6 +298,8 @@ class ResumeVersionResponse(BaseModel):
     job_title: str
     company: str
     ats_score: float
+    template_id: str | None = None
+    template_name: str
     prompt_version: str
     model_provider: str
     model_name: str
@@ -314,6 +317,27 @@ class ResumeVersionDetailResponse(ResumeVersionResponse):
 
 class ResumeVersionUpdateRequest(BaseModel):
     resume_content: dict
+
+
+class ResumeTemplateResponse(BaseModel):
+    id: str
+    name: str
+    source: str
+    original_filename: str | None = None
+    placeholders: list[str]
+    is_active: bool
+    created_at: str | None = None
+
+
+class ResumeTemplateUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class ResumeTemplatePreviewResponse(BaseModel):
+    template: ResumeTemplateResponse
+    section_order: list[str]
+    missing_placeholders: list[str]
+    preview: dict[str, list[str]]
 
 
 class AnalyticsSummaryResponse(BaseModel):
@@ -1056,6 +1080,7 @@ async def export_account_data(
     ).all()
     match_rows = (await session.scalars(select(JobMatch).where(JobMatch.user_id == user.id))).all()
     resume_version_rows = (await session.scalars(select(ResumeVersion).where(ResumeVersion.user_id == user.id).order_by(ResumeVersion.created_at.desc()))).all()
+    resume_template_rows = (await session.scalars(select(ResumeTemplate).where(ResumeTemplate.user_id == user.id).order_by(ResumeTemplate.created_at.desc()))).all()
     cover_letter_rows = (await session.scalars(select(CoverLetter).where(CoverLetter.user_id == user.id).order_by(CoverLetter.created_at.desc()))).all()
     activity_rows = (
         await session.scalars(
@@ -1114,11 +1139,23 @@ async def export_account_data(
                 "id": str(version.id),
                 "job_id": str(version.job_id),
                 "master_resume_id": str(version.master_resume_id),
+                "template_id": str(version.template_id) if version.template_id else None,
                 "ats_score": version.ats_score,
                 "resume_content": version.resume_content,
                 "created_at": isoformat(version.created_at),
             }
             for version in resume_version_rows
+        ],
+        "resume_templates": [
+            {
+                "id": str(template.id),
+                "name": template.name,
+                "original_filename": template.original_filename,
+                "placeholders": template.placeholders,
+                "is_active": template.is_active,
+                "created_at": isoformat(template.created_at),
+            }
+            for template in resume_template_rows
         ],
         "cover_letters": [
             {
@@ -1184,10 +1221,12 @@ async def create_job_resume_version(
     profile, materials = await safe_tailored_materials(job, user.id, session, include_resume=True, include_cover_letter=False)
     resume_content = validate_resume_version_content(materials.resume_content)
     quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, None, profile))
+    active_template = await get_active_resume_template(session, user.id)
     resume_version = ResumeVersion(
         user_id=user.id,
         job_id=job.id,
         master_resume_id=profile.id,
+        template_id=active_template.id if active_template else None,
         ats_score=stored_match.ats_score,
         resume_content=resume_content,
         prompt_version=materials.prompt_version,
@@ -1233,7 +1272,140 @@ async def create_job_resume_version(
         },
     )
     await session.commit()
-    return resume_version_detail_response(resume_version, job, stored_match)
+    return resume_version_detail_response(resume_version, job, stored_match, active_template)
+
+
+@router.get("/resume-templates", response_model=list[ResumeTemplateResponse])
+async def list_resume_templates(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ResumeTemplateResponse]:
+    rows = (await session.scalars(select(ResumeTemplate).where(ResumeTemplate.user_id == user.id).order_by(ResumeTemplate.created_at.desc()))).all()
+    has_active_custom = any(template.is_active for template in rows)
+    return [default_template_response(not has_active_custom), *[resume_template_response(template) for template in rows]]
+
+
+@router.get("/resume-templates/active/preview", response_model=ResumeTemplatePreviewResponse)
+async def preview_active_resume_template(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeTemplatePreviewResponse:
+    template = await get_active_resume_template(session, user.id)
+    db_user = await session.scalar(select(User).where(User.id == user.id))
+    user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
+    profile = await ResumeService(session).get_active(user.id)
+    content = preview_resume_content(profile)
+    preview = resume_export_service.preview_sections(content, user=db_user, user_profile=user_profile)
+    placeholders = [str(placeholder) for placeholder in (template.placeholders if template else default_template_response(True).placeholders)]
+    section_order = resume_template_section_order(placeholders)
+    return ResumeTemplatePreviewResponse(
+        template=resume_template_response(template) if template else default_template_response(True),
+        section_order=section_order,
+        missing_placeholders=[section for section in ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"] if section not in section_order],
+        preview=preview,
+    )
+
+
+@router.post("/resume-templates", response_model=ResumeTemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/resume-templates/upload", response_model=ResumeTemplateResponse, status_code=status.HTTP_201_CREATED)
+async def upload_resume_template(
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    file: Annotated[UploadFile, File(...)],
+) -> ResumeTemplateResponse:
+    content = await file.read()
+    filename = file.filename or "resume-template.docx"
+    if len(content) > MAX_RESUME_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Template is too large. Upload a DOCX file under 10 MB.")
+    if file.content_type != "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or not filename.lower().endswith(".docx"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Upload a DOCX resume template.")
+    try:
+        placeholders = extract_placeholders_from_docx(content)
+    except Exception as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Template DOCX could not be read. Upload a valid DOCX file.") from error
+    if not placeholders:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Template must include at least one supported placeholder such as {{SUMMARY}}, {{SKILLS}}, or {{EXPERIENCE}}.")
+    await session.execute(
+        update(ResumeTemplate)
+        .where(ResumeTemplate.user_id == user.id, ResumeTemplate.is_active.is_(True))
+        .values(is_active=False)
+    )
+    template = ResumeTemplate(
+        user_id=user.id,
+        name=Path(filename).stem[:255],
+        original_filename=Path(filename).name[:255],
+        content_type=file.content_type,
+        template_bytes=content,
+        placeholders=placeholders,
+        is_active=True,
+    )
+    session.add(template)
+    log_activity(session, user.id, "resume_template_uploaded", {"template_name": template.name, "placeholders": placeholders})
+    await session.commit()
+    await session.refresh(template)
+    return resume_template_response(template)
+
+
+@router.patch("/resume-templates/{template_id}", response_model=ResumeTemplateResponse)
+async def rename_resume_template(
+    template_id: UUID,
+    payload: ResumeTemplateUpdateRequest,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeTemplateResponse:
+    template = await session.scalar(select(ResumeTemplate).where(ResumeTemplate.id == template_id, ResumeTemplate.user_id == user.id))
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found.")
+    template.name = payload.name.strip()
+    log_activity(session, user.id, "resume_template_renamed", {"template_id": str(template.id), "template_name": template.name})
+    await session.commit()
+    await session.refresh(template)
+    return resume_template_response(template)
+
+
+@router.delete("/resume-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resume_template(
+    template_id: UUID,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    template = await session.scalar(select(ResumeTemplate).where(ResumeTemplate.id == template_id, ResumeTemplate.user_id == user.id))
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found.")
+    await session.execute(update(ResumeVersion).where(ResumeVersion.template_id == template.id, ResumeVersion.user_id == user.id).values(template_id=None))
+    await session.delete(template)
+    log_activity(session, user.id, "resume_template_deleted", {"template_id": str(template.id), "template_name": template.name})
+    await session.commit()
+
+
+@router.patch("/resume-templates/{template_id}/activate", response_model=ResumeTemplateResponse)
+@router.post("/resume-templates/{template_id}/select", response_model=ResumeTemplateResponse)
+async def select_resume_template(
+    template_id: str,
+    user: Annotated[UserRecord, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResumeTemplateResponse:
+    await session.execute(
+        update(ResumeTemplate)
+        .where(ResumeTemplate.user_id == user.id, ResumeTemplate.is_active.is_(True))
+        .values(is_active=False)
+    )
+    if template_id == "default":
+        log_activity(session, user.id, "resume_template_selected", {"template_id": "default", "template_name": "Built-in ATS template"})
+        await session.commit()
+        return default_template_response(True)
+    try:
+        parsed_id = UUID(template_id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found.") from error
+    template = await session.scalar(select(ResumeTemplate).where(ResumeTemplate.id == parsed_id, ResumeTemplate.user_id == user.id))
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found.")
+    template.is_active = True
+    log_activity(session, user.id, "resume_template_selected", {"template_id": str(template.id), "template_name": template.name})
+    await session.commit()
+    await session.refresh(template)
+    return resume_template_response(template)
 
 
 @router.post("/jobs/{job_id}/cover-letters", response_model=CoverLetterResponse, status_code=status.HTTP_201_CREATED)
@@ -1301,26 +1473,13 @@ async def list_resume_versions(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[ResumeVersionResponse]:
     rows = await session.execute(
-        select(ResumeVersion, Job)
+        select(ResumeVersion, Job, ResumeTemplate)
         .join(Job, ResumeVersion.job_id == Job.id)
+        .outerjoin(ResumeTemplate, ResumeVersion.template_id == ResumeTemplate.id)
         .where(ResumeVersion.user_id == user.id)
         .order_by(ResumeVersion.created_at.desc())
     )
-    return [
-        ResumeVersionResponse(
-            id=str(version.id),
-            job_id=str(job.id),
-            job_title=job.title,
-            company=job.company,
-            ats_score=version.ats_score,
-            prompt_version=version.prompt_version,
-            model_provider=version.model_provider,
-            model_name=version.model_name,
-            generation_status=version.generation_status,
-            created_at=version.created_at.isoformat(),
-        )
-        for version, job in rows.all()
-    ]
+    return [resume_version_response(version, job, template) for version, job, template in rows.all()]
 
 
 @router.get("/resume-versions/{version_id}", response_model=ResumeVersionDetailResponse)
@@ -1331,7 +1490,8 @@ async def get_resume_version(
 ) -> ResumeVersionDetailResponse:
     version, job = await get_owned_resume_version_row(session, version_id, user.id)
     match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
-    return resume_version_detail_response(version, job, match)
+    template = await get_resume_version_template(session, version)
+    return resume_version_detail_response(version, job, match, template)
 
 
 @router.patch("/resume-versions/{version_id}", response_model=ResumeVersionDetailResponse)
@@ -1345,7 +1505,8 @@ async def update_resume_version(
     version.resume_content = validate_resume_version_content(payload.resume_content)
     await session.commit()
     match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user.id, JobMatch.job_id == job.id))
-    return resume_version_detail_response(version, job, match)
+    template = await get_resume_version_template(session, version)
+    return resume_version_detail_response(version, job, match, template)
 
 
 @router.get("/resume-versions/{version_id}/download")
@@ -1366,7 +1527,10 @@ async def download_resume_version(
                 "quality_warnings": quality_warnings,
             },
         )
-    body, media_type, attempts = build_resume_export(version, job, format)
+    db_user = await session.scalar(select(User).where(User.id == user.id))
+    user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
+    template = await get_export_resume_template(session, user.id, version)
+    body, media_type, attempts = build_resume_export(version, job, format, db_user, user_profile, template)
     application = await session.scalar(select(Application).where(Application.user_id == user.id, Application.resume_version_id == version.id))
     if application:
         session.add(
@@ -2042,10 +2206,12 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
     stored_match = await session.scalar(select(JobMatch).where(JobMatch.user_id == user_id, JobMatch.job_id == job.id))
     resume_content = materials.resume_content
     quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, materials.cover_letter, profile))
+    active_template = await get_active_resume_template(session, user_id)
     resume_version = ResumeVersion(
         user_id=user_id,
         job_id=job.id,
         master_resume_id=profile.id,
+        template_id=active_template.id if active_template else None,
         ats_score=stored_match.ats_score if stored_match else 0,
         resume_content=resume_content,
         prompt_version=materials.prompt_version,
@@ -2318,12 +2484,12 @@ async def run_prepare_job(job_id: UUID, application_id: UUID, user_id: UUID) -> 
             await session.commit()
 
 
-def build_resume_export(version: ResumeVersion, job: Job, format: str) -> tuple[bytes, str, int]:
+def build_resume_export(version: ResumeVersion, job: Job, format: str, user: User | None, user_profile: UserProfile | None, template: ResumeTemplate | None) -> tuple[bytes, str, int]:
     def operation() -> tuple[bytes, str]:
         if format == "pdf":
-            return resume_export_service.build_pdf(version, job), "application/pdf"
+            return resume_export_service.build_pdf(version, job, user=user, user_profile=user_profile, template=template), "application/pdf"
         return (
-            resume_export_service.build_docx(version, job),
+            resume_export_service.build_docx(version, job, user=user, user_profile=user_profile, template=template),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
 
@@ -2763,7 +2929,10 @@ async def extension_download_application_resume(
     if not result:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Prepare a tailored resume before downloading it from the extension.")
     application, job, version = result
-    body, media_type, attempts = build_resume_export(version, job, format)
+    db_user = await session.scalar(select(User).where(User.id == user_id))
+    user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
+    template = await get_export_resume_template(session, user_id, version)
+    body, media_type, attempts = build_resume_export(version, job, format, db_user, user_profile, template)
     session.add(
         ApplicationEvent(
             application_id=application.id,
@@ -2936,21 +3105,116 @@ async def get_owned_resume_version_row(session: AsyncSession, version_id: UUID, 
     return result
 
 
-def resume_version_detail_response(version: ResumeVersion, job: Job, match: JobMatch | None = None) -> ResumeVersionDetailResponse:
+async def get_active_resume_template(session: AsyncSession, user_id: UUID) -> ResumeTemplate | None:
+    return await session.scalar(
+        select(ResumeTemplate)
+        .where(ResumeTemplate.user_id == user_id, ResumeTemplate.is_active.is_(True))
+        .order_by(ResumeTemplate.created_at.desc())
+    )
+
+
+async def get_resume_version_template(session: AsyncSession, version: ResumeVersion) -> ResumeTemplate | None:
+    if not version.template_id:
+        return None
+    return await session.scalar(select(ResumeTemplate).where(ResumeTemplate.id == version.template_id, ResumeTemplate.user_id == version.user_id))
+
+
+async def get_export_resume_template(session: AsyncSession, user_id: UUID, version: ResumeVersion) -> ResumeTemplate | None:
+    return await get_resume_version_template(session, version) or await get_active_resume_template(session, user_id)
+
+
+def default_template_response(is_active: bool) -> ResumeTemplateResponse:
+    return ResumeTemplateResponse(
+        id="default",
+        name="Built-in ATS template",
+        source="built_in",
+        original_filename=None,
+        placeholders=["NAME", "CONTACT", "SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+        is_active=is_active,
+        created_at=None,
+    )
+
+
+def resume_template_response(template: ResumeTemplate) -> ResumeTemplateResponse:
+    created_at = template.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return ResumeTemplateResponse(
+        id=str(template.id),
+        name=template.name,
+        source="custom",
+        original_filename=template.original_filename,
+        placeholders=[str(placeholder) for placeholder in (template.placeholders or [])],
+        is_active=template.is_active,
+        created_at=created_at.isoformat(),
+    )
+
+
+def resume_template_section_order(placeholders: list[str]) -> list[str]:
+    order: list[str] = []
+    for placeholder in placeholders:
+        normalized = "SUMMARY" if placeholder.upper() == "PROFESSIONAL_SUMMARY" else placeholder.upper()
+        if normalized in {"SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"} and normalized not in order:
+            order.append(normalized)
+    return order
+
+
+def preview_resume_content(profile: ResumeProfile | None) -> dict:
+    if not profile:
+        return {
+            "professional_summary": "Upload a master resume to preview your real summary evidence.",
+            "skills": ["Python", "React", "PostgreSQL"],
+            "experience": [{"title": "Example Role", "company": "Example Company", "description": "Verified resume experience will render here."}],
+            "projects": [{"name": "Example Project", "description": "Verified project evidence will render here.", "technologies": ["Python"]}],
+            "education": [{"institution": "Example University", "degree": "Example Degree", "year": "2021"}],
+            "certifications": [{"name": "Example Certification", "issuer": "Example Issuer", "year": "2022"}],
+        }
+    return {
+        "professional_summary": " ".join((profile.extracted_text or "").split())[:600],
+        "skills": list(profile.skills),
+        "experience": [
+            {"title": experience.title, "company": experience.company, "description": experience.description}
+            for experience in profile.experiences
+        ],
+        "projects": [
+            {"name": project.name, "description": project.description, "technologies": list(project.technologies)}
+            for project in profile.projects
+        ],
+        "education": [
+            {"institution": education.institution, "degree": education.degree, "year": education.year}
+            for education in profile.education
+        ],
+        "certifications": [
+            {"name": certification.name, "issuer": certification.issuer, "year": certification.year}
+            for certification in profile.certifications
+        ],
+    }
+
+
+def resume_version_response(version: ResumeVersion, job: Job, template: ResumeTemplate | None = None) -> ResumeVersionResponse:
     created_at = version.created_at
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
-    return ResumeVersionDetailResponse(
+    return ResumeVersionResponse(
         id=str(version.id),
         job_id=str(job.id),
         job_title=job.title,
         company=job.company,
         ats_score=version.ats_score,
+        template_id=str(version.template_id) if version.template_id else None,
+        template_name=template.name if template else "Built-in ATS template",
         prompt_version=version.prompt_version,
         model_provider=version.model_provider,
         model_name=version.model_name,
         generation_status=version.generation_status,
         created_at=created_at.isoformat(),
+    )
+
+
+def resume_version_detail_response(version: ResumeVersion, job: Job, match: JobMatch | None = None, template: ResumeTemplate | None = None) -> ResumeVersionDetailResponse:
+    base = resume_version_response(version, job, template)
+    return ResumeVersionDetailResponse(
+        **base.model_dump(),
         resume_content=version.resume_content,
         quality_warnings=[str(warning) for warning in (version.quality_warnings or [])],
         ats_improvement_suggestions=[str(item) for item in ((match.ats_recommendations if match else []) or [])],
@@ -2978,6 +3242,33 @@ def validate_resume_version_content(content: dict) -> dict:
     ]
     if not cleaned["experience"]:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Resume content must include at least one experience entry.")
+    cleaned["projects"] = [
+        {
+            "name": str(project.get("name", "")).strip()[:255],
+            "description": str(project.get("description", "")).strip()[:4000],
+            "technologies": [str(technology).strip()[:120] for technology in (project.get("technologies") or []) if str(technology).strip()] if isinstance(project.get("technologies"), list) else [],
+        }
+        for project in content.get("projects", [])
+        if isinstance(project, dict) and str(project.get("name", "")).strip()
+    ]
+    cleaned["education"] = [
+        {
+            "institution": str(education.get("institution", "")).strip()[:255],
+            "degree": str(education.get("degree", "")).strip()[:255],
+            "year": str(education.get("year", "")).strip()[:32] if education.get("year") else None,
+        }
+        for education in content.get("education", [])
+        if isinstance(education, dict) and str(education.get("institution", "")).strip()
+    ]
+    cleaned["certifications"] = [
+        {
+            "name": str(certification.get("name", "")).strip()[:255],
+            "issuer": str(certification.get("issuer", "")).strip()[:255] if certification.get("issuer") else None,
+            "year": str(certification.get("year", "")).strip()[:32] if certification.get("year") else None,
+        }
+        for certification in content.get("certifications", [])
+        if isinstance(certification, dict) and str(certification.get("name", "")).strip()
+    ]
     return cleaned
 
 

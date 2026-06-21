@@ -168,6 +168,8 @@ export type ResumeVersionRecord = {
   job_title: string;
   company: string;
   ats_score: number;
+  template_id: string | null;
+  template_name: string;
   prompt_version: string;
   model_provider: string;
   model_name: string;
@@ -197,6 +199,8 @@ export type ProviderHealth = { name: string; status: string; last_checked_at: st
 export type ManualJob = { title: string; company: string; location: string; url: string; description: string };
 export type ExtensionPairingCode = { code: string; expires_at: string };
 export type AdminSummary = { users: number; applications: number; jobs: number; resume_versions: number; cover_letters: number; subscriptions: Record<string, number> };
+export type ResumeTemplate = { id: string; name: string; source: string; original_filename: string | null; placeholders: string[]; is_active: boolean; created_at: string | null };
+export type ResumeTemplatePreview = { template: ResumeTemplate; section_order: string[]; missing_placeholders: string[]; preview: Record<string, string[]> };
 
 type TokenResponse = {
   access_token: string;
@@ -270,6 +274,61 @@ export async function saveResumeVersion(versionId: string, resumeContent: Resume
   });
   if (!response.ok) throw new Error("Could not save this resume version.");
   return (await response.json()) as ResumeVersionDetail;
+}
+
+export async function loadResumeTemplates(accessToken: string): Promise<ResumeTemplate[]> {
+  const response = await fetch(`${apiUrl}/resume-templates`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not load resume templates.");
+  return (await response.json()) as ResumeTemplate[];
+}
+
+export async function loadResumeTemplatePreview(accessToken: string): Promise<ResumeTemplatePreview> {
+  const response = await fetch(`${apiUrl}/resume-templates/active/preview`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error("Could not preview the active resume template.");
+  return (await response.json()) as ResumeTemplatePreview;
+}
+
+export async function uploadResumeTemplate(file: File, accessToken: string): Promise<ResumeTemplate> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(`${apiUrl}/resume-templates/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body,
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not upload this resume template."));
+  return (await response.json()) as ResumeTemplate;
+}
+
+export async function selectResumeTemplate(templateId: string, accessToken: string): Promise<ResumeTemplate> {
+  const response = await fetch(`${apiUrl}/resume-templates/${templateId}/select`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not select this resume template."));
+  return (await response.json()) as ResumeTemplate;
+}
+
+export async function renameResumeTemplate(templateId: string, name: string, accessToken: string): Promise<ResumeTemplate> {
+  const response = await fetch(`${apiUrl}/resume-templates/${templateId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not rename this resume template."));
+  return (await response.json()) as ResumeTemplate;
+}
+
+export async function deleteResumeTemplate(templateId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/resume-templates/${templateId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await apiErrorMessage(response, "Could not delete this resume template."));
 }
 
 export async function createJobResumeVersion(jobId: string, accessToken: string): Promise<ResumeVersionDetail> {

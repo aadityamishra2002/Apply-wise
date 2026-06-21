@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-20
-- Commit: c99c8a4
+- Date: 2026-06-21
+- Commit: cd6e0a6
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -131,6 +131,7 @@ Most product routes live in `apps/api/app/presentation/api_v1/router.py`. Keep r
 |---|---|---|
 | Auth and sessions | `apps/api/app/presentation/api_v1/auth.py`, identity services/repositories | `users`, `refresh_tokens`, `password_reset_tokens` |
 | Resume upload/profile | `router.py`, `app/application/resumes/service.py` | `master_resumes`, `resume_skills`, `resume_experiences`, `resume_education`, `resume_certifications`, `resume_projects` |
+| Resume templates/export | `router.py`, `app/application/exports/service.py` | `resume_templates`, `resume_versions`, `activity_logs` |
 | Job search/import/capture | `router.py`, job providers, matching services | `jobs`, `job_matches`, `job_preferences`, `applications`, `activity_logs` |
 | ATS/matching | `app/application/jobs`, `router.py` | `job_matches`, `activity_logs` |
 | Resume and cover generation | `app/application/tailoring`, `router.py` | `resume_versions`, `cover_letters`, `applications`, `application_events`, `activity_logs` |
@@ -144,8 +145,9 @@ Most product routes live in `apps/api/app/presentation/api_v1/router.py`. Keep r
 |---|---|---|
 | `users`, `refresh_tokens`, `password_reset_tokens` | Identity/auth | Never expose hashes or token values in account export |
 | `master_resumes`, resume child tables | Resume system | User-owned resume evidence for scoring and generation |
+| `resume_templates` | Resume template system | Stores user-uploaded DOCX templates as binary data plus extracted placeholder metadata; never expose raw bytes in account export |
 | `jobs`, `job_matches`, `job_preferences` | Job ingestion and matching | Jobs may come from providers, manual paste, URL import, or extension capture |
-| `resume_versions`, `cover_letters` | AI preparation | Generated artifacts must stay grounded in stored resume evidence |
+| `resume_versions`, `cover_letters` | AI preparation | Generated artifacts must stay grounded in stored resume evidence; resume versions may reference a template and must fall back safely if that template is deleted |
 | `applications`, `application_events`, `interviews` | Application tracking | Final submission stays manual; status changes must be auditable |
 | `extension_pairing_codes` | Extension pairing | Pairing codes are one-time and expire quickly |
 | `automation_runs`, `background_jobs` | Assisted workflow tracking | Current automation is dry-run/manual-submit only |
