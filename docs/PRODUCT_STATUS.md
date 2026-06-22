@@ -1,6 +1,6 @@
 # Apply Wise Product Status
 
-**Last updated:** June 21, 2026
+**Last updated:** June 22, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
@@ -124,6 +124,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 102. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
 103. Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.
 104. Add resume template management with DOCX template upload, active-template selection, rename/delete controls, active-template preview, template-aware tailored-resume generation, generated-version template provenance, and DOCX/PDF downloads that resolve selected template, active fallback template, or the built-in ATS-friendly template.
+105. Add a dedicated Prepare Application page for saved/captured jobs with job review, match/ATS scores, matching/missing skills, selected template metadata, generated resume and cover letter editing, DOCX/PDF/TXT downloads, review confirmation, and manual status controls.
 
 ## Resume Template System Verification Update
 

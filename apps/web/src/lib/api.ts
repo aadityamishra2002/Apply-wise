@@ -110,6 +110,7 @@ export type ReviewAutofillField = {
 };
 export type ReviewBeforeApply = {
   application_id: string;
+  application_status: string;
   job_id: string;
   job_title: string;
   company: string;
@@ -118,6 +119,10 @@ export type ReviewBeforeApply = {
   target_url: string;
   match_score: number | null;
   ats_score: number | null;
+  matching_skills: string[];
+  missing_skills: string[];
+  template_id: string | null;
+  template_name: string;
   resume_version_id: string | null;
   cover_letter_id: string | null;
   resume_summary: string | null;
@@ -147,11 +152,16 @@ export type DashboardSummary = {
 };
 export type ApplicationMaterials = {
   application: ApplicationRecord;
+  application_status: string;
   resume_version_id: string;
+  template_id: string | null;
+  template_name: string;
   ats_score: number;
-  resume_content: Record<string, unknown>;
+  resume_content: ResumeContentDraft;
   cover_letter_id: string;
   cover_letter: string;
+  matching_skills: string[];
+  missing_skills: string[];
   provenance: string;
   generation_status: string;
   retry_attempts: number;

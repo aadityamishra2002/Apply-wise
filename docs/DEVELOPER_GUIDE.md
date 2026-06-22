@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-21
-- Commit: cd6e0a6
+- Date: 2026-06-22
+- Commit: pending
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -134,7 +134,7 @@ Most product routes live in `apps/api/app/presentation/api_v1/router.py`. Keep r
 | Resume templates/export | `router.py`, `app/application/exports/service.py` | `resume_templates`, `resume_versions`, `activity_logs` |
 | Job search/import/capture | `router.py`, job providers, matching services | `jobs`, `job_matches`, `job_preferences`, `applications`, `activity_logs` |
 | ATS/matching | `app/application/jobs`, `router.py` | `job_matches`, `activity_logs` |
-| Resume and cover generation | `app/application/tailoring`, `router.py` | `resume_versions`, `cover_letters`, `applications`, `application_events`, `activity_logs` |
+| Resume and cover generation | `app/application/tailoring`, `router.py`, `apps/web/src/app/applications/[id]/prepare/page.tsx` | `resume_versions`, `cover_letters`, `applications`, `application_events`, `activity_logs` |
 | Application tracking | `router.py`, application helpers | `applications`, `application_events`, `interviews`, `automation_runs`, `background_jobs` |
 | Settings/profile/export | `router.py` | `user_profiles`, `subscriptions`, user-owned workspace tables |
 | Extension integration | `router.py`, extension popup scripts | `extension_pairing_codes`, `jobs`, `job_matches`, `applications`, `application_events`, `activity_logs` |

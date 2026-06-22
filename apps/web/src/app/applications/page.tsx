@@ -492,6 +492,7 @@ export default function ApplicationsPage() {
             </div>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={`/applications/${selected.id}/prepare`}><WandSparkles size={13} />Open prepare page</Link>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void prepare(selected.id)}><WandSparkles size={13} />Prepare materials</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={updating === selected.id} onClick={() => void queuePrepareRun()}><Clock3 size={13} />Queue prepare run</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("docx")}><Download size={13} />Resume DOCX</button>
@@ -727,6 +728,8 @@ function confirmAppliedStatus(): boolean {
 
 function eventSummary(event: ApplicationEvent): string {
   const metadata = event.metadata ?? {};
+  if (event.event_type === "application_saved") return "Job saved into the application tracker.";
+  if (event.event_type === "materials_prepared") return "Tailored resume and cover letter prepared for review.";
   if (event.event_type === "resume_generated") return `Tailored resume generated with ATS score ${String(metadata.ats_score ?? "--")}.`;
   if (event.event_type === "cover_letter_generated") return "Cover letter generated for this application.";
   if (event.event_type === "application_marked_applied") return "Application marked applied after manual submission.";

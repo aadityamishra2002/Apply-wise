@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bookmark, Check, Copy, Download, FileText, LoaderCircle, Mail, MapPin, Plus, Search, WandSparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { MatchRing, Pill } from "@/components/ui";
@@ -26,6 +27,7 @@ import {
 const emptyManualJob: ManualJob = { title: "", company: "", location: "", url: "", description: "" };
 
 export default function JobsPage() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobRecommendation[]>([]);
   const [selected, setSelected] = useState<JobRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,7 @@ export default function JobsPage() {
   const [generatedCoverLetter, setGeneratedCoverLetter] = useState<CoverLetterRecord | null>(null);
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [preparing, setPreparing] = useState<"resume" | "cover" | null>(null);
+  const [startingPrepare, setStartingPrepare] = useState(false);
 
   const sources = Array.from(new Set(jobs.map((job) => job.source))).sort();
   const visibleJobs = jobs.filter((job) => {
@@ -122,6 +125,28 @@ export default function JobsPage() {
       setShowCapture(false);
     } catch (captureError) {
       setError(captureError instanceof Error ? captureError.message : "Could not capture this job.");
+    }
+  }
+
+  async function startPrepareApplication() {
+    const token = getAccessToken();
+    if (!token || !selected) return;
+    setStartingPrepare(true);
+    setError(null);
+    try {
+      let applicationId = selected.application_id;
+      if (!applicationId) {
+        const application = await saveJob(selected.id, token);
+        applicationId = application.id;
+        const markSaved = (job: JobRecommendation) => job.id === selected.id ? { ...job, saved: true, application_id: application.id } : job;
+        setJobs((current) => current.map(markSaved));
+        setSelected((current) => current ? markSaved(current) : current);
+      }
+      router.push(`/applications/${applicationId}/prepare`);
+    } catch (prepareError) {
+      setError(prepareError instanceof Error ? prepareError.message : "Could not open the prepare application workflow.");
+    } finally {
+      setStartingPrepare(false);
     }
   }
 
@@ -363,7 +388,10 @@ export default function JobsPage() {
               </div>
               <p className="mt-5 text-[13px] leading-6 text-[#65736f]">{selected.description}</p>
               <button className="mt-5 flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:opacity-60" disabled={selected.saved} onClick={() => void persistSavedJob(selected.id)}><Bookmark size={15} />{selected.saved ? "Saved to tracker" : "Save job"}</button>
-              {selected.saved ? <Link className="mt-3 inline-flex rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" href={selected.application_id ? `/applications?application=${selected.application_id}` : "/applications"}>Open workflow</Link> : null}
+              <button className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60" disabled={startingPrepare} onClick={() => void startPrepareApplication()}>
+                {startingPrepare ? <LoaderCircle className="animate-spin" size={13} /> : <WandSparkles size={13} />}Prepare Application
+              </button>
+              {selected.saved ? <Link className="ml-2 mt-3 inline-flex rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" href={selected.application_id ? `/applications?application=${selected.application_id}` : "/applications"}>Open board</Link> : null}
               {selected.high_fit && selected.approval_status === "review_required" ? (
                 <div className="mt-3 flex gap-2">
                   <button className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b]" onClick={() => void decide(selected.id, "approved")}>Approve 80+ role</button>

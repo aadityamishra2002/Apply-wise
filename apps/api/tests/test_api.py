@@ -492,8 +492,11 @@ def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
 
     review = client.get(f"/api/v1/applications/{saved.json()['id']}/review-before-apply", headers=headers)
     assert review.status_code == 200
+    assert review.json()["application_status"] == "preparing"
     assert review.json()["resume_version_id"] == resume_body["id"]
     assert review.json()["cover_letter_id"] == letter_body["id"]
+    assert "python" in review.json()["matching_skills"]
+    assert review.json()["template_name"] == "Built-in ATS template"
 
 
 def test_resume_template_upload_select_rename_delete_and_preview() -> None:
@@ -1166,12 +1169,17 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     assert prepared.status_code == 201
     body = prepared.json()
     assert body["application"]["status"] == "preparing"
+    assert body["application_status"] == "preparing"
+    assert body["template_id"] is None
+    assert body["template_name"] == "Built-in ATS template"
     assert body["resume_content"]["draft_type"] == "deterministic_evidence_grounded"
     assert body["resume_content"]["source_resume_id"]
     assert body["resume_content"]["experience"][0]["company"] == "Northstar Labs"
     assert "Northstar Labs" in body["cover_letter"]
     assert body["resume_version_id"]
     assert body["cover_letter_id"]
+    assert body["matching_skills"]
+    assert isinstance(body["missing_skills"], list)
     assert body["provenance"] == "deterministic_evidence_grounded"
     assert body["generation_status"] == "fallback_no_provider"
     assert body["retry_attempts"] == 1
@@ -1190,6 +1198,10 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     export_events = client.get(f"/api/v1/applications/{application['id']}/events", headers=headers)
     assert export_events.status_code == 200
     assert any(event["event_type"] == "resume_export_downloaded" and event["metadata"]["retry_attempts"] == 1 for event in export_events.json())
+    event_types = {event["event_type"] for event in export_events.json()}
+    assert {"application_saved", "materials_prepared", "resume_generated", "cover_letter_generated"}.issubset(event_types)
+    activity = client.get("/api/v1/activity/logs", headers=headers).json()
+    assert any(event["event_type"] == "application_materials_prepared" and event["metadata"]["resume_version_id"] == body["resume_version_id"] for event in activity)
     version_detail = client.get(f"/api/v1/resume-versions/{body['resume_version_id']}", headers=headers)
     assert version_detail.status_code == 200
     edited_content = dict(version_detail.json()["resume_content"])

@@ -1,6 +1,6 @@
 # Apply Wise User Guide
 
-Last updated: 2026-06-21
+Last updated: 2026-06-22
 
 Use this guide when you want the fastest, most useful workflow from Apply Wise and the browser extension.
 
@@ -99,33 +99,35 @@ Pairing codes expire after 10 minutes. If pairing fails, generate a fresh code f
    - ATS score
    - Matching skills
    - Missing skills
-3. Click **Generate Tailored Resume**.
-4. Review the generated resume preview.
-5. Use **Copy** or **Download** if the draft looks good.
-6. Click **Generate Cover Letter**.
-7. Review the generated cover letter preview.
-8. Use **Copy** or **Download** if the draft looks good.
-9. Edit anything that does not sound like you before sending it anywhere.
+3. Click **Prepare Application**.
+4. On the prepare page, review the job details, scores, missing skills, and selected resume template.
+5. Click **Generate materials** if the tailored resume and cover letter are not ready yet.
+6. Review and edit the tailored resume.
+7. Review and edit the cover letter.
+8. Download the tailored resume as DOCX or PDF.
+9. Download the cover letter.
+10. Click **I reviewed this application** only after checking the generated content and warnings.
+11. Apply manually on the employer site.
+12. Mark the application as **Applied** only after manual submission.
 
 Do not use a generated draft blindly. Always check dates, titles, skills, company names, and project details before applying.
 
 ## Use Assisted Autofill
 
 1. Capture the job with the extension.
-2. Prepare the application materials in Apply Wise.
-3. Open the application in Apply Wise.
-4. Open **Review Application**.
-5. Review the job, resume, cover letter, missing fields, and warnings.
-6. Click **I reviewed this application**.
-7. Return to the employer application form.
-8. Open the Apply Wise extension.
-9. Click **Inspect application form**.
-10. Click **Load autofill plan**.
-11. Review every suggested field.
-12. Select only the fields you approve.
-13. Click **Fill reviewed fields**.
-14. Review the employer form manually.
-15. Submit manually only when you are satisfied.
+2. Open **Prepare Application** for that role.
+3. Generate or review the application materials in Apply Wise.
+4. Review the job, resume, cover letter, missing fields, and warnings.
+5. Click **I reviewed this application**.
+6. Return to the employer application form.
+7. Open the Apply Wise extension.
+8. Click **Inspect application form**.
+9. Click **Load autofill plan**.
+10. Review every suggested field.
+11. Select only the fields you approve.
+12. Click **Fill reviewed fields**.
+13. Review the employer form manually.
+14. Submit manually only when you are satisfied.
 
 Apply Wise does not click the final submit button for you.
 
@@ -140,7 +142,8 @@ Apply Wise does not click the final submit button for you.
 ## Track Applications
 
 1. Go to **Applications**.
-2. Move each job to the correct status:
+2. Open **Prepare Application** when you need to review or update generated materials for a saved role.
+3. Move each job to the correct status:
    - Saved
    - Preparing
    - Applied
@@ -148,9 +151,9 @@ Apply Wise does not click the final submit button for you.
    - Rejected
    - Offer
    - Withdrawn
-3. Add notes after important events.
-4. Add interview rounds when interviews are scheduled.
-5. Keep rejected or withdrawn roles updated so your dashboard stays accurate.
+4. Add notes after important events.
+5. Add interview rounds when interviews are scheduled.
+6. Keep rejected or withdrawn roles updated so your dashboard stays accurate.
 
 ## Daily Job Search Routine
 

@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-21
-- Commit: 2f99720
+- Date: 2026-06-22
+- Commit: pending
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -24,12 +24,12 @@ This file maps major product features to the code and data they use. Update it w
 | Public URL import | Jobs page URL import | `POST /jobs/import-url`, HTML extraction helpers | `apps/web/src/app/jobs/page.tsx` | `jobs`, `job_matches`, `activity_logs` |
 | Extension job capture | Chrome/Brave extension popup | `POST /extension/jobs/capture`, extension token dependencies | `apps/extension/popup.js`, `apps/extension/popup.html` | `extension_pairing_codes`, `jobs`, `job_matches`, `applications`, `activity_logs` |
 | ATS and match scoring | Jobs page score cards, 80+ queue | Job matching and ATS services, `GET /jobs` | `apps/web/src/app/jobs/page.tsx` | `job_matches`, `activity_logs` |
-| Resume generation | Jobs page and Applications workflow | `POST /jobs/{id}/resume-versions`, tailoring service, template-aware export service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `resume_templates`, `applications`, `application_events`, `activity_logs` |
-| Cover letter generation | Jobs page and Applications workflow | `POST /jobs/{id}/cover-letters`, tailoring service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `cover_letters`, `applications`, `application_events`, `activity_logs` |
+| Resume generation | Jobs page, Prepare Application page, and Applications workflow | `POST /jobs/{id}/resume-versions`, `POST /applications/{id}/prepare`, tailoring service, template-aware export service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/[id]/prepare/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `resume_templates`, `applications`, `application_events`, `activity_logs` |
+| Cover letter generation | Jobs page, Prepare Application page, and Applications workflow | `POST /jobs/{id}/cover-letters`, `POST /applications/{id}/prepare`, tailoring service | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/[id]/prepare/page.tsx`, `apps/web/src/app/applications/page.tsx` | `cover_letters`, `applications`, `application_events`, `activity_logs` |
 | Generated artifact download | Jobs/Application preview actions | Resume export and cover-letter download endpoints | `apps/web/src/app/jobs/page.tsx`, `apps/web/src/app/applications/page.tsx` | `resume_versions`, `cover_letters`, `application_events` |
 | Application tracking | Applications board | Application routes in `router.py` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `interviews` |
 | Mark as Applied | Applications board confirmation | `PATCH /applications/{id}` | `apps/web/src/app/applications/page.tsx` | `applications`, `application_events`, `activity_logs` |
-| Review Application and Assisted Apply readiness | Application detail workflow | `GET /applications/{id}/review-before-apply`, `POST /applications/{id}/review-before-apply/confirm`, `GET /applications/{id}/assisted-checklist` in `router.py` | `apps/web/src/app/applications/page.tsx`, `apps/web/src/lib/api.ts` | `applications`, `application_events`, `job_matches`, `resume_versions`, `cover_letters` |
+| Review Application and Assisted Apply readiness | Application detail workflow and Prepare Application page | `GET /applications/{id}/review-before-apply`, `POST /applications/{id}/review-before-apply/confirm`, `GET /applications/{id}/assisted-checklist` in `router.py` | `apps/web/src/app/applications/[id]/prepare/page.tsx`, `apps/web/src/app/applications/page.tsx`, `apps/web/src/lib/api.ts` | `applications`, `application_events`, `job_matches`, `resume_versions`, `cover_letters` |
 | Assisted autofill plan | Extension after Review Application confirmation | `GET /extension/applications/{id}/autofill-plan` | `apps/extension/popup.js` | `user_profiles`, resume tables, `application_events` |
 | Extension resume download for upload | Extension PDF/DOCX download buttons | `GET /extension/applications/{id}/resume-download` | `apps/extension/popup.js` | `resume_versions`, `application_events` |
 | Application profile | Settings page | `GET/PUT /settings/profile` | `apps/web/src/app/settings/page.tsx` | `user_profiles` |

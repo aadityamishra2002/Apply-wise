@@ -2,8 +2,8 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-21
-- Commit: cd6e0a6
+- Date: 2026-06-22
+- Commit: pending
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -156,6 +156,23 @@ Expected behavior:
 ### Generated Resume Download Is Blocked
 
 If unsupported-claim warnings exist, the API may block download until the user acknowledges the warnings. Review the generated content and remove unsupported claims before external use.
+
+### Prepare Application Page Cannot Load Or Generate
+
+Check:
+
+- The application belongs to the logged-in user.
+- A master resume exists before generation.
+- The job has title, company, URL, and enough description text.
+- `GET /applications/{id}/review-before-apply` returns job details, scores, selected template metadata, and material IDs if already generated.
+- `POST /applications/{id}/prepare` returns `resume_version_id`, `cover_letter_id`, `template_name`, matching skills, missing skills, and `application_status: preparing`.
+
+Relevant files:
+
+- `apps/web/src/app/applications/[id]/prepare/page.tsx`
+- `apps/web/src/app/jobs/page.tsx`
+- `apps/api/app/presentation/api_v1/router.py`
+- `apps/api/tests/test_api.py`
 
 ## Application Tracking Issues
 

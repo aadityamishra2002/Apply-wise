@@ -253,11 +253,16 @@ class ActivityLogResponse(BaseModel):
 
 class ApplicationMaterialsResponse(BaseModel):
     application: ApplicationResponse
+    application_status: str
     resume_version_id: str
+    template_id: str | None
+    template_name: str
     ats_score: float
     resume_content: dict
     cover_letter_id: str
     cover_letter: str
+    matching_skills: list[str]
+    missing_skills: list[str]
     provenance: str
     generation_status: str
     retry_attempts: int
@@ -526,6 +531,7 @@ class BackgroundJobResponse(BaseModel):
 
 class ReviewBeforeApplyResponse(BaseModel):
     application_id: str
+    application_status: str
     job_id: str
     job_title: str
     company: str
@@ -534,6 +540,10 @@ class ReviewBeforeApplyResponse(BaseModel):
     target_url: str
     match_score: float | None
     ats_score: float | None
+    matching_skills: list[str]
+    missing_skills: list[str]
+    template_id: str | None
+    template_name: str
     resume_version_id: str | None
     cover_letter_id: str | None
     resume_summary: str | None
@@ -1213,6 +1223,9 @@ async def save_job(
     if not application:
         application = Application(user_id=user.id, job_id=stored_job.id, status=ApplicationStatus.SAVED)
         session.add(application)
+        await session.flush()
+        session.add(ApplicationEvent(application_id=application.id, event_type="application_saved", to_status=ApplicationStatus.SAVED.value))
+        log_activity(session, user.id, "application_saved", {"job_id": str(stored_job.id), "application_id": str(application.id)})
         await session.commit()
     return application_response(application, stored_job)
 
@@ -1909,6 +1922,7 @@ async def review_before_apply(
     profile = await ResumeService(session).get_active(user.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Upload a master resume before reviewing an application.")
+    selected_template = await get_export_resume_template(session, user.id, resume_version) if resume_version else await get_active_resume_template(session, user.id)
     db_user = await session.get(User, user.id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is unavailable.")
@@ -1958,6 +1972,10 @@ async def review_before_apply(
         target_url=job.url,
         match_score=job_match.match_score if job_match else None,
         ats_score=job_match.ats_score if job_match else resume_version.ats_score if resume_version else None,
+        matching_skills=[str(skill) for skill in ((job_match.matching_skills if job_match else []) or [])],
+        missing_skills=[str(skill) for skill in ((job_match.missing_skills if job_match else []) or [])],
+        template_id=str(selected_template.id) if selected_template else None,
+        template_name=selected_template.name if selected_template else "Built-in ATS template",
         resume_version_id=str(resume_version.id) if resume_version else None,
         cover_letter_id=str(cover_letter.id) if cover_letter else None,
         resume_summary=resume_content_summary(resume_version.resume_content) if resume_version else None,
@@ -1969,6 +1987,7 @@ async def review_before_apply(
         quality_warnings=quality_warnings,
         warnings=warnings,
         review_confirmed=bool(review_confirmed),
+        application_status=application.status.value,
     )
 
 
@@ -2312,14 +2331,31 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
             ),
         ]
     )
+    log_activity(
+        session,
+        user_id,
+        "application_materials_prepared",
+        {
+            "application_id": str(application.id),
+            "job_id": str(job.id),
+            "resume_version_id": str(resume_version.id),
+            "cover_letter_id": str(cover_letter.id),
+            "template_id": str(resume_version.template_id) if resume_version.template_id else None,
+        },
+    )
     await session.commit()
     return ApplicationMaterialsResponse(
         application=application_response(application, job),
+        application_status=application.status.value,
         resume_version_id=str(resume_version.id),
+        template_id=str(resume_version.template_id) if resume_version.template_id else None,
+        template_name=active_template.name if active_template else "Built-in ATS template",
         ats_score=resume_version.ats_score,
         resume_content=resume_content,
         cover_letter_id=str(cover_letter.id),
         cover_letter=cover_letter.content,
+        matching_skills=[str(skill) for skill in ((stored_match.matching_skills if stored_match else []) or [])],
+        missing_skills=[str(skill) for skill in ((stored_match.missing_skills if stored_match else []) or [])],
         provenance=materials.provenance,
         generation_status=materials.generation_status,
         retry_attempts=materials.retry_attempts,
