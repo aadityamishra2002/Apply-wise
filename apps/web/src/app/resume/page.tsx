@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, CloudUpload, Download, FileText, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ResumeFormatGuidance } from "@/components/resume-format-guidance";
 import { Pill } from "@/components/ui";
 import { downloadResumeVersion, getAccessToken, loadResumeProfile, loadResumeVersions, reparseResume, saveResumeProfile, uploadResume, type ResumeProfile, type ResumeVersionRecord } from "@/lib/api";
 
@@ -129,6 +130,9 @@ export default function ResumePage() {
               <p className="mt-4 text-[13px] font-bold">{uploading ? "Extracting your resume..." : profile ? "Replace your master resume" : "Upload your master resume"}</p>
               <p className="mt-1 text-[11px] leading-5 text-[#91a09c]">PDF or DOCX, up to 10 MB. Text is extracted and stored securely in your profile.</p>
             </button>
+            <div className="mt-4">
+              <ResumeFormatGuidance compact />
+            </div>
             {error ? <p className="mt-3 rounded-xl bg-[#fff4ef] p-3 text-[12px] font-bold text-[#a34f3f]">{error}</p> : null}
           </div>
 
@@ -174,6 +178,9 @@ export default function ResumePage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Resume template</p>
             <h2 className="mt-3 text-[16px] font-bold">Control export formatting</h2>
             <p className="mt-2 text-[12px] leading-5 text-[#65736f]">Upload or select a DOCX template so tailored resumes replace content without redesigning your layout.</p>
+            <div className="mt-4">
+              <ResumeFormatGuidance compact />
+            </div>
             <Link className="mt-4 inline-flex rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white" href="/resume/templates">Manage resume templates</Link>
           </div>
 

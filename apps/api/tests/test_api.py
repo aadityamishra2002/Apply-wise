@@ -472,7 +472,7 @@ def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
     assert "python" in generated_text
     assert "kubernetes" not in generated_text
     assert resume_body["missing_skills_analysis"]
-    assert resume_body["quality_warnings"] == []
+    assert "no placeholders" in " ".join(resume_body["quality_warnings"]).lower()
 
     stored_resume = client.get(f"/api/v1/resume-versions/{resume_body['id']}", headers=headers)
     assert stored_resume.status_code == 200
@@ -496,7 +496,7 @@ def test_captured_job_can_generate_grounded_resume_and_cover_letter() -> None:
     assert review.json()["resume_version_id"] == resume_body["id"]
     assert review.json()["cover_letter_id"] == letter_body["id"]
     assert "python" in review.json()["matching_skills"]
-    assert review.json()["template_name"] == "Built-in ATS template"
+    assert review.json()["template_name"].startswith("Master resume layout")
 
 
 def test_resume_template_upload_select_rename_delete_and_preview() -> None:
@@ -507,7 +507,8 @@ def test_resume_template_upload_select_rename_delete_and_preview() -> None:
     templates = client.get("/api/v1/resume-templates", headers=headers)
     assert templates.status_code == 200
     assert templates.json()[0]["id"] == "default"
-    assert templates.json()[0]["is_active"] is True
+    assert templates.json()[0]["is_active"] is False
+    assert any(item["name"].startswith("Master resume layout") and item["is_active"] is True for item in templates.json())
 
     uploaded = client.post(
         "/api/v1/resume-templates",
@@ -542,7 +543,7 @@ def test_resume_template_upload_select_rename_delete_and_preview() -> None:
     deleted = client.delete(f"/api/v1/resume-templates/{template['id']}", headers=headers)
     assert deleted.status_code == 204
     after_delete = client.get("/api/v1/resume-templates", headers=headers)
-    assert [item["id"] for item in after_delete.json()] == ["default"]
+    assert "default" in [item["id"] for item in after_delete.json()]
     assert after_delete.json()[0]["is_active"] is True
 
 
@@ -613,10 +614,55 @@ def test_resume_generation_exports_with_selected_template_and_default_fallback()
     assert exported.json()["resume_versions"][0]["template_id"] is None
 
 
+def test_plain_docx_template_uploads_and_exports_without_generic_layout() -> None:
+    token = register_user("plain-template-generation@example.com")["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_resume(token)
+    uploaded = client.post(
+        "/api/v1/resume-templates/upload",
+        headers=headers,
+        files={"file": ("plain-resume-layout.docx", make_resume_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert uploaded.status_code == 201
+    template = uploaded.json()
+    assert template["placeholders"] == []
+    assert template["is_active"] is True
+
+    preview = client.get("/api/v1/resume-templates/active/preview", headers=headers)
+    assert preview.status_code == 200
+    assert preview.json()["section_order"][:2] == ["SUMMARY", "EXPERIENCE"]
+
+    captured = client.post(
+        "/api/v1/jobs/manual",
+        headers=headers,
+        json={
+            "title": "Template Preservation Engineer",
+            "company": "Plain Template Example",
+            "location": "Remote",
+            "url": "https://example.com/careers/plain-template-engineer",
+            "description": "Build reliable Python and FastAPI services with PostgreSQL and Docker.",
+        },
+    )
+    assert captured.status_code == 201
+    resume = client.post(f"/api/v1/jobs/{captured.json()['id']}/resume-versions", headers=headers)
+    assert resume.status_code == 201
+    assert resume.json()["template_id"] == template["id"]
+    assert "no placeholders" in " ".join(resume.json()["quality_warnings"]).lower()
+
+    docx = client.get(f"/api/v1/resume-versions/{resume.json()['id']}/download?format=docx", headers=headers)
+    assert docx.status_code == 200
+    rendered = Document(BytesIO(docx.content))
+    rendered_text = "\n".join(paragraph.text for paragraph in rendered.paragraphs)
+    assert rendered.paragraphs[0].text == "Summary"
+    assert "Northstar Labs" in rendered_text
+    assert "Apply Wise Copilot" in rendered_text
+
+
 def test_resume_download_uses_active_template_when_version_has_no_template_id() -> None:
     token = register_user("template-active-fallback@example.com")["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     upload_resume(token)
+    assert client.post("/api/v1/resume-templates/default/select", headers=headers).status_code == 200
     captured = client.post(
         "/api/v1/jobs/manual",
         headers=headers,
@@ -1170,8 +1216,8 @@ def test_prepare_application_persists_truthful_resume_and_cover_letter_drafts() 
     body = prepared.json()
     assert body["application"]["status"] == "preparing"
     assert body["application_status"] == "preparing"
-    assert body["template_id"] is None
-    assert body["template_name"] == "Built-in ATS template"
+    assert body["template_id"]
+    assert body["template_name"].startswith("Master resume layout")
     assert body["resume_content"]["draft_type"] == "deterministic_evidence_grounded"
     assert body["resume_content"]["source_resume_id"]
     assert body["resume_content"]["experience"][0]["company"] == "Northstar Labs"

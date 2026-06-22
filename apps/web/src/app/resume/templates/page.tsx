@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, FileText, LoaderCircle, Pencil, Trash2, Upload } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ResumeFormatGuidance } from "@/components/resume-format-guidance";
 import { Pill } from "@/components/ui";
 import {
   deleteResumeTemplate,
@@ -133,9 +134,12 @@ export default function ResumeTemplatesPage() {
           <div className="rounded-2xl border border-[#e4e8e3] bg-white p-5 small-shadow">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#91a09c]">Upload DOCX template</p>
             <h2 className="mt-2 text-[18px] font-bold">Keep formatting consistent</h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#65736f]">Upload a DOCX resume with placeholders. Apply Wise replaces content only and keeps your fonts, margins, headings, spacing, bullet styles, and section order.</p>
+            <p className="mt-2 text-[12px] leading-5 text-[#65736f]">Upload a DOCX resume template. Placeholders give the most controlled output, and plain DOCX templates are still used as the formatting source for safer in-place section replacement.</p>
+            <div className="mt-4">
+              <ResumeFormatGuidance compact />
+            </div>
             <div className="mt-4 rounded-xl bg-[#f6f8f5] p-4 text-[12px] leading-6 text-[#65736f]">
-              Supported placeholders: <span className="font-bold text-[#176b5b]">{"{{NAME}}, {{CONTACT}}, {{SUMMARY}}, {{SKILLS}}, {{EXPERIENCE}}, {{PROJECTS}}, {{EDUCATION}}, {{CERTIFICATIONS}}"}</span>
+              Optional supported placeholders: <span className="font-bold text-[#176b5b]">{"{{NAME}}, {{CONTACT}}, {{SUMMARY}}, {{SKILLS}}, {{EXPERIENCE}}, {{PROJECTS}}, {{EDUCATION}}, {{CERTIFICATIONS}}"}</span>
             </div>
             <input accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={(event) => void uploadTemplate(event.target.files?.[0])} ref={fileInput} type="file" />
             <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#176b5b] px-4 py-3 text-[12px] font-bold text-white disabled:cursor-wait disabled:opacity-70" disabled={busy === "upload"} onClick={() => fileInput.current?.click()} type="button">
@@ -159,7 +163,7 @@ export default function ResumeTemplatesPage() {
                           {template.source === "built_in" ? <Pill tone="lime">Default</Pill> : null}
                         </div>
                         <p className="mt-1 text-[11px] text-[#91a09c]">{template.original_filename ?? "Built-in ATS-friendly one-page template"}</p>
-                        <div className="mt-3 flex flex-wrap gap-2">{template.placeholders.map((placeholder) => <Pill key={`${template.id}-${placeholder}`}>{placeholder}</Pill>)}</div>
+                        <div className="mt-3 flex flex-wrap gap-2">{template.placeholders.length ? template.placeholders.map((placeholder) => <Pill key={`${template.id}-${placeholder}`}>{placeholder}</Pill>) : <Pill tone="lime">Plain DOCX fallback</Pill>}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button className="rounded-lg bg-[#e8f4ef] px-3 py-2 text-[11px] font-bold text-[#176b5b] disabled:opacity-60" disabled={template.is_active || busy === `select-${template.id}`} onClick={() => void selectTemplate(template.id)} type="button">{busy === `select-${template.id}` ? "Selecting..." : "Select"}</button>
@@ -195,7 +199,7 @@ export default function ResumeTemplatesPage() {
               <div className="mt-5 rounded-xl bg-[#f6f8f5] p-4">
                 <p className="text-[12px] font-bold text-[#176b5b]">Section order</p>
                 <div className="mt-3 flex flex-wrap gap-2">{preview.section_order.map((section) => <Pill key={section} tone="green">{section}</Pill>)}</div>
-                {preview.missing_placeholders.length ? <p className="mt-3 text-[11px] leading-5 text-[#71807c]">Missing placeholders are appended safely at export: {preview.missing_placeholders.join(", ")}.</p> : <p className="mt-3 flex items-center gap-1 text-[11px] font-bold text-[#66801f]"><Check size={13} /> All supported sections have placeholders.</p>}
+                {preview.template.source === "custom" && !preview.template.placeholders.length ? <p className="mt-3 text-[11px] leading-5 text-[#71807c]">This plain DOCX template has no placeholders. Apply Wise will preserve the source document and replace matching sections where possible, then append any missing sections safely.</p> : preview.missing_placeholders.length ? <p className="mt-3 text-[11px] leading-5 text-[#71807c]">Missing placeholders are appended safely at export: {preview.missing_placeholders.join(", ")}.</p> : <p className="mt-3 flex items-center gap-1 text-[11px] font-bold text-[#66801f]"><Check size={13} /> All supported sections have placeholders.</p>}
               </div>
               <div className="mt-5 space-y-4">
                 {Object.entries(preview.preview).map(([section, lines]) => (

@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.jobs.service import JobMatchingService, MatchingWeights
 from app.application.jobs.ats import AtsAnalysisService, AtsResult, AtsWeights
-from app.application.exports.service import ResumeExportService, download_filename, extract_placeholders_from_docx
+from app.application.exports.service import ResumeExportService, download_filename, extract_placeholders_from_docx, infer_section_order_from_docx
 from app.application.applications.autofill import build_autofill_plan
 from app.application.automation.adapters import build_dry_run_steps, capability_for_url, list_capabilities
 from app.application.identity.service import is_expired
@@ -1241,6 +1241,7 @@ async def create_job_resume_version(
     resume_content = validate_resume_version_content(materials.resume_content)
     quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, None, profile))
     active_template = await get_active_resume_template(session, user.id)
+    quality_warnings.extend(template_preservation_warnings(active_template))
     resume_version = ResumeVersion(
         user_id=user.id,
         job_id=job.id,
@@ -1317,6 +1318,10 @@ async def preview_active_resume_template(
     preview = resume_export_service.preview_sections(content, user=db_user, user_profile=user_profile)
     placeholders = [str(placeholder) for placeholder in (template.placeholders if template else default_template_response(True).placeholders)]
     section_order = resume_template_section_order(placeholders)
+    if template and not section_order:
+        section_order = infer_section_order_from_docx(template.template_bytes)
+    if not section_order:
+        section_order = resume_template_section_order(default_template_response(True).placeholders)
     return ResumeTemplatePreviewResponse(
         template=resume_template_response(template) if template else default_template_response(True),
         section_order=section_order,
@@ -1342,8 +1347,6 @@ async def upload_resume_template(
         placeholders = extract_placeholders_from_docx(content)
     except Exception as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Template DOCX could not be read. Upload a valid DOCX file.") from error
-    if not placeholders:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Template must include at least one supported placeholder such as {{SUMMARY}}, {{SKILLS}}, or {{EXPERIENCE}}.")
     await session.execute(
         update(ResumeTemplate)
         .where(ResumeTemplate.user_id == user.id, ResumeTemplate.is_active.is_(True))
@@ -1359,7 +1362,7 @@ async def upload_resume_template(
         is_active=True,
     )
     session.add(template)
-    log_activity(session, user.id, "resume_template_uploaded", {"template_name": template.name, "placeholders": placeholders})
+    log_activity(session, user.id, "resume_template_uploaded", {"template_name": template.name, "placeholders": placeholders, "uses_plain_docx_fallback": not bool(placeholders)})
     await session.commit()
     await session.refresh(template)
     return resume_template_response(template)
@@ -2265,6 +2268,7 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
     resume_content = materials.resume_content
     quality_warnings = quality_warning_messages(find_unsupported_claims(resume_content, materials.cover_letter, profile))
     active_template = await get_active_resume_template(session, user_id)
+    quality_warnings.extend(template_preservation_warnings(active_template))
     resume_version = ResumeVersion(
         user_id=user_id,
         job_id=job.id,
@@ -3198,6 +3202,52 @@ async def get_export_resume_template(session: AsyncSession, user_id: UUID, versi
     return await get_resume_version_template(session, version) or await get_active_resume_template(session, user_id)
 
 
+def template_preservation_warnings(template: ResumeTemplate | None) -> list[str]:
+    if template and not template.placeholders:
+        return [
+            "Selected DOCX template has no placeholders. Apply Wise will preserve the uploaded document and replace matching sections where possible; review the DOCX before use."
+        ]
+    return []
+
+
+async def create_template_from_master_resume(
+    session: AsyncSession,
+    user_id: UUID,
+    filename: str,
+    content_type: str,
+    content: bytes,
+) -> ResumeTemplate | None:
+    if content_type != "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or not filename.lower().endswith(".docx"):
+        return None
+    try:
+        placeholders = extract_placeholders_from_docx(content)
+    except Exception:
+        return None
+    await session.execute(
+        update(ResumeTemplate)
+        .where(ResumeTemplate.user_id == user_id, ResumeTemplate.is_active.is_(True))
+        .values(is_active=False)
+    )
+    stem = Path(filename).stem.strip() or "resume"
+    template = ResumeTemplate(
+        user_id=user_id,
+        name=f"Master resume layout - {stem}"[:255],
+        original_filename=Path(filename).name[:255],
+        content_type=content_type,
+        template_bytes=content,
+        placeholders=placeholders,
+        is_active=True,
+    )
+    session.add(template)
+    log_activity(
+        session,
+        user_id,
+        "resume_template_created_from_master_resume",
+        {"template_name": template.name, "placeholders": placeholders, "uses_plain_docx_fallback": not bool(placeholders)},
+    )
+    return template
+
+
 def default_template_response(is_active: bool) -> ResumeTemplateResponse:
     return ResumeTemplateResponse(
         id="default",
@@ -3584,15 +3634,19 @@ async def upload_resume(
     session: Annotated[AsyncSession, Depends(get_session)],
     file: Annotated[UploadFile, File(...)],
 ) -> ResumeProfileResponse:
+    filename = file.filename or "resume"
+    content_type = file.content_type or ""
+    content = await file.read(MAX_RESUME_BYTES + 1)
     try:
         profile = await ResumeService(session).upload(
             user.id,
-            file.filename or "resume",
-            file.content_type or "",
-            await file.read(MAX_RESUME_BYTES + 1),
+            filename,
+            content_type,
+            content,
         )
     except ResumeValidationError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    await create_template_from_master_resume(session, user.id, filename, content_type, content)
     log_activity(
         session,
         user.id,

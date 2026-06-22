@@ -27,6 +27,14 @@ SUPPORTED_PLACEHOLDERS = {
     "CERTIFICATIONS",
 }
 SECTION_ORDER = ("SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS")
+SECTION_HEADING_ALIASES = {
+    "SUMMARY": ("summary", "profile", "professional summary", "career summary", "about"),
+    "SKILLS": ("skills", "technical skills", "core skills", "key skills", "technologies"),
+    "EXPERIENCE": ("experience", "professional experience", "work experience", "employment", "selected experience"),
+    "PROJECTS": ("projects", "selected projects", "project experience"),
+    "EDUCATION": ("education", "academic background", "academics"),
+    "CERTIFICATIONS": ("certifications", "certification", "licenses", "credentials"),
+}
 
 
 @dataclass(frozen=True)
@@ -136,6 +144,16 @@ def extract_placeholders_from_docx(content: bytes) -> list[str]:
     return found
 
 
+def infer_section_order_from_docx(content: bytes) -> list[str]:
+    document = Document(BytesIO(content))
+    order: list[str] = []
+    for paragraph in document.paragraphs:
+        section_name = detect_section_heading(paragraph)
+        if section_name and section_name not in order:
+            order.append(section_name)
+    return order
+
+
 def render_template(document: DocxDocument, raw_content: dict, identity: ResumeIdentity) -> None:
     content = normalized_resume_content(raw_content)
     sections = render_sections(content, identity)
@@ -150,6 +168,8 @@ def render_template(document: DocxDocument, raw_content: dict, identity: ResumeI
             replace_placeholder_paragraph(paragraph, sections[canonical])
             replaced.add(canonical)
             break
+    if not replaced:
+        replaced = replace_existing_sections(document, sections)
     if not replaced:
         append_rendered_sections(document, sections)
     else:
@@ -170,12 +190,70 @@ def replace_placeholder_paragraph(paragraph: Paragraph, lines: list[str]) -> Non
         clear_paragraph(paragraph)
         return
     original_style = paragraph.style
+    original_format = paragraph
     current = paragraph
     for index, line in enumerate(lines):
         if index > 0:
             current = insert_paragraph_after(current)
             current.style = original_style
+            copy_paragraph_format(original_format, current)
         set_paragraph_text(current, line)
+
+
+def replace_existing_sections(document: DocxDocument, sections: dict[str, list[str]]) -> set[str]:
+    paragraphs = list(document.paragraphs)
+    markers: list[tuple[int, str]] = []
+    for index, paragraph in enumerate(paragraphs):
+        section_name = detect_section_heading(paragraph)
+        if section_name:
+            markers.append((index, section_name))
+    if not markers:
+        return set()
+
+    replaced: set[str] = set()
+    for marker_index, (heading_index, section_name) in enumerate(markers):
+        lines = sections.get(section_name, [])
+        if not lines:
+            continue
+        next_heading_index = markers[marker_index + 1][0] if marker_index + 1 < len(markers) else len(paragraphs)
+        section_paragraphs = [
+            paragraph
+            for paragraph in paragraphs[heading_index + 1 : next_heading_index]
+            if paragraph.text.strip()
+        ]
+        source_paragraph = section_paragraphs[0] if section_paragraphs else paragraphs[heading_index]
+        current = source_paragraph
+        for line_index, line in enumerate(lines):
+            if line_index < len(section_paragraphs):
+                current = section_paragraphs[line_index]
+            else:
+                current = insert_paragraph_after(current)
+                current.style = source_paragraph.style
+                copy_paragraph_format(source_paragraph, current)
+            set_paragraph_text(current, line)
+        for stale_paragraph in section_paragraphs[len(lines) :]:
+            clear_paragraph(stale_paragraph)
+        replaced.add(section_name)
+    return replaced
+
+
+def detect_section_heading(paragraph: Paragraph) -> str | None:
+    text = paragraph.text.strip()
+    if not text:
+        return None
+    normalized = normalize_heading(text)
+    if len(normalized) > 48 and not paragraph.style.name.lower().startswith("heading"):
+        return None
+    for section_name, aliases in SECTION_HEADING_ALIASES.items():
+        if normalized in aliases:
+            return section_name
+        if paragraph.style.name.lower().startswith("heading") and any(alias in normalized for alias in aliases):
+            return section_name
+    return None
+
+
+def normalize_heading(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s/&-]", " ", value.lower())).strip()
 
 
 def append_rendered_sections(document: DocxDocument, sections: dict[str, list[str]]) -> None:
@@ -226,6 +304,16 @@ def set_paragraph_text(paragraph: Paragraph, text: str) -> None:
 def clear_paragraph(paragraph: Paragraph) -> None:
     for run in paragraph.runs:
         run.text = ""
+
+
+def copy_paragraph_format(source: Paragraph, target: Paragraph) -> None:
+    target.alignment = source.alignment
+    target.paragraph_format.left_indent = source.paragraph_format.left_indent
+    target.paragraph_format.right_indent = source.paragraph_format.right_indent
+    target.paragraph_format.first_line_indent = source.paragraph_format.first_line_indent
+    target.paragraph_format.space_before = source.paragraph_format.space_before
+    target.paragraph_format.space_after = source.paragraph_format.space_after
+    target.paragraph_format.line_spacing = source.paragraph_format.line_spacing
 
 
 def render_sections(content: dict, identity: ResumeIdentity) -> dict[str, list[str]]:

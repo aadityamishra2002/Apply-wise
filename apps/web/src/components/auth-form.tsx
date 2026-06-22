@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LoaderCircle } from "lucide-react";
@@ -8,30 +8,54 @@ import { ArrowRight, LoaderCircle } from "lucide-react";
 import { accessTokenKey, apiUrl } from "@/lib/api";
 
 type Mode = "login" | "register";
+const rememberedEmailKey = "applywise_remembered_email";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const isRegister = mode === "register";
+
+  useEffect(() => {
+    if (isRegister) return;
+    try {
+      const savedEmail = localStorage.getItem(rememberedEmailKey);
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberEmail(true);
+      }
+    } catch {
+      // Remember me is a convenience only; auth should keep working if storage is unavailable.
+    }
+  }, [isRegister]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError("");
+    const normalizedEmail = email.trim();
     try {
       const response = await fetch(`${apiUrl}/auth/${mode}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
       const body = await response.json();
       if (!response.ok) {
         setError(typeof body.detail === "string" ? body.detail : "Please check your details and try again.");
         return;
+      }
+      if (!isRegister) {
+        try {
+          if (rememberEmail) localStorage.setItem(rememberedEmailKey, normalizedEmail);
+          else localStorage.removeItem(rememberedEmailKey);
+        } catch {
+          // Do not block login if browser storage is unavailable.
+        }
       }
       sessionStorage.setItem(accessTokenKey, body.tokens.access_token);
       router.push("/dashboard");
@@ -72,7 +96,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </label>
         {!isRegister && (
           <div className="flex items-center justify-between text-[11px] font-bold">
-            <label className="flex items-center gap-2 text-[#71807c]"><input type="checkbox" /> Remember me</label>
+            <label className="flex items-center gap-2 text-[#71807c]">
+              <input
+                checked={rememberEmail}
+                onChange={(event) => {
+                  setRememberEmail(event.target.checked);
+                  if (!event.target.checked) {
+                    try {
+                      localStorage.removeItem(rememberedEmailKey);
+                    } catch {
+                      // Ignore storage failures for this non-security preference.
+                    }
+                  }
+                }}
+                type="checkbox"
+              />
+              Remember me
+            </label>
             <Link className="text-[#176b5b]" href="/forgot-password">Forgot password?</Link>
           </div>
         )}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Save, WandSparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ResumeFormatGuidance } from "@/components/resume-format-guidance";
 import {
   APPLIED_CONFIRMATION_TEXT,
   applicationStatusSuccessMessage,
@@ -224,6 +225,9 @@ export default function PrepareApplicationPage() {
                 <ScoreTile label="Match score" value={review.match_score === null ? "--" : `${Math.round(review.match_score)}%`} />
                 <ScoreTile label="ATS score" value={review.ats_score === null ? "--" : `${Math.round(review.ats_score)}%`} />
                 <ScoreTile label="Template" value={review.template_name} />
+              </div>
+              <div className="mt-4">
+                <ResumeFormatGuidance compact />
               </div>
               <div className="mt-4 rounded-xl bg-[#fff4ef] p-4">
                 <div className="flex items-center gap-2 text-[#a34f3f]"><AlertTriangle size={15} /><p className="text-[12px] font-bold">Manual final submission required</p></div>

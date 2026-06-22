@@ -3,7 +3,7 @@
 ## Last Reviewed
 
 - Date: 2026-06-22
-- Commit: c581d96
+- Commit: 45d5e3a
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -82,10 +82,9 @@ Check:
 
 - File is a DOCX template.
 - File is under the configured upload size limit.
-- Template includes at least one supported placeholder.
 - User is authenticated.
 
-Supported placeholders:
+Supported placeholders are optional but recommended for the most controlled output:
 
 - `{{NAME}}`
 - `{{CONTACT}}`
@@ -108,10 +107,12 @@ Check:
 
 - The intended template is marked active on `/resume/templates`.
 - The generated resume version shows the expected template name.
-- The template uses supported placeholders in the section positions you want to control.
-- Missing placeholders are expected to be appended after mapped content so verified sections are not lost.
+- For best DOCX preservation, upload a DOCX master resume or DOCX template. PDF export is best-effort and may not be pixel-perfect.
+- If the template uses supported placeholders, those positions are replaced directly.
+- If the template has no placeholders, Apply Wise uses the uploaded DOCX as the base document and replaces matching section text under recognizable headings such as Summary, Experience, Skills, Projects, Education, and Certifications.
+- Missing placeholders or unrecognized sections may be appended after mapped content so verified sections are not lost.
 
-DOCX export preserves the uploaded template structure where placeholders exist. PDF export follows the selected template section order first, then appends remaining supported sections in a clean ATS-friendly layout.
+DOCX export preserves the uploaded template structure where placeholders or recognizable sections exist. PDF export follows the selected template section order but may not exactly match DOCX fonts, spacing, hyperlinks, or page breaks.
 
 ### Old Resume Version Uses A Deleted Template
 

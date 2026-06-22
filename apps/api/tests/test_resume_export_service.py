@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from docx import Document
 from docx.shared import Pt
 
-from app.application.exports.service import ResumeExportService, extract_placeholders_from_docx
+from app.application.exports.service import ResumeExportService, extract_placeholders_from_docx, infer_section_order_from_docx
 
 
 def make_resume_template_docx() -> bytes:
@@ -17,6 +17,20 @@ def make_resume_template_docx() -> bytes:
     summary_run.bold = True
     document.add_heading("Selected Experience", level=1)
     document.add_paragraph(style="List Bullet").add_run("{{EXPERIENCE}}")
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def make_plain_resume_template_docx() -> bytes:
+    document = Document()
+    document.add_heading("Summary", level=1)
+    document.add_paragraph("Old summary text that should be replaced.")
+    document.add_heading("Experience", level=1)
+    document.add_paragraph("Old role", style="List Bullet")
+    document.add_paragraph("Old experience text", style="List Bullet")
+    document.add_heading("Education", level=1)
+    document.add_paragraph("Old education line")
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()
@@ -52,6 +66,37 @@ def test_template_renderer_replaces_placeholders_and_preserves_paragraph_style()
     assert "AWS Certified Cloud Practitioner" in text
     summary = next(paragraph for paragraph in document.paragraphs if "Product engineer" in paragraph.text)
     assert summary.runs[0].bold is True
+    assert any(paragraph.style.name == "List Bullet" and "Senior Product Engineer" in paragraph.text for paragraph in document.paragraphs)
+
+
+def test_plain_docx_template_replaces_existing_sections_without_rebuilding_layout() -> None:
+    template_bytes = make_plain_resume_template_docx()
+    assert extract_placeholders_from_docx(template_bytes) == []
+    assert infer_section_order_from_docx(template_bytes) == ["SUMMARY", "EXPERIENCE", "EDUCATION"]
+    service = ResumeExportService()
+    version = SimpleNamespace(
+        resume_content={
+            "professional_summary": "Product engineer building reliable user-facing software.",
+            "skills": ["Python", "React"],
+            "experience": [{"title": "Senior Product Engineer", "company": "Northstar Labs", "description": "Built FastAPI services."}],
+            "projects": [],
+            "education": [{"institution": "State University", "degree": "Bachelor of Engineering", "year": "2021"}],
+            "certifications": [],
+        }
+    )
+    job = SimpleNamespace(title="Platform Engineer", company="Example")
+    template = SimpleNamespace(template_bytes=template_bytes, placeholders=[])
+
+    output = service.build_docx(version, job, template=template)
+    document = Document(BytesIO(output))
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+
+    assert "Old summary text" not in text
+    assert "Product engineer building reliable" in text
+    assert "Northstar Labs" in text
+    assert "State University" in text
+    assert "Summary" in text
+    assert not text.startswith("Aaditya")
     assert any(paragraph.style.name == "List Bullet" and "Senior Product Engineer" in paragraph.text for paragraph in document.paragraphs)
 
 

@@ -40,11 +40,11 @@ Before closing any development task, verify that the feature is implemented, tes
 - Password reset token flow with dev-mode reset link and session revocation
 - Owner admin allowlist support through Railway environment variables
 - Owner-only admin summary for users, jobs, applications, generated materials, and subscriptions
-- PDF and DOCX master-resume upload with persisted text extraction
+- PDF and DOCX master-resume upload with persisted text extraction; DOCX master resumes can become the active export layout
 - Resume section, skill, structured experience, education, certification, and project extraction
 - Resume profile update and re-parse APIs with a web editor for structured skills, experience, education, certifications, and projects
 - Resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application
-- Resume template workspace for uploading DOCX templates, selecting the active layout, renaming/deleting templates, previewing placeholder mapping, and tracking which template generated each resume version
+- Resume template workspace for uploading DOCX templates, selecting the active layout, renaming/deleting templates, previewing placeholder or inferred section mapping, and tracking which template generated each resume version
 - Live Adzuna job discovery for India with keyword search and attribution
 - Live Remotive remote-job discovery with respectful short-lived caching and attribution
 - Direct role and location search on the Jobs page
@@ -83,7 +83,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Gemini-enhanced evidence-grounded drafts with a deterministic fallback
 - Tailored-resume version history
 - Editable tailored-resume workspace for summary, skills, and experience text
-- Authenticated DOCX and PDF downloads for tailored resume versions using the selected DOCX template, active fallback template, or built-in ATS-friendly template
+- Authenticated DOCX and PDF downloads for tailored resume versions using the selected DOCX template, active DOCX master-resume layout, active fallback template, or built-in ATS-friendly template
 - Authenticated TXT downloads for persisted cover letters
 - Editable cover-letter workspace with authenticated save and download
 - Persisted subscription foundation with free-tier status and owner bypass

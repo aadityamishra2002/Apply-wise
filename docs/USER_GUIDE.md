@@ -7,7 +7,7 @@ Use this guide when you want the fastest, most useful workflow from Apply Wise a
 ## Best Workflow
 
 1. Log in to Apply Wise: https://apply-wise-1.vercel.app
-2. Upload your latest master resume from the **Resume** page.
+2. Upload your latest master resume from the **Resume** page. DOCX works best and can also become your active resume layout.
 3. Review the extracted profile and fix anything important before applying.
 4. Optional: open **Resume Templates** from the Resume page and select the DOCX layout you want future tailored resumes to use.
 5. Go to **Settings** and complete your application profile:
@@ -29,8 +29,8 @@ Use this guide when you want the fastest, most useful workflow from Apply Wise a
 
 1. Go to **Resume**.
 2. Open **Resume Templates**.
-3. Upload a DOCX template if you want Apply Wise to use your own layout.
-4. Make sure your DOCX includes at least one supported placeholder:
+3. Upload a DOCX template if you want Apply Wise to use your own layout. Uploaded DOCX templates preserve formatting better than PDF.
+4. For the most controlled output, add supported placeholders where generated content should go:
    - `{{NAME}}`
    - `{{CONTACT}}`
    - `{{SUMMARY}}`
@@ -39,13 +39,14 @@ Use this guide when you want the fastest, most useful workflow from Apply Wise a
    - `{{PROJECTS}}`
    - `{{EDUCATION}}`
    - `{{CERTIFICATIONS}}`
-5. Select the template you want to use.
-6. Use **Preview active template** to confirm where content will go.
-7. Generate a tailored resume from a job.
-8. Check the generated resume preview and confirm the template name shown for that resume version.
-9. Download DOCX or PDF.
+5. If your DOCX has no placeholders, Apply Wise will still use it as the base layout and replace matching sections where possible.
+6. Select the template you want to use.
+7. Use **Preview active template** to confirm where content will go.
+8. Generate a tailored resume from a job.
+9. Check the generated resume preview and confirm the template name shown for that resume version.
+10. Download DOCX or PDF.
 
-If you do not upload a template, Apply Wise uses the built-in ATS-friendly template.
+If you upload a DOCX master resume, Apply Wise automatically creates an active master-resume layout from it. If you do not upload a DOCX master/template, Apply Wise uses the built-in ATS-friendly template. PDF export may not be pixel-perfect; DOCX preserves formatting more closely.
 
 ## One-Time Extension Setup
 
@@ -104,7 +105,7 @@ Pairing codes expire after 10 minutes. If pairing fails, generate a fresh code f
 5. Click **Generate materials** if the tailored resume and cover letter are not ready yet.
 6. Review and edit the tailored resume.
 7. Review and edit the cover letter.
-8. Download the tailored resume as DOCX or PDF.
+8. Download the tailored resume as DOCX or PDF. Use DOCX when preserving the selected resume/template formatting matters most.
 9. Download the cover letter.
 10. Click **I reviewed this application** only after checking the generated content and warnings.
 11. Apply manually on the employer site.

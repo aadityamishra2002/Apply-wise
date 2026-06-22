@@ -3,7 +3,7 @@
 ## Last Reviewed
 
 - Date: 2026-06-22
-- Commit: c581d96
+- Commit: 45d5e3a
 - Version/release: Beta MVP, extension v0.3.3
 
 ## Purpose
@@ -130,7 +130,7 @@ Most product routes live in `apps/api/app/presentation/api_v1/router.py`. Keep r
 | API area | Primary files | Main tables touched |
 |---|---|---|
 | Auth and sessions | `apps/api/app/presentation/api_v1/auth.py`, identity services/repositories | `users`, `refresh_tokens`, `password_reset_tokens` |
-| Resume upload/profile | `router.py`, `app/application/resumes/service.py` | `master_resumes`, `resume_skills`, `resume_experiences`, `resume_education`, `resume_certifications`, `resume_projects` |
+| Resume upload/profile | `router.py`, `app/application/resumes/service.py` | `master_resumes`, `resume_templates`, `resume_skills`, `resume_experiences`, `resume_education`, `resume_certifications`, `resume_projects` |
 | Resume templates/export | `router.py`, `app/application/exports/service.py` | `resume_templates`, `resume_versions`, `activity_logs` |
 | Job search/import/capture | `router.py`, job providers, matching services | `jobs`, `job_matches`, `job_preferences`, `applications`, `activity_logs` |
 | ATS/matching | `app/application/jobs`, `router.py` | `job_matches`, `activity_logs` |
@@ -145,7 +145,7 @@ Most product routes live in `apps/api/app/presentation/api_v1/router.py`. Keep r
 |---|---|---|
 | `users`, `refresh_tokens`, `password_reset_tokens` | Identity/auth | Never expose hashes or token values in account export |
 | `master_resumes`, resume child tables | Resume system | User-owned resume evidence for scoring and generation |
-| `resume_templates` | Resume template system | Stores user-uploaded DOCX templates as binary data plus extracted placeholder metadata; never expose raw bytes in account export |
+| `resume_templates` | Resume template system | Stores user-uploaded DOCX templates and DOCX master-resume layout snapshots as binary data plus extracted placeholder metadata; placeholders may be empty for plain-DOCX section replacement; never expose raw bytes in account export |
 | `jobs`, `job_matches`, `job_preferences` | Job ingestion and matching | Jobs may come from providers, manual paste, URL import, or extension capture |
 | `resume_versions`, `cover_letters` | AI preparation | Generated artifacts must stay grounded in stored resume evidence; resume versions may reference a template and must fall back safely if that template is deleted |
 | `applications`, `application_events`, `interviews` | Application tracking | Final submission stays manual; status changes must be auditable |
