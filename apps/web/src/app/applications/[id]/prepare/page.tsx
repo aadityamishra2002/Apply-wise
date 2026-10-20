@@ -14,13 +14,14 @@ import {
 } from "@/lib/application-status";
 import {
   confirmReviewBeforeApply,
+  createPrepareRun,
   downloadCoverLetter,
   downloadResumeVersion,
   getAccessToken,
   loadCoverLetter,
   loadReviewBeforeApply,
   loadResumeVersion,
-  prepareApplication,
+  waitForBackgroundJob,
   saveCoverLetter,
   saveResumeVersion,
   updateApplication,
@@ -86,8 +87,10 @@ export default function PrepareApplicationPage() {
     setError(null);
     setMessage(null);
     try {
-      const prepared = await prepareApplication(applicationId, token);
-      setMessage(`Prepared resume and cover letter using ${prepared.template_name}.`);
+      const run = await createPrepareRun(applicationId, token);
+      setMessage("Material preparation queued. Waiting for the worker to finish.");
+      await waitForBackgroundJob(run.id, token);
+      setMessage("Resume and cover letter are ready for review.");
       await reloadWorkspace();
     } catch (prepareError) {
       setError(prepareError instanceof Error ? prepareError.message : "Could not prepare application materials.");

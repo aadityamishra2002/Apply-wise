@@ -2,9 +2,9 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-22
-- Commit: 45d5e3a
-- Version/release: Beta MVP, extension v0.3.3
+- Date: 2026-10-20
+- Commit reviewed: `d6c2cce`
+- Version/release: Beta MVP, extension v0.4.0 changes pending deployment
 
 ## Purpose
 
@@ -42,8 +42,10 @@ Useful commands:
 
 ```powershell
 curl http://localhost:8000/api/v1/health
-curl https://jobsearchautomation-production.up.railway.app/api/v1/health
+curl "$API_URL/health"
 ```
+
+The previously configured production API hostname returned `404 Application not found` during the October 20, 2026 audit. Restore the Railway API service or use its current domain in Vercel and the extension before troubleshooting account workflows.
 
 ### Next.js Build Fails With Missing Chunks
 
@@ -213,7 +215,7 @@ Reload the unpacked extension:
 4. Click Reload.
 5. Open the popup and confirm the expected version.
 
-Current expected version: `0.3.3`.
+Current expected version: `0.4.0` after the updated extension is reloaded.
 
 ### Pairing Token Expired
 

@@ -2,9 +2,9 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-22
-- Commit: 45d5e3a
-- Version/release: Beta MVP, extension v0.3.3
+- Date: 2026-10-20
+- Commit reviewed: `d6c2cce`
+- Version/release: Beta MVP, extension v0.4.0 changes pending deployment
 
 ## Purpose
 
@@ -176,7 +176,7 @@ Safety rules:
 
 ## Release Practice
 
-Current MVP practice is direct-to-main after local validation. The paused QA/STAGE process is documented in `docs/RELEASE_PROCESS.md` and can be re-enabled later.
+Promote releases through `QA -> STAGE -> main`. The release guide documents the environment mapping and release checklist. Branch protection and required checks must be confirmed in GitHub before treating the flow as enforced.
 
 For each development slice:
 
@@ -184,5 +184,5 @@ For each development slice:
 2. Run impacted backend, frontend, and extension checks.
 3. Update documentation.
 4. Commit with a clear message.
-5. Push to `main`.
+5. Promote the change through the target branches after each environment's checks pass.
 6. Verify live deployment when the change affects deployed behavior.

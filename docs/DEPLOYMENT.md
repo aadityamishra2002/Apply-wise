@@ -5,7 +5,8 @@ The fastest production path is:
 - Vercel for the Next.js frontend
 - Railway for the FastAPI API
 - Railway PostgreSQL for durable application data
-- Railway Redis for the upcoming worker and caching slice
+- Railway Redis for shared rate limits and worker support
+- A separate Railway worker service for durable application-material preparation
 
 The frontend and API deploy separately from the same GitHub monorepo.
 
@@ -45,7 +46,19 @@ ADMIN_EMAILS=<comma-separated-owner-emails>
 
 When you add a custom API domain, append its hostname to `ALLOWED_HOSTS`.
 
-## 2. Deploy The Frontend On Vercel
+## 2. Deploy The Worker On Railway
+
+The worker runs queued application-material preparation outside the API request process.
+
+1. Create a second service in each Railway environment from the same repository.
+2. Set the root directory to `/apps/api` and config file path to `/apps/api/railway.worker.json`.
+3. Copy that environment's `DATABASE_URL`, `APP_ENV`, `APP_SECRET_KEY`, and generation-provider settings from its API service, including `GEMINI_API_KEY` when enabled.
+4. Do not generate a public domain for the worker.
+5. Deploy and confirm the Railway logs contain `worker_started`; claimed jobs are logged as `job_claimed`.
+
+The worker uses PostgreSQL to claim queued jobs with row locking and a heartbeat lease, so multiple worker instances can safely compete for work. Monitor worker restarts and failed preparation jobs in Railway.
+
+## 3. Deploy The Frontend On Vercel
 
 1. Import the same GitHub repository into Vercel.
 2. Set the project root directory to `apps/web`.
@@ -59,7 +72,7 @@ NEXT_PUBLIC_API_URL=https://<your-railway-api-domain>/api/v1
 
 After Vercel creates the final production domain, set Railway `CORS_ORIGINS` to that exact origin and redeploy the API. Add preview origins explicitly when a preview deployment needs to call the API.
 
-## 3. Verify The Deployment
+## 4. Verify The Deployment
 
 Check the API first:
 
@@ -76,14 +89,20 @@ Then open the Vercel URL and verify:
 4. Opening `/dashboard` in a private browser window redirects to `/login`.
 5. Refreshing the dashboard preserves the signed-in session.
 
-## 4. Production Notes
+## 5. Production Notes
 
 - Store secrets only in Railway or Vercel variables. Do not commit `.env` files.
 - Add owner email addresses to Railway's `ADMIN_EMAILS` variable. Allowlisted accounts receive the persisted `admin` role when they register or next authenticate.
 - Railway PostgreSQL backups should be enabled before storing real user resumes.
-- The current product is suitable for a controlled private beta. Resume uploads, persistent job workflows, and billing still need implementation before a public launch.
+- Resume uploads and persisted job workflows are implemented in the application. Production readiness still depends on restoring the API, provisioning Redis and the worker, verifying backups and email delivery, and completing the release gates below.
 - The API accepts Railway's standard `postgresql://` URL and normalizes it to the async SQLAlchemy driver internally.
 - Production refresh cookies use `Secure`, `HttpOnly`, and `SameSite=None` so Vercel can refresh sessions through the Railway API.
+- Keep Railway PostgreSQL and Redis private to the project. `REDIS_URL` is required for API rate limits; the API readiness endpoint checks both PostgreSQL and Redis.
+- Enable automated PostgreSQL backups and perform a restore rehearsal before real user data is stored. Confirm the backup retention and recovery process in Railway.
+- Configure a production SMTP provider if users need password reset email. Keep SMTP credentials only in Railway variables.
+- Configure GitHub branch protection and required CI checks for `main`, `STAGE`, and `QA`; the repository release guide describes the promotion order but cannot enforce these settings by itself.
+- The currently configured production Railway hostname returned `404 Application not found` during the October 20, 2026 audit. Restore that service or assign a new API domain, then update Vercel's production `NEXT_PUBLIC_API_URL` to the working HTTPS URL ending in `/api/v1` and redeploy.
+- Payment checkout, subscription billing, and webhook handling are not implemented. Do not advertise paid plans as purchasable until a provider integration is completed.
 
 ## Platform References
 

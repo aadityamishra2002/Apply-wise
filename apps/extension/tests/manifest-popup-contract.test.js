@@ -8,7 +8,7 @@ const popupHtml = fs.readFileSync(path.join(extensionRoot, "popup.html"), "utf8"
 const popupJs = fs.readFileSync(path.join(extensionRoot, "popup.js"), "utf8");
 
 assert.strictEqual(manifest.manifest_version, 3);
-assert.strictEqual(manifest.version, "0.3.3");
+assert.strictEqual(manifest.version, "0.4.0");
 assert.deepStrictEqual(manifest.action, {
   default_title: "Capture job with Apply Wise",
   default_popup: "popup.html",
@@ -18,8 +18,8 @@ for (const permission of ["activeTab", "storage", "scripting"]) {
   assert(manifest.permissions.includes(permission), `Missing permission: ${permission}`);
 }
 
-for (const hostPermission of ["https://www.linkedin.com/*", "https://linkedin.com/*"]) {
-  assert(manifest.host_permissions.includes(hostPermission), `Missing host permission: ${hostPermission}`);
+for (const optionalHostPermission of ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"]) {
+  assert(manifest.optional_host_permissions.includes(optionalHostPermission), `Missing optional host permission: ${optionalHostPermission}`);
 }
 
 assert(!manifest.content_scripts, "This extension intentionally uses activeTab + chrome.scripting instead of persistent content_scripts.");

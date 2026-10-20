@@ -1,12 +1,17 @@
-const defaultApiUrl = "https://jobsearchautomation-production.up.railway.app/api/v1";
+const defaultApiUrl = "";
+const retiredApiHosts = new Set(["jobsearchautomation-production.up.railway.app"]);
 let apiUrl = defaultApiUrl;
+let apiPermissionGranted = false;
 const fields = ["title", "company", "location", "url", "description"];
 let lastDebugReport = {};
 let lastDiagnostics = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   const stored = await chrome.storage.local.get(["apiUrl", "extensionToken"]);
-  apiUrl = normalizeApiUrl(stored.apiUrl || defaultApiUrl);
+  const savedApiUrl = normalizeApiUrl(stored.apiUrl || defaultApiUrl);
+  apiUrl = isRetiredApiUrl(savedApiUrl) ? defaultApiUrl : savedApiUrl;
+  if (apiUrl !== (stored.apiUrl || defaultApiUrl)) await chrome.storage.local.set({ apiUrl });
+  apiPermissionGranted = apiUrl ? await chrome.permissions.contains({ origins: [apiPermissionPattern(apiUrl)] }) : false;
   document.getElementById("extension-version").textContent = `v${chrome.runtime.getManifest().version}`;
   document.getElementById("api-url").value = apiUrl;
   document.getElementById("save-api-url").addEventListener("click", saveApiUrl);
@@ -23,23 +28,60 @@ document.addEventListener("DOMContentLoaded", async () => {
   for (const field of fields) document.getElementById(field).addEventListener("input", updateQualityPreview);
   await checkApiHealth();
   const extensionToken = stored.extensionToken;
-  showPaired(Boolean(extensionToken));
-  if (extensionToken) await extract();
+  showPaired(Boolean(extensionToken && apiUrl));
+  if (extensionToken && apiUrl) await extract();
 });
 
 async function saveApiUrl() {
-  apiUrl = normalizeApiUrl(document.getElementById("api-url").value || defaultApiUrl);
+  const candidate = normalizeApiUrl(document.getElementById("api-url").value);
+  if (!candidate) {
+    return message("Enter a reachable HTTPS API URL ending in /api/v1.");
+  }
+  apiPermissionGranted = await chrome.permissions.request({ origins: [apiPermissionPattern(candidate)] });
+  if (!apiPermissionGranted) return message("Allow Apply Wise access to this API host, then save the URL again.");
+  const previousApiUrl = apiUrl;
+  apiUrl = candidate;
   document.getElementById("api-url").value = apiUrl;
   await chrome.storage.local.set({ apiUrl });
+  if (previousApiUrl !== apiUrl) {
+    await chrome.storage.local.remove("extensionToken");
+    showPaired(false);
+  }
   await checkApiHealth();
   message("API URL saved. Pair again if you changed environments.");
 }
 
+function apiPermissionPattern(value) {
+  const parsed = new URL(value);
+  return `${parsed.protocol}//${parsed.hostname}/*`;
+}
+
 function normalizeApiUrl(value) {
-  return String(value || defaultApiUrl).trim().replace(/\/+$/, "");
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    const localHttp = parsed.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parsed.hostname);
+    if ((parsed.protocol !== "https:" && !localHttp) || parsed.username || parsed.password) return "";
+    if (!parsed.pathname.replace(/\/+$/, "").endsWith("/api/v1")) return "";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function isRetiredApiUrl(value) {
+  try {
+    return retiredApiHosts.has(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 async function pair() {
+  if (!apiUrl) return message("Save the reachable Apply Wise API URL before pairing.");
   const code = document.getElementById("code").value.trim();
   const response = await fetchWithRetry(`${apiUrl}/extension/pair`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
@@ -99,6 +141,14 @@ async function extract() {
 async function checkApiHealth() {
   const status = document.getElementById("api-status");
   if (!status) return;
+  if (!apiUrl) {
+    status.textContent = "Set the API base URL ending in /api/v1 before pairing.";
+    return;
+  }
+  if (!apiPermissionGranted) {
+    status.textContent = "Save the API URL and allow access to its host before pairing.";
+    return;
+  }
   status.textContent = "Checking backend...";
   try {
     const response = await fetchWithRetry(`${apiUrl}/health`, {}, { retries: 0, timeoutMs: 6000 });
@@ -113,6 +163,7 @@ async function checkApiHealth() {
 }
 
 async function send() {
+  if (!apiUrl) return message("Save the reachable Apply Wise API URL before sending jobs.");
   const { extensionToken } = await chrome.storage.local.get("extensionToken");
   const payload = currentPayload();
   const quality = captureQuality(payload);

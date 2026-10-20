@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "AI Job Application Copilot"
-    app_env: str = "development"
+    app_env: Literal["development", "qa", "stage", "production", "test"] = "development"
     app_secret_key: str = "local-development-only"
     database_url: str = "postgresql+asyncpg://jobcopilot:jobcopilot@localhost:5432/jobcopilot"
     redis_url: str = "redis://localhost:6379/0"
@@ -92,6 +92,8 @@ class Settings(BaseSettings):
             raise ValueError("ALLOWED_HOSTS must be explicit in production.")
         if self.app_env == "production" and "*" in self.cors_origin_list:
             raise ValueError("CORS_ORIGINS must be explicit in production.")
+        if self.app_env == "production" and not self.rate_limit_enabled:
+            raise ValueError("RATE_LIMIT_ENABLED must remain enabled in production.")
         return self
 
     @property

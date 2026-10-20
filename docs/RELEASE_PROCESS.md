@@ -1,6 +1,6 @@
 # Apply Wise Release Process
 
-Current MVP mode: work is going directly to the `prod` branch after local validation so the product can launch faster. The QA/STAGE promotion process below is paused and should be re-enabled later when traffic, team size, or release risk justifies the extra environments.
+Release flow: promote changes through `QA -> STAGE -> main`. Configure branch protection and required checks in GitHub before relying on this as an enforced gate. The settings listed here are recommendations until verified in GitHub.
 
 The earlier release plan used three long-lived branches:
 
@@ -10,7 +10,7 @@ The earlier release plan used three long-lived branches:
 | `STAGE` | Production-like validation before release | Internal only |
 | `QA` | Active development and first test pass | Internal only |
 
-Current stable baseline:
+Initial stable baseline recorded June 22, 2026:
 
 ```text
 61223815398bdb1435e676a39e98b6852ff1017b
@@ -18,15 +18,15 @@ Current stable baseline:
 
 `QA` and `STAGE` were created from the same commit as `main`, so all three branches started identical.
 
-## Paused Promotion Flow
+## Promotion Flow
 
-When the stricter process is re-enabled, future work should move in this order:
+Changes move in this order:
 
 ```text
 feature work -> QA -> STAGE -> main
 ```
 
-Paused rules:
+Release rules:
 
 1. Do not commit feature work directly to `main`.
 2. Start changes from `QA`.
@@ -36,7 +36,7 @@ Paused rules:
 6. Merge `STAGE` into `main` only when ready for users.
 7. Keep `main` deployable at all times.
 
-Current MVP rule: commit to `prod`, run backend tests/frontend builds for the touched slice, update README/product status docs, and push.
+Keep `main` deployable and update README/product status docs with each meaningful release. Merge only after the target environment's release checklist passes.
 
 ## Recommended Git Commands
 
@@ -86,6 +86,7 @@ This prevents QA or STAGE testing from changing real user accounts, resumes, job
 Each backend environment needs its own:
 
 - `DATABASE_URL`
+- `REDIS_URL` for shared API rate limits
 - `APP_SECRET_KEY`
 - `CORS_ORIGINS`
 - `ALLOWED_HOSTS`
@@ -106,9 +107,9 @@ QA web         -> QA API
 
 Never point QA or STAGE at the production database.
 
-## Current Vercel Status
+## Recorded Vercel Status
 
-Vercel is connected to the repository and has already produced branch preview deployments:
+Vercel was connected to the repository and had produced these branch preview deployments when this was last documented on June 22, 2026. Confirm the project settings and current domains in Vercel before release:
 
 | Branch | Current Vercel URL |
 |---|---|
@@ -116,27 +117,27 @@ Vercel is connected to the repository and has already produced branch preview de
 | `STAGE` | `https://apply-wise-git-stage-aadityamishra10s-projects.vercel.app` |
 | `main` | `https://apply-wise-1.vercel.app` |
 
-Important: the current Vercel project has `NEXT_PUBLIC_API_URL` configured for Production and Preview. Until Vercel branch-specific API URLs are wired, QA/STAGE preview deployments may still call the production API. Do not use QA/STAGE for data-changing tests until their own backend URLs are configured in Vercel.
+The last recorded Vercel setup used `NEXT_PUBLIC_API_URL` for Production and Preview. Until branch-specific API URLs are verified, QA/STAGE preview deployments may call the production API. Do not use QA/STAGE for data-changing tests until their own backend URLs are configured and verified.
 
-## Current Railway Status
+## Recorded Railway Status
 
-Railway now has three environments in the same project:
+Railway was recorded as having three environments in one project on June 22, 2026. Verify current services, domains, databases, and variables in Railway:
 
 | Environment | Branch | API URL | Environment ID | Status |
 |---|---|---|---|---|
-| Production | `main` | `https://jobsearchautomation-production.up.railway.app` | `5848c9b5-b9c3-4239-ba6d-a1e16863b296` | Live production |
+| Production | `main` | `https://jobsearchautomation-production.up.railway.app` | `5848c9b5-b9c3-4239-ba6d-a1e16863b296` | Returned `404 Application not found` on October 20, 2026; restore the service or update Vercel to the current API domain |
 | QA | `QA` | `https://applywise-qa.up.railway.app` | `28dfee88-404b-4628-bec4-3d65af5d0038` | Created, branch-connected, variables updated |
 | STAGE | `STAGE` | `https://applywise-stage.up.railway.app` | `d36a4ca2-383a-4d9f-8a4d-45bae9924b20` | Created, branch-connected, variables updated |
 
-QA and STAGE were duplicated from production with separate Postgres services. Confirm `DATABASE_URL` still points to the matching environment's Postgres before running destructive tests.
+QA and STAGE were duplicated from production with separate Postgres services. These recorded deployment details need confirmation in Railway before use. Confirm `DATABASE_URL` still points to the matching environment's Postgres before running destructive tests.
 
-## Railway Setup
+## Recorded Railway Setup
 
-Current setup:
+Last documented setup:
 
-1. The current Railway project remains production.
+1. The Railway project was reported as production.
 2. Railway environments exist for `QA` and `STAGE`.
-3. Each environment includes an API service and Postgres service.
+3. Each environment includes an API service, Postgres service, and its own Redis service.
 4. Each API service is rooted at `apps/api`.
 5. Each service deploys from the matching branch:
    - QA service: `QA`
@@ -157,6 +158,8 @@ Recommended setup:
 3. Create one Vercel project for STAGE, mapped to `STAGE`.
 4. Set root directory to `apps/web` for all three.
 5. Set `NEXT_PUBLIC_API_URL` to the matching Railway API URL.
+
+Deploy a separate Railway worker in each environment, rooted at `/apps/api`, configured with `/apps/api/railway.worker.json` and the same database, application secrets, and generation-provider settings as that environment's API. Do not assign the worker a public domain. Set `REDIS_URL` for each API environment.
 
 Alternative: use one Vercel project with preview deployments, but separate projects are simpler and harder to misconfigure.
 
@@ -180,7 +183,7 @@ Before promoting STAGE to main:
 
 ## Current Branch State
 
-At setup time:
+At the initial environment setup on June 22, 2026:
 
 ```text
 main  = 61223815398bdb1435e676a39e98b6852ff1017b

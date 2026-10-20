@@ -4,6 +4,8 @@ Apply Wise is a deployed AI-powered job application copilot for resume-aware job
 
 **Live site:** [https://apply-wise-1.vercel.app](https://apply-wise-1.vercel.app)
 
+**Launch status (October 20, 2026):** the frontend responds, but its configured Railway API host currently returns `404 Application not found`. Account and API-backed workflows are unavailable until the Railway API service is restored and the Vercel `NEXT_PUBLIC_API_URL` value is confirmed.
+
 ## Product Status
 
 The maintained product guide is available in two formats:
@@ -34,7 +36,8 @@ Before closing any development task, verify that the feature is implemented, tes
 ## Implemented
 
 - Responsive Next.js 15 SaaS interface deployed on Vercel
-- FastAPI backend deployed on Railway with PostgreSQL readiness checks
+- FastAPI backend with PostgreSQL readiness checks and a separate durable preparation-job worker
+- Redis-backed shared API rate limits; production API instances require the configured Redis service
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
 - Authenticated password change plus password-reset token flow with optional SMTP email delivery in production and support fallback when SMTP is not configured
 - Password reset token flow with dev-mode reset link and session revocation
@@ -98,7 +101,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Explicit confirmation before marking an application as applied
 - API guard requiring manual-submission confirmation before applied status
 - Payment-review pages with concrete founder/location/support details
-- Release-process docs now show QA/STAGE as paused while MVP work ships directly to `prod`
+- Release process uses `QA -> STAGE -> main`; GitHub branch protection and required checks must be enabled in repository settings
 - Server-side validation for application-profile URLs used by review/autofill
 - Settings shows API validation details for application-profile save errors
 - Multi-provider aggregation boundary with deduplication, partial-failure resilience, and provider health reporting
@@ -124,18 +127,17 @@ Before closing any development task, verify that the feature is implemented, tes
 ## Architecture
 
 ```text
-Vercel
-  Next.js web app
-      |
-      v
-Railway
-  FastAPI API
-      |
-      +--> PostgreSQL
-      |
-      +--> Adzuna Jobs API
-      |
-      +--> Remotive Remote Jobs API
+Vercel: Next.js web app
+    |
+    v
+Railway API: FastAPI
+    |-- PostgreSQL (product data and durable job queue)
+    |-- Redis (shared rate limits)
+    |-- Adzuna Jobs API
+    |-- Remotive Remote Jobs API
+    |
+Railway worker: queued application preparation
+    |-- PostgreSQL
 ```
 
 The backend follows clean-architecture boundaries with domain entities, application services, provider adapters, SQLAlchemy persistence, and FastAPI presentation routes.
@@ -165,11 +167,11 @@ Open `http://localhost:3000`. API documentation is available at `http://localhos
 
 ## Deployment
 
-Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel and Railway configuration. Keep secrets in Railway variables, never in Git.
+Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel, Railway API, Redis, and worker configuration. Keep secrets in Railway variables, never in Git.
 
 ## Release Process
 
-For the current MVP push, changes are going directly to `prod` after local tests to save time. The `QA -> STAGE -> main` process is documented in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) and can be re-enabled later if traffic or team size requires stricter promotion gates.
+Release through `QA -> STAGE -> main`; configure required checks and branch protection in GitHub before treating this as an enforced gate. See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Next Changes
 
@@ -185,16 +187,19 @@ Load the unpacked extension from [`apps/extension`](apps/extension) and follow i
 
 All endpoints require the normal bearer access token.
 
+Set `API_URL` to the active backend base URL ending in `/api/v1` before using these examples. The previous Railway hostname is no longer valid.
+
 ```bash
-curl -H "Authorization: Bearer <token>" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates
+export API_URL=https://<active-api-host>/api/v1
+curl -H "Authorization: Bearer <token>" "$API_URL/resume-templates"
 ```
 
 ```bash
-curl -X POST -H "Authorization: Bearer <token>" -F "file=@my-template.docx" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates/upload
+curl -X POST -H "Authorization: Bearer <token>" -F "file=@my-template.docx" "$API_URL/resume-templates/upload"
 ```
 
 ```bash
-curl -X POST -H "Authorization: Bearer <token>" https://jobsearchautomation-production.up.railway.app/api/v1/resume-templates/<template_id>/select
+curl -X POST -H "Authorization: Bearer <token>" "$API_URL/resume-templates/<template_id>/select"
 ```
 
 Template screenshots are documented in [`docs/screenshots/resume-templates/README.md`](docs/screenshots/resume-templates/README.md); capture fresh screenshots after each meaningful UI change.

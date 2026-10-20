@@ -2,7 +2,7 @@
 
 This unpacked Manifest V3 extension captures a visible job page and sends reviewed fields to Apply Wise for resume-aware scoring. It can inspect common application-form fields and fill user-approved fields from an Apply Wise autofill plan. It never submits applications.
 
-Current extension version: `0.3.3`.
+Current extension version: `0.4.0`.
 
 ## Install Locally
 
@@ -15,7 +15,7 @@ Current extension version: `0.3.3`.
 
 Pairing codes expire after 10 minutes and can only be used once. The extension receives a scoped token for job capture, autofill planning, and assisted-application audit events. It cannot browse the user's full Apply Wise workspace.
 
-The popup defaults to the production Railway API URL. If the backend domain changes to another Railway domain, paste the new API base URL ending in `/api/v1`, click **Save API URL**, then pair again. The extension manifest allows Railway subdomains and LinkedIn job pages.
+The popup requires the active API base URL ending in `/api/v1`; it does not ship with a hard-coded production hostname. Paste the HTTPS API URL (or localhost for local development) and click **Save API URL**. Chrome asks for access to that API host before the extension connects. Changing API hosts clears the old pairing token, so pair again after the change.
 
 After changing extension files, click **Reload** for the unpacked extension in `chrome://extensions` or `brave://extensions`.
 
@@ -71,7 +71,7 @@ Manual LinkedIn smoke checklist:
 1. Open `brave://extensions`.
 2. Enable **Developer mode**.
 3. Find **Apply Wise Job Capture** and click **Reload**.
-4. Confirm the popup shows version `0.3.3`.
+4. Confirm the popup shows version `0.4.0`.
 5. Open a LinkedIn job detail page, for example `https://www.linkedin.com/jobs/view/4424855234/`.
 6. Click the extension and confirm title, company, URL, and description are filled. Location may be blank if LinkedIn hides it.
 7. If anything required is blank, paste/fix it directly in the popup.

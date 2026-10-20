@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
@@ -10,17 +11,24 @@ from starlette.requests import Request
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.core.rate_limit import InMemoryRateLimiter, is_sensitive_path
+from app.core.rate_limit import is_sensitive_path, rate_limiter
 from app.presentation.api_v1.router import router
+from redis.exceptions import RedisError
 
 settings = get_settings()
 configure_logging(settings)
 logger = logging.getLogger("app.http")
-rate_limiter = InMemoryRateLimiter(
-    window_seconds=settings.rate_limit_window_seconds,
-    default_limit=settings.rate_limit_default_requests,
-    sensitive_limit=settings.rate_limit_sensitive_requests,
-)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if settings.app_env != "test" and settings.rate_limit_enabled:
+        try:
+            await rate_limiter.ping()
+        except RedisError as error:
+            raise RuntimeError("Redis must be available for API rate limiting.") from error
+    yield
+    await rate_limiter.close()
 
 app = FastAPI(
     title=settings.app_name,
@@ -29,6 +37,7 @@ app = FastAPI(
     docs_url="/docs" if settings.enable_api_docs else None,
     redoc_url="/redoc" if settings.enable_api_docs else None,
     openapi_url="/openapi.json" if settings.enable_api_docs else None,
+    lifespan=lifespan,
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
 app.add_middleware(
@@ -45,14 +54,20 @@ app.add_middleware(
 async def rate_limit_request(request: Request, call_next):
     if not settings.rate_limit_enabled or settings.app_env == "test" or request.method == "OPTIONS":
         return await call_next(request)
+    if request.url.path.startswith("/api/v1/health"):
+        return await call_next(request)
 
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    direct_client = request.client.host if request.client else "unknown"
-    client_ip = forwarded_for.split(",", 1)[0].strip() or direct_client
-    auth_hint = request.headers.get("authorization", "")[-16:]
+    identity = request.client.host if request.client else "unknown"
     sensitive = is_sensitive_path(request.url.path)
-    identity = auth_hint or client_ip
-    result = rate_limiter.check(f"{identity}:{request.url.path}", sensitive=sensitive)
+    try:
+        result = await rate_limiter.check(f"{identity}:{request.url.path}", sensitive=sensitive)
+    except RedisError:
+        logger.exception("rate_limit_backend_unavailable")
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Request protection is temporarily unavailable. Please retry shortly."},
+            headers={"Retry-After": "2"},
+        )
 
     if not result.allowed:
         return JSONResponse(

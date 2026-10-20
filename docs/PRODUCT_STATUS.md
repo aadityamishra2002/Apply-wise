@@ -1,8 +1,10 @@
 # Apply Wise Product Status
 
-**Last updated:** June 22, 2026
+**Last updated:** October 20, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
+
+**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable until the Railway service is restored or Vercel is pointed at a working API. The source changes in this checkout still need review, deployment, and live verification.
 
 ## What Apply Wise Does
 
@@ -98,7 +100,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 76. Add explicit confirmation before marking an application as applied to reinforce manual final submission.
 77. Enforce manual-submission confirmation on the API before accepting an applied status.
 78. Replace visible compliance-page business placeholders with founder/location/support details for payment review readiness.
-79. Mark QA/STAGE promotion documentation as paused while MVP work ships directly to `prod`.
+79. Mark QA/STAGE promotion documentation as paused while MVP work ships directly to `prod` (historical; release flow was subsequently restored).
 80. Validate application-profile URLs server-side before using them for review/autofill mapping.
 81. Surface API validation details in Settings when application-profile fields cannot be saved.
 82. Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.
@@ -120,7 +122,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 98. Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.
 99. Show explicit Assisted Apply readiness blockers and next steps for approval, prepared materials, Review Application confirmation, site autofill support, and manual final submission.
 100. Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.
-101. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance.
+101. Bump the unpacked extension to version `0.3.3` with clearer token-expiry recovery and company-name manual fallback guidance (historical).
 102. Verify the live API flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.
 103. Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.
 104. Add resume template management with DOCX template upload, active-template selection, rename/delete controls, active-template preview, template-aware tailored-resume generation, generated-version template provenance, and DOCX/PDF downloads that resolve selected template, active fallback template, or the built-in ATS-friendly template.
@@ -155,6 +157,8 @@ Manual verification still recommended after deployment:
 ## Production Verification Update
 
 Latest live smoke result:
+
+- Historical checks below passed on June 20, 2026; they do not establish current production health. The October 20, 2026 check found the configured API host unavailable as noted above.
 
 - June 20 beta-readiness smoke used a disposable production account and passed the main API-backed user flow.
 - Railway API health returned `ok`.
@@ -194,7 +198,7 @@ Remaining production manual checks:
 
 ## Beta Readiness Status
 
-Current status: **ready for controlled beta testing.**
+Current status: **not ready for live user onboarding until the production API is restored.** After recovery, the product still needs the manual beta checks below and the production environment checklist in `docs/DEPLOYMENT.md`.
 
 What is ready for beta:
 
@@ -205,7 +209,7 @@ What is ready for beta:
 
 Still needs manual beta verification:
 
-- Reload the unpacked extension in the user's real Brave/Chrome profile and confirm the popup shows version `0.3.3`.
+- Reload the unpacked extension in the user's real Brave/Chrome profile and confirm the popup shows version `0.4.0` after these changes are deployed.
 - Capture a real LinkedIn job from the user's authenticated LinkedIn session and confirm the saved job appears in the deployed Jobs page.
 - Generate materials from that real captured job and review the output quality before using it externally.
 - Track any employer-site extraction/autofill misses with the debug report so selectors can be hardened quickly.
@@ -224,9 +228,10 @@ Completed:
 
 Highest-impact remaining production work:
 
-1. Continue hardening extension extraction with real-world LinkedIn, Naukri, Workday, Greenhouse, Lever, and Ashby samples.
-2. Configure a real SMTP provider on Railway for password-reset delivery.
-3. Add payment checkout only after the payment account is approved.
+1. Restore the Railway API or update Vercel to a working API domain; deploy and configure the separate worker plus Redis-backed rate limiting from this checkout.
+2. Verify PostgreSQL backups with a restore rehearsal, configure production SMTP, and ensure separate QA/STAGE data stores.
+3. Enforce GitHub branch protection and required checks for the documented QA -> STAGE -> main release flow.
+4. Continue hardening extension extraction with real-world samples; configure payment checkout only after business approval if paid plans are needed.
 
 ## LinkedIn Extraction Reliability Update
 
@@ -343,7 +348,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add assisted autofill for application forms | Done for MVP | Extension loads an API-generated autofill plan only after Review Application confirmation, maps common profile/resume fields, shows confidence/source/sensitive warnings, skips risky/manual controls, logs approved fields, and fills only user-approved fields. |
 | Add resume-file upload support during assisted applications | Done for MVP | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, shows manual-upload-required status, and logs upload attempted/failed-manual-required events. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities, application plans, and tracked assisted-run records exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages. Real browser-control execution is still deferred. |
-| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Partially done | Duplicate prevention, dashboard activity logs, application timeline, API rate limiting, extension capture retries, extension autofill audit events, generated-material audit events, applied-status audit events, Gemini generation retries, provider retries, export retries, assisted-run status tracking, and queued material-preparation status/retry controls exist; dedicated Celery worker execution remains pending. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Implemented in this checkout; deployment pending | Duplicate prevention, audit events, and retries are implemented. Shared rate limiting now uses Redis, and a PostgreSQL-backed worker claims queued application-preparation jobs. Configure Redis and deploy the API and worker services in each environment. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 
@@ -399,4 +404,4 @@ Additional extractor checks:
 
 ## Deployment Note
 
-The product is live for public account registration. For the current MVP push, changes are going directly to `prod` after local tests to save time. The Railway backend currently depends on the selected Railway plan and usage allowance. Check Railway usage regularly before the trial window ends.
+The public frontend is reachable, but API-backed registration and user workflows are currently blocked by the Railway API host returning `404 Application not found` (checked October 20, 2026). Deploy through `QA -> STAGE -> main` after configuring required GitHub branch protections. Railway service provisioning, secret values, backup policy, and the final Vercel API URL must be confirmed in the provider dashboards.
