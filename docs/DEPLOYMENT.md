@@ -2,7 +2,7 @@
 
 ## Selected free demo path
 
-The selected no-cost setup is **Vercel + Render Free + Supabase Free + Upstash Redis Free**. It is intended for a personal demo and limited feedback, not production use with real users or sensitive resume data. Provider services have not been provisioned or deployed yet; the currently published frontend still points at the unavailable Railway API.
+The selected no-cost setup is **Vercel + Render Free + Supabase Free + Upstash Redis Free**. It is intended for a personal demo and limited feedback, not production use with real users or sensitive resume data. The Supabase database and Upstash Redis instance are provisioned. Render has created the API service, but its first deploy failed during startup; the published frontend still points at the unavailable Railway API.
 
 The repository includes [`render.yaml`](../render.yaml), which configures the FastAPI web service, startup migrations, health check, and an in-process preparation worker. Render Free does not offer a separate free background-worker service, so the API and worker share one web process in this demo configuration.
 
