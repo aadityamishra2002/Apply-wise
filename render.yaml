@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: apply-wise-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /api/v1/health/ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: apply-wise-api.onrender.com
+      - key: CORS_ORIGINS
+        value: https://apply-wise-1.vercel.app
+      - key: FRONTEND_BASE_URL
+        value: https://apply-wise-1.vercel.app
+      - key: RUN_IN_PROCESS_WORKER
+        value: "true"
+      - key: ENABLE_API_DOCS
+        value: "false"
+      - key: LOG_FORMAT
+        value: json

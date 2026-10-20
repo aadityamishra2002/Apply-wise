@@ -4,7 +4,6 @@ from io import BytesIO
 from uuid import UUID, uuid4
 
 import fitz
-import httpx
 import jwt
 import pytest
 from docx import Document
@@ -16,6 +15,8 @@ from app.core.config import get_settings
 from app.infrastructure.db.models import Job, JobMatch
 from app.infrastructure.db.session import session_factory
 from app.main import app
+from app.presentation.api_v1.router import run_prepare_job
+from app.worker import claim_next_job
 
 
 client = TestClient(app)
@@ -31,7 +32,7 @@ def test_health() -> None:
 def test_readiness_checks_database() -> None:
     response = client.get("/api/v1/health/ready")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "database": "ok"}
+    assert response.json() == {"status": "ready", "database": "ok", "rate_limiter": "ok"}
 
 
 def test_feature_health_does_not_expose_credentials() -> None:
@@ -733,38 +734,29 @@ def test_job_url_import_fetches_scores_and_persists(monkeypatch: pytest.MonkeyPa
     headers = {"Authorization": f"Bearer {token}"}
     upload_resume(token)
 
-    class FakeAsyncClient:
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            pass
+    html = """
+    <html>
+      <head>
+        <title>Platform Engineer - Example Careers</title>
+        <meta property="og:site_name" content="Example Careers">
+        <meta property="og:title" content="Platform Engineer - Example Careers">
+      </head>
+      <body>
+        <main>
+          <h1>Platform Engineer</h1>
+          <p>Location: Remote India</p>
+          <h2>Job Description</h2>
+          <p>Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.</p>
+          <p>Partner with product teams, improve observability, and operate production systems.</p>
+        </main>
+      </body>
+    </html>
+    """
 
-        async def __aenter__(self) -> "FakeAsyncClient":
-            return self
+    async def fake_fetch_public_job_page(url: str) -> tuple[str, str]:
+        return url, html
 
-        async def __aexit__(self, *args: object) -> None:
-            return None
-
-        async def get(self, url: str, headers: dict[str, str]) -> httpx.Response:
-            html = """
-            <html>
-              <head>
-                <title>Platform Engineer - Example Careers</title>
-                <meta property="og:site_name" content="Example Careers">
-                <meta property="og:title" content="Platform Engineer - Example Careers">
-              </head>
-              <body>
-                <main>
-                  <h1>Platform Engineer</h1>
-                  <p>Location: Remote India</p>
-                  <h2>Job Description</h2>
-                  <p>Build reliable Python and FastAPI services with PostgreSQL and Docker for customer-facing applications.</p>
-                  <p>Partner with product teams, improve observability, and operate production systems.</p>
-                </main>
-              </body>
-            </html>
-            """
-            return httpx.Response(200, headers={"content-type": "text/html; charset=utf-8"}, text=html, request=httpx.Request("GET", url))
-
-    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.presentation.api_v1.router.fetch_public_job_page", fake_fetch_public_job_page)
     imported = client.post(
         "/api/v1/jobs/import-url",
         headers=headers,
@@ -1418,7 +1410,15 @@ def test_prepare_runs_track_background_material_generation() -> None:
     queued = client.post(f"/api/v1/applications/{saved['id']}/prepare-runs", headers=headers)
     assert queued.status_code == 202
     assert queued.json()["job_type"] == "prepare_application_materials"
-    assert queued.json()["status"] in {"queued", "running", "succeeded"}
+    assert queued.json()["status"] == "queued"
+
+    async def run_queued_job() -> None:
+        claimed = await claim_next_job()
+        assert claimed is not None
+        assert str(claimed[0]) == queued.json()["id"]
+        await run_prepare_job(*claimed)
+
+    asyncio.run(run_queued_job())
 
     job = client.get(f"/api/v1/background-jobs/{queued.json()['id']}", headers=headers)
     assert job.status_code == 200
@@ -1723,6 +1723,7 @@ def test_password_reset_changes_password_and_rejects_token_reuse() -> None:
 def test_password_reset_request_has_support_recovery_path_when_reset_url_is_hidden(monkeypatch) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
 
     requested = client.post("/api/v1/auth/password-reset/request", json={"email": "support-reset@example.com"})
 
@@ -1737,6 +1738,7 @@ def test_password_reset_request_sends_email_when_smtp_is_enabled(monkeypatch) ->
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
     settings = get_settings()
     monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
     monkeypatch.setattr(settings, "frontend_base_url", "https://apply-wise-1.vercel.app")
     monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
     monkeypatch.setattr(settings, "smtp_from_email", "support@applywise.app")

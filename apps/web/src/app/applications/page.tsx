@@ -43,7 +43,7 @@ import {
   loadReviewBeforeApply,
   loadPrepareRuns,
   loadResumeVersion,
-  prepareApplication,
+  waitForBackgroundJob,
   retryBackgroundJob,
   saveCoverLetter,
   saveResumeVersion,
@@ -51,7 +51,6 @@ import {
   updateInterview,
   type ApplicationEvent,
   type ApplicationAutomationPlan,
-  type ApplicationMaterials,
   type ApplicationRecord,
   type AssistedApplicationChecklist,
   type AutomationRun,
@@ -69,7 +68,6 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [materials, setMaterials] = useState<ApplicationMaterials | null>(null);
   const [selected, setSelected] = useState<ApplicationRecord | null>(null);
   const [events, setEvents] = useState<ApplicationEvent[]>([]);
   const [notes, setNotes] = useState("");
@@ -240,19 +238,19 @@ export default function ApplicationsPage() {
     const token = getAccessToken();
     if (!token) return;
     setUpdating(applicationId);
+    setStatusError(null);
+    setStatusMessage("Queued material preparation. You can keep this page open while it runs.");
     try {
-      const prepared = await prepareApplication(applicationId, token);
-      setMaterials(prepared);
-      const preparedResume = await loadResumeVersion(prepared.resume_version_id, token);
-      const preparedCoverLetter = await loadCoverLetter(prepared.cover_letter_id, token);
-      setResumeVersion(preparedResume);
-      setResumeDraft(preparedResume.resume_content);
-      setResumeSaved(false);
-      setCoverLetter(preparedCoverLetter);
-      setCoverLetterDraft(preparedCoverLetter.content);
-      setCoverLetterSaved(false);
-      setApplications((current) => current.map((item) => (item.id === prepared.application.id ? prepared.application : item)));
-      await inspect(prepared.application);
+      const run = await createPrepareRun(applicationId, token);
+      await waitForBackgroundJob(run.id, token);
+      const refreshedApplications = await loadApplications(token);
+      setApplications(refreshedApplications);
+      const preparedApplication = refreshedApplications.find((item) => item.id === applicationId);
+      if (preparedApplication) await inspect(preparedApplication);
+      setStatusMessage("Resume and cover letter are ready for review.");
+    } catch (prepareError) {
+      setStatusError(prepareError instanceof Error ? prepareError.message : "Could not prepare application materials.");
+      setStatusMessage(null);
     } finally {
       setUpdating(null);
     }
@@ -264,33 +262,23 @@ export default function ApplicationsPage() {
     await changeStatus(selected.id, "applied", true);
   }
 
-  async function queuePrepareRun() {
-    const token = getAccessToken();
-    if (!token || !selected) return;
-    setUpdating(selected.id);
-    try {
-      const run = await createPrepareRun(selected.id, token);
-      const refreshedRuns = await loadPrepareRuns(selected.id, token).catch(() => [run]);
-      setPrepareRuns(refreshedRuns);
-      const refreshedEvents = await loadApplicationEvents(selected.id, token);
-      setEvents(refreshedEvents);
-      await inspect(selected);
-    } finally {
-      setUpdating(null);
-    }
-  }
-
   async function retryPrepareRun(jobId: string) {
     const token = getAccessToken();
     if (!token || !selected) return;
     setUpdating(selected.id);
+    setStatusError(null);
+    setStatusMessage("Retrying material preparation in the background.");
     try {
-      await retryBackgroundJob(jobId, token);
-      const refreshedRuns = await loadPrepareRuns(selected.id, token);
-      setPrepareRuns(refreshedRuns);
-      const refreshedEvents = await loadApplicationEvents(selected.id, token);
-      setEvents(refreshedEvents);
-      await inspect(selected);
+      const run = await retryBackgroundJob(jobId, token);
+      await waitForBackgroundJob(run.id, token);
+      const refreshedApplications = await loadApplications(token);
+      setApplications(refreshedApplications);
+      const refreshedSelected = refreshedApplications.find((item) => item.id === selected.id);
+      if (refreshedSelected) await inspect(refreshedSelected);
+      setStatusMessage("Resume and cover letter are ready for review.");
+    } catch (retryError) {
+      setStatusError(retryError instanceof Error ? retryError.message : "Could not retry material preparation.");
+      setStatusMessage(null);
     } finally {
       setUpdating(null);
     }
@@ -326,7 +314,7 @@ export default function ApplicationsPage() {
 
   function downloadPrepared(format: "docx" | "pdf") {
     const token = getAccessToken();
-    const versionId = materials?.resume_version_id ?? checklist?.resume_version_id;
+    const versionId = resumeVersion?.id ?? checklist?.resume_version_id;
     if (!token || !versionId) return;
     const warnings = reviewBeforeApply?.quality_warnings ?? [];
     const acknowledged = warnings.length
@@ -338,13 +326,13 @@ export default function ApplicationsPage() {
 
   function downloadPreparedCoverLetter() {
     const token = getAccessToken();
-    const coverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
+    const coverLetterId = coverLetter?.id ?? checklist?.cover_letter_id;
     if (token && coverLetterId) void downloadCoverLetter(coverLetterId, token);
   }
 
   async function saveCoverLetterDraft() {
     const token = getAccessToken();
-    const coverLetterId = coverLetter?.id ?? materials?.cover_letter_id ?? checklist?.cover_letter_id;
+    const coverLetterId = coverLetter?.id ?? checklist?.cover_letter_id;
     if (!token || !coverLetterId) return;
     const saved = await saveCoverLetter(coverLetterId, coverLetterDraft, token);
     setCoverLetter(saved);
@@ -354,7 +342,7 @@ export default function ApplicationsPage() {
 
   async function saveResumeDraft() {
     const token = getAccessToken();
-    const versionId = resumeVersion?.id ?? materials?.resume_version_id ?? checklist?.resume_version_id;
+    const versionId = resumeVersion?.id ?? checklist?.resume_version_id;
     if (!token || !versionId || !resumeDraft) return;
     const saved = await saveResumeVersion(versionId, resumeDraft, token);
     setResumeVersion(saved);
@@ -380,8 +368,8 @@ export default function ApplicationsPage() {
     updateResumeDraft({ skills: value.split(",").map((skill) => skill.trim()).filter(Boolean) });
   }
 
-  const preparedVersionId = materials?.resume_version_id ?? checklist?.resume_version_id;
-  const preparedCoverLetterId = materials?.cover_letter_id ?? checklist?.cover_letter_id;
+  const preparedVersionId = resumeVersion?.id ?? checklist?.resume_version_id;
+  const preparedCoverLetterId = coverLetter?.id ?? checklist?.cover_letter_id;
   const selectedIsApplied = selected?.status === "applied" || selected?.status === "interview" || selected?.status === "offer";
   const guidedReadyCount = checklist ? [checklist.ats_approved, checklist.resume_prepared, checklist.cover_letter_prepared, checklist.review_confirmed, checklist.autofill_supported, selectedIsApplied].filter(Boolean).length : 0;
   const archivedStatuses = new Set(["rejected", "withdrawn"]);
@@ -494,7 +482,6 @@ export default function ApplicationsPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link className="inline-flex items-center gap-1 rounded-lg bg-[#1c2926] px-3 py-2 text-[12px] font-bold text-white" href={`/applications/${selected.id}/prepare`}><WandSparkles size={13} />Open prepare page</Link>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={updating === selected.id} onClick={() => void prepare(selected.id)}><WandSparkles size={13} />Prepare materials</button>
-            <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={updating === selected.id} onClick={() => void queuePrepareRun()}><Clock3 size={13} />Queue prepare run</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("docx")}><Download size={13} />Resume DOCX</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedVersionId} onClick={() => downloadPrepared("pdf")}><Download size={13} />Resume PDF</button>
             <button className="inline-flex items-center gap-1 rounded-lg bg-[#e8f4ef] px-3 py-2 text-[12px] font-bold text-[#176b5b] disabled:opacity-50" disabled={!preparedCoverLetterId} onClick={() => downloadPreparedCoverLetter()}><Download size={13} />Cover letter TXT</button>
@@ -706,11 +693,11 @@ export default function ApplicationsPage() {
         </section>
       ) : null}
 
-      {coverLetter || materials ? (
+      {coverLetter ? (
         <section className="mt-5 rounded-2xl border border-[#dce7e2] bg-white p-5 small-shadow">
           <div className="flex items-center gap-2 text-[#176b5b]"><FileText size={17} /><h2 className="text-[16px] font-bold">Evidence-grounded application draft</h2></div>
           <p className="mt-2 text-[12px] text-[#71807c]">Generated from your stored resume only. Edit the letter for tone, detail, and employer context before applying.</p>
-          {materials ? <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{materials.provenance === "gemini_evidence_grounded" ? "Gemini-enhanced grounded draft" : "Safe grounded fallback draft"} / {materials.generation_status.replaceAll("_", " ")} / {materials.retry_attempts} attempt{materials.retry_attempts === 1 ? "" : "s"}</p> : null}
+          <p className="mt-2 text-[11px] font-bold text-[#176b5b]">{coverLetter.model_provider.replaceAll("_", " ")} / {coverLetter.generation_status.replaceAll("_", " ")}</p>
           <textarea className="mt-4 min-h-80 w-full rounded-xl border border-[#dce7e2] bg-[#fbfcfa] p-4 text-[12px] leading-6 text-[#53645f] outline-none focus:border-[#79b6a8]" onChange={(event) => { setCoverLetterDraft(event.target.value); setCoverLetterSaved(false); }} value={coverLetterDraft} />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button className="rounded-lg bg-[#176b5b] px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={coverLetterDraft.trim().length < 20} onClick={() => void saveCoverLetterDraft()}>Save edited letter</button>

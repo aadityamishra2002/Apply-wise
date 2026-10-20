@@ -2,9 +2,9 @@
 
 ## Last Reviewed
 
-- Date: 2026-06-22
-- Commit: 45d5e3a
-- Version/release: Beta MVP, extension v0.3.3
+- Date: 2026-10-20
+- Commit reviewed: `d6c2cce`
+- Version/release: Beta MVP, extension v0.4.0 changes pending deployment
 
 ## Purpose
 

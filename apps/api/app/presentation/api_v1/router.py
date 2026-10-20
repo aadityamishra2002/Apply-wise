@@ -2,21 +2,24 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from html.parser import HTMLParser
 import ipaddress
+import asyncio
 import json
 from pathlib import Path
 import re
 from secrets import token_urlsafe
+import socket
 from types import SimpleNamespace
 from typing import Annotated
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from uuid import UUID
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
+from redis.exceptions import RedisError
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +35,7 @@ from app.application.resumes.service import MAX_RESUME_BYTES, ResumeCertificatio
 from app.application.tailoring.quality import find_unsupported_claims
 from app.application.tailoring.service import GeminiTailoringService, TailoredMaterials, build_fallback_materials
 from app.core.config import get_settings
+from app.core.rate_limit import rate_limiter
 from app.core.security import AccessTokenError, create_extension_token, decode_extension_token
 from app.domain.jobs.entities import Job as ProviderJob
 from app.infrastructure.db.models import ActivityLog, Application, ApplicationEvent, ApplicationStatus, AutomationRun, BackgroundJob, CoverLetter, ExtensionPairingCode, Interview, Job, JobMatch, JobPreference, ResumeTemplate, ResumeVersion, Subscription, User, UserProfile
@@ -75,6 +79,8 @@ export_retry_policy = RetryPolicy(
     base_delay_seconds=settings.export_retry_base_delay_seconds,
     max_delay_seconds=settings.export_retry_max_delay_seconds,
 )
+MAX_JOB_IMPORT_BYTES = 1_000_000
+MAX_JOB_IMPORT_REDIRECTS = 3
 
 
 class JobResponse(BaseModel):
@@ -590,7 +596,15 @@ async def readiness(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database is unavailable.",
         ) from error
-    return {"status": "ready", "database": "ok"}
+    if settings.rate_limit_enabled and settings.app_env != "test":
+        try:
+            await rate_limiter.ping()
+        except RedisError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate-limit service is unavailable.",
+            ) from error
+    return {"status": "ready", "database": "ok", "rate_limiter": "ok"}
 
 
 @router.get("/health/features")
@@ -877,23 +891,11 @@ async def import_job_url(
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> JobResponse:
-    url = validate_public_job_url(payload.url)
     try:
-        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
-            response = await client.get(
-                url,
-                headers={
-                    "User-Agent": "ApplyWiseBot/1.0 (+https://apply-wise-1.vercel.app)",
-                    "Accept": "text/html,application/xhtml+xml",
-                },
-            )
-            response.raise_for_status()
+        url, html = await fetch_public_job_page(payload.url)
     except httpx.HTTPError as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not fetch this job page. Paste the job details manually or use the extension.") from error
-    content_type = response.headers.get("content-type", "")
-    if "html" not in content_type.lower():
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This URL did not return an HTML job page.")
-    extracted = extract_job_from_html(str(response.url), response.text)
+    extracted = extract_job_from_html(url, html)
     return await score_and_store_manual_job(session, user.id, extracted, source="url_import")
 
 
@@ -2099,7 +2101,6 @@ async def prepare_application(
 @router.post("/applications/{application_id}/prepare-runs", response_model=BackgroundJobResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_prepare_run(
     application_id: UUID,
-    background_tasks: BackgroundTasks,
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> BackgroundJobResponse:
@@ -2124,7 +2125,6 @@ async def create_prepare_run(
         )
     )
     await session.commit()
-    background_tasks.add_task(run_prepare_job, job.id, application.id, user.id)
     return background_job_response(job)
 
 
@@ -2163,7 +2163,6 @@ async def get_background_job(
 @router.post("/background-jobs/{job_id}/retry", response_model=BackgroundJobResponse, status_code=status.HTTP_202_ACCEPTED)
 async def retry_background_job(
     job_id: UUID,
-    background_tasks: BackgroundTasks,
     user: Annotated[UserRecord, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> BackgroundJobResponse:
@@ -2189,7 +2188,6 @@ async def retry_background_job(
         )
     )
     await session.commit()
-    background_tasks.add_task(run_prepare_job, job.id, application.id, user.id)
     return background_job_response(job)
 
 
@@ -2246,7 +2244,13 @@ async def safe_tailored_materials(
     return profile, materials
 
 
-async def prepare_application_materials(session: AsyncSession, application_id: UUID, user_id: UUID) -> ApplicationMaterialsResponse:
+async def prepare_application_materials(
+    session: AsyncSession,
+    application_id: UUID,
+    user_id: UUID,
+    *,
+    background_job_id: UUID | None = None,
+) -> ApplicationMaterialsResponse:
     row = await session.execute(
         select(Application, Job)
         .join(Job, Application.job_id == Job.id)
@@ -2347,6 +2351,29 @@ async def prepare_application_materials(session: AsyncSession, application_id: U
             "template_id": str(resume_version.template_id) if resume_version.template_id else None,
         },
     )
+    if background_job_id:
+        background_job = await session.get(BackgroundJob, background_job_id)
+        if not background_job or background_job.status != "running":
+            raise RuntimeError("The preparation job is no longer running.")
+        background_job.status = "succeeded"
+        background_job.result = {
+            "resume_version_id": str(resume_version.id),
+            "cover_letter_id": str(cover_letter.id),
+            "generation_status": materials.generation_status,
+            "retry_attempts": materials.retry_attempts,
+        }
+        background_job.completed_at = datetime.now(timezone.utc)
+        session.add(
+            ApplicationEvent(
+                application_id=application.id,
+                event_type="prepare_job_succeeded",
+                metadata_={
+                    "background_job_id": str(background_job_id),
+                    "resume_version_id": str(resume_version.id),
+                    "cover_letter_id": str(cover_letter.id),
+                },
+            )
+        )
     await session.commit()
     return ApplicationMaterialsResponse(
         application=application_response(application, job),
@@ -2525,14 +2552,15 @@ def background_job_response(job: BackgroundJob) -> BackgroundJobResponse:
 async def run_prepare_job(job_id: UUID, application_id: UUID, user_id: UUID) -> None:
     async with session_factory() as session:
         job = await session.get(BackgroundJob, job_id)
-        if not job:
+        if not job or job.status != "running":
             return
-        job.status = "running"
-        job.attempts += 1
-        job.error_message = None
-        await session.commit()
         try:
-            materials = await prepare_application_materials(session, application_id, user_id)
+            await prepare_application_materials(
+                session,
+                application_id,
+                user_id,
+                background_job_id=job_id,
+            )
         except Exception as error:
             await session.rollback()
             job = await session.get(BackgroundJob, job_id)
@@ -2543,26 +2571,6 @@ async def run_prepare_job(job_id: UUID, application_id: UUID, user_id: UUID) -> 
                 session.add(ApplicationEvent(application_id=application_id, event_type="prepare_job_failed", metadata_={"background_job_id": str(job_id)}))
                 await session.commit()
             return
-        job = await session.get(BackgroundJob, job_id)
-        if job:
-            job.status = "succeeded"
-            job.result = {
-                "resume_version_id": materials.resume_version_id,
-                "cover_letter_id": materials.cover_letter_id,
-                "generation_status": materials.generation_status,
-                "retry_attempts": materials.retry_attempts,
-            }
-            job.completed_at = datetime.now(timezone.utc)
-            session.add(
-                ApplicationEvent(
-                    application_id=application_id,
-                    event_type="prepare_job_succeeded",
-                    metadata_={"background_job_id": str(job_id), "resume_version_id": materials.resume_version_id, "cover_letter_id": materials.cover_letter_id},
-                )
-            )
-            await session.commit()
-
-
 def build_resume_export(version: ResumeVersion, job: Job, format: str, user: User | None, user_profile: UserProfile | None, template: ResumeTemplate | None) -> tuple[bytes, str, int]:
     def operation() -> tuple[bytes, str]:
         if format == "pdf":
@@ -2661,19 +2669,104 @@ class JobHtmlExtractor(HTMLParser):
 
 
 def validate_public_job_url(raw_url: str) -> str:
-    parsed = urlparse(raw_url.strip())
+    raw_url = raw_url.strip()
+    parsed = urlparse(raw_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Enter a full public http or https job URL.")
     host = (parsed.hostname or "").lower()
-    if host in {"localhost", "0.0.0.0"} or host.endswith(".local"):
+    if parsed.username or parsed.password or not host or "%" in host:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Enter a public job URL without embedded credentials.")
+    if host in {"localhost", "0.0.0.0"} or host.endswith((".local", ".localhost", ".internal")):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs can be imported.")
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job URL has an invalid port.") from error
+    expected_port = 443 if parsed.scheme == "https" else 80
+    if port is not None and port != expected_port:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs using standard HTTP and HTTPS ports can be imported.")
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
         address = None
-    if address and (address.is_private or address.is_loopback or address.is_link_local or address.is_multicast or address.is_reserved):
+    if address and not address.is_global:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs can be imported.")
-    return raw_url.strip()
+    return str(httpx.URL(raw_url))
+
+
+async def resolve_public_address(host: str, port: int) -> str:
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal:
+        addresses = {literal}
+    else:
+        try:
+            records = await asyncio.get_running_loop().getaddrinfo(
+                host,
+                port,
+                type=socket.SOCK_STREAM,
+            )
+        except OSError as error:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job URL host could not be resolved.") from error
+        addresses = {ipaddress.ip_address(record[4][0].split("%", 1)[0]) for record in records}
+    if not addresses or any(not address.is_global for address in addresses):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs can be imported.")
+    return str(sorted(addresses, key=lambda address: (address.version, int(address)))[0])
+
+
+async def fetch_public_job_page(raw_url: str) -> tuple[str, str]:
+    current_url = validate_public_job_url(raw_url)
+    for redirect_count in range(MAX_JOB_IMPORT_REDIRECTS + 1):
+        target = httpx.URL(current_url)
+        host = target.host
+        port = target.port
+        address = await resolve_public_address(host, port)
+        pinned_url = target.copy_with(host=address)
+        host_header = f"[{host}]" if ":" in host else host
+        headers = {
+            "Host": host_header,
+            "User-Agent": "ApplyWiseBot/1.0 (+https://apply-wise-1.vercel.app)",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Encoding": "identity",
+        }
+        extensions = {"sni_hostname": host} if target.scheme == "https" else {}
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(12.0, connect=5.0),
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
+            async with client.stream("GET", pinned_url, headers=headers, extensions=extensions) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = response.headers.get("location")
+                    if not location or redirect_count >= MAX_JOB_IMPORT_REDIRECTS:
+                        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job page redirected too many times.")
+                    current_url = validate_public_job_url(urljoin(current_url, location))
+                    continue
+                response.raise_for_status()
+                if "html" not in response.headers.get("content-type", "").lower():
+                    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This URL did not return an HTML job page.")
+                content_length = response.headers.get("content-length")
+                if content_length:
+                    try:
+                        declared_size = int(content_length)
+                    except ValueError as error:
+                        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The job page returned an invalid size.") from error
+                    if declared_size < 0 or declared_size > MAX_JOB_IMPORT_BYTES:
+                        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job page is too large to import.")
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(body) + len(chunk) > MAX_JOB_IMPORT_BYTES:
+                        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job page is too large to import.")
+                    body.extend(chunk)
+                encoding = response.encoding or "utf-8"
+                try:
+                    html = body.decode(encoding, errors="replace")
+                except LookupError:
+                    html = body.decode("utf-8", errors="replace")
+                return current_url, html
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job page redirected too many times.")
 
 
 def extract_job_from_html(url: str, html: str) -> ManualJobRequest:

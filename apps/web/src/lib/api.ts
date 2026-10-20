@@ -1,4 +1,4 @@
-export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:8000/api/v1");
 export const accessTokenKey = "jobcopilot_access_token";
 
 export type CurrentUser = {
@@ -594,6 +594,22 @@ export async function createPrepareRun(applicationId: string, accessToken: strin
     throw new Error(body?.detail ?? "Could not queue material preparation.");
   }
   return (await response.json()) as BackgroundJob;
+}
+
+export async function loadBackgroundJob(jobId: string, accessToken: string): Promise<BackgroundJob> {
+  const response = await fetch(`${apiUrl}/background-jobs/${jobId}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error("Could not load preparation status.");
+  return (await response.json()) as BackgroundJob;
+}
+
+export async function waitForBackgroundJob(jobId: string, accessToken: string): Promise<BackgroundJob> {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const job = await loadBackgroundJob(jobId, accessToken);
+    if (job.status === "succeeded") return job;
+    if (job.status === "failed") throw new Error(job.error_message || "Material preparation failed. Retry from the application workflow.");
+    await new Promise<void>((resolve) => window.setTimeout(() => resolve(), 2000));
+  }
+  throw new Error("Preparation is still queued or running. Check the preparation run history for its status.");
 }
 
 export async function retryBackgroundJob(jobId: string, accessToken: string): Promise<BackgroundJob> {

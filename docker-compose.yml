@@ -46,6 +46,24 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build: ./apps/api
+    environment:
+      APP_ENV: development
+      APP_SECRET_KEY: local-development-only
+      DATABASE_URL: postgresql+asyncpg://jobcopilot:jobcopilot@postgres:5432/jobcopilot
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      ALLOWED_HOSTS: "*"
+    command: python -m app.worker
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   web:
     build:
       context: ./apps/web

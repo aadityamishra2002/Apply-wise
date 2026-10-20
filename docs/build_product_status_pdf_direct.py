@@ -5,7 +5,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle
 
 
 ROOT = Path(__file__).parent
@@ -68,17 +68,19 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated June 20, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Updated October 20, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Launch status: blocked. The frontend responds, but its configured Railway API hostname returned 404 Application not found during the October 20 audit. Restore the API or update Vercel to a working HTTPS API URL before reopening registration and account workflows. Historical live smoke results below are from June and do not establish current health.", callout),
     Spacer(1, 4),
     para("What is live", heading),
-    para("Apply Wise is a deployed web product for resume-aware job discovery, truthful application preparation, and pipeline tracking. Users can register publicly and maintain private workspaces."),
+    para("Apply Wise provides resume-aware job discovery, truthful application preparation, and pipeline tracking. The web frontend is reachable; API-backed user workflows are currently unavailable until the production API is restored."),
     para("Live architecture", heading),
     table(
         ["Layer", "Technology", "Current role"],
         [
             ("Web app", "Next.js 15 / Vercel", "Responsive SaaS interface"),
             ("API", "FastAPI / Railway", "Authenticated application API"),
-            ("Database", "PostgreSQL / Alembic", "Persistent product records"),
+            ("Worker", "Railway worker", "Durable application-preparation jobs"),
+            ("Database and cache", "PostgreSQL / Redis", "Persistent product records, queued jobs, and shared rate limits"),
             ("Job source", "Adzuna + Remotive APIs", "Live India and remote listings with attribution"),
             ("Security", "JWT + refresh rotation", "Protected user workspaces"),
         ],
@@ -115,7 +117,7 @@ for item in [
     "Edit and save prepared cover letters before downloading or applying.",
     "Edit tailored resume summary, skills, and experience text before DOCX/PDF download.",
     "Review extension capture readiness and re-extract the current page before sending a job.",
-    "Request and confirm password resets with one-time tokens in local/test environments, revoke sessions after reset, and show a production support recovery path until automated reset email delivery is added.",
+    "Request and confirm password resets with one-time tokens; production email delivery requires SMTP configuration.",
     "Review owner-only admin summary metrics for users, jobs, applications, generated materials, and subscriptions.",
     "Download tailored resumes from the extension for manual attachment on employer forms with manual-upload-required status.",
     "Review dry-run automation capability flags and manual-submit plans for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages.",
@@ -141,7 +143,7 @@ for item in [
     "Show a dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.",
     "Show Settings privacy guidance with a support path for account and data deletion requests.",
     "Allow the extension popup to save a configurable Apply Wise API URL for backend domain changes.",
-    "Scope extension host permissions to Railway subdomains for backend URL changes.",
+    "Request optional extension network access for the exact API host the user saves; changing hosts clears the old pairing token.",
     "Provide an authenticated account data export from Settings without password hashes, tokens, or payment credentials.",
     "Separate active and archived application views so rejected or withdrawn roles stop cluttering the working pipeline without deleting history.",
     "Guide users from parsed resume to job matches, saved roles, and Review Application on the Resume page.",
@@ -154,7 +156,7 @@ for item in [
     "Require explicit confirmation before marking an application as applied to reinforce manual final submission.",
     "Enforce manual-submission confirmation on the API before accepting an applied status.",
     "Replace visible compliance-page business placeholders with founder, location, and support details for payment review readiness.",
-    "Mark QA/STAGE promotion documentation as paused while MVP work ships directly to prod.",
+    "Document release promotion through QA, STAGE, and main; GitHub branch protections still need provider-side confirmation.",
     "Validate application-profile URLs server-side before using them for review and autofill mapping.",
     "Surface API validation details in Settings when application-profile fields cannot be saved.",
     "Record extension form-inspection and autofill execution failures in the application timeline with manual fallback guidance.",
@@ -167,11 +169,11 @@ for item in [
     "Add extraction regression coverage for LinkedIn, Naukri, Workday, one generic company career page, and noisy/missing-field validation.",
     "Generate stored tailored resumes and cover letters directly from captured jobs on the Jobs page with previews, copy/download actions, ATS suggestions, and model metadata.",
     "Keep persisted manual and extension-captured jobs visible on the Jobs page after refresh by appending stored scored jobs to fresh provider search results.",
-    "Verify production API health, database readiness, Gemini-enabled generation, migration-applied generation metadata, authenticated downloads, owner-scoped access, and extension-token capture with a throwaway live smoke test.",
+    "Historical June smoke verified production API health, database readiness, generated artifacts, downloads, owner-scoped access, and extension capture; the October 20 live check found the configured API hostname unavailable.",
     "Confirm post-deployment on Railway that captured jobs remain visible from the Jobs page after refresh with saved state and application ID preserved.",
     "Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.",
     "Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.",
-    "Bump the unpacked extension to version 0.3.3 with clearer token-expiry recovery and company-name manual fallback guidance.",
+    "Historically, bump the unpacked extension to version 0.3.3 with clearer token-expiry recovery and company-name manual fallback guidance.",
     "Verify the live beta flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.",
     "Confirm Railway serves the beta dashboard-summary fields and Vercel client chunks include the updated dashboard, Jobs, and Applications guidance.",
     "Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.",
@@ -185,7 +187,6 @@ story += [
         ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
         ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
     ])),
-    PageBreak(),
     para("Security and operations", heading),
 ]
 for item in [
@@ -219,8 +220,18 @@ story += [
         ],
         [0.55 * inch, 2.05 * inch, 4.4 * inch],
     ),
+    para("Production requirements", heading),
+]
+for item in [
+    "Restore the API service or update Vercel NEXT_PUBLIC_API_URL, then redeploy and verify health and readiness.",
+    "Provision Redis for API rate limits and a separate Railway worker with database, secret, and generation-provider settings; do not give the worker a public domain.",
+    "Enable and rehearse PostgreSQL backups, configure SMTP for self-service password reset, and verify isolated QA and STAGE data stores.",
+    "Enable GitHub branch protection and required CI checks for QA, STAGE, and main. Payment checkout and webhooks are not implemented.",
+]:
+    story.append(Paragraph(item, bullet, bulletText="•"))
+story += [
     para("Repository practice", heading),
-    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. During the current MVP push, changes go directly to prod after local validation. Secrets remain outside the repository."),
+    para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. Promote releases through QA -> STAGE -> main after each environment's checks pass. Branch protection and required checks must be confirmed in GitHub. Secrets remain outside the repository."),
     para("Repository: https://github.com/aadityamishra2002/Apply-wise", small),
 ]
 doc.build(story)

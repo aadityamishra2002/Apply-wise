@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Apply Wise Job Capture",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Capture job pages, review autofill plans, and fill approved application fields with Apply Wise.",
   "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://*.up.railway.app/*", "https://*.railway.app/*", "https://www.linkedin.com/*", "https://linkedin.com/*"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
   "action": {
     "default_title": "Capture job with Apply Wise",
     "default_popup": "popup.html"
