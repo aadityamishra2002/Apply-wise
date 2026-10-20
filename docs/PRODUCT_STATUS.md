@@ -21,7 +21,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 | Job source | Adzuna API, Remotive API | Live India listings and remote-job listings with attribution |
 | Authentication | JWT access tokens and refresh-token rotation | Protected user workspaces |
 
-The selected free setup is for a demo and limited feedback, not dependable production use. Render can sleep and restart, Supabase Free can pause after low activity and has no automatic backups, and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). No provider service or API URL has been switched yet.
+The selected free setup is for a personal, non-commercial demo and limited feedback, not dependable production use. Vercel Hobby restricts use to personal, non-commercial projects; Render can sleep and restart; Supabase Free can pause after low activity and has no automatic backups; and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). No provider service or API URL has been switched yet.
 
 ## Implemented User Journey
 
