@@ -2,11 +2,13 @@
 
 ## Selected free demo path
 
-The selected no-cost setup is **Vercel + Render Free + Supabase Free + Upstash Redis Free**. It is intended for a personal demo and limited feedback, not production use with real users or sensitive resume data. The Supabase database and Upstash Redis instance are provisioned. Render has created the API service, but its first deploy failed during startup; the published frontend still points at the unavailable Railway API.
+The deployed limited-beta setup is **Vercel + Render Free + Supabase Free + Upstash Redis Free**. As of October 21, 2026, the Vercel Production deployment from merged commit `35065fd` is Ready, and `https://apply-wise-api.onrender.com/api/v1/health/ready` has returned `ready` with database and rate limiter `ok`. The public homepage, sign-in, and registration pages load. Authenticated product workflows have not yet been verified end to end after this hosting change. This free setup has no production-grade uptime, backup, or recovery guarantee; use it only for a small beta and feedback.
 
 The repository includes [`render.yaml`](../render.yaml), which configures the FastAPI web service, startup migrations, health check, and an in-process preparation worker. Render Free does not offer a separate free background-worker service, so the API and worker share one web process in this demo configuration.
 
-### Setup
+### Rebuild or restore the free beta
+
+These steps are for recreating or restoring services. Skip any service that is already provisioned; do not create duplicate Supabase or Upstash resources just to follow the guide.
 
 1. Create a [Supabase](https://supabase.com/dashboard) project in [Southeast Asia (Singapore)](https://supabase.com/docs/guides/platform/regions) to keep it near the Render service. From **Connect**, copy the PostgreSQL [**Session pooler** connection string](https://supabase.com/docs/guides/database/connecting-to-postgres) (port `5432`) for a persistent backend connection. Replace the password placeholder, URL-encode reserved password characters, and keep the complete URI private.
 2. Create a Redis database in [Upstash](https://console.upstash.com/) in Singapore if available. Copy its `rediss://` connection string; do not commit it.
@@ -28,7 +30,7 @@ The repository includes [`render.yaml`](../render.yaml), which configures the Fa
 - Upstash Redis Free currently includes 256 MB and 500,000 commands per month. Rate limiting depends on Redis, so reaching the quota or an outage can make API requests unavailable. See [Upstash Redis pricing](https://upstash.com/pricing/redis).
 - Keep this setup for a demo. Before real-user use, move to services with dependable uptime, backups, monitoring, and a separately managed worker; verify data recovery and email delivery.
 
-## Production path (Railway)
+## Fuller production topology (Railway, not the current deployment)
 
 The fuller production topology is:
 
@@ -119,19 +121,19 @@ Then open the Vercel URL and verify:
 4. Opening `/dashboard` in a private browser window redirects to `/login`.
 5. Refreshing the dashboard preserves the signed-in session.
 
-### 5. Production Notes
+### 5. Railway-topology notes
 
 - Store secrets only in provider environment variables. Do not commit `.env` files.
-- Add owner email addresses to Railway's `ADMIN_EMAILS` variable. Allowlisted accounts receive the persisted `admin` role when they register or next authenticate.
-- Railway PostgreSQL backups should be enabled before storing real user resumes.
-- Resume uploads and persisted job workflows are implemented in the application. Production readiness still depends on restoring the API, provisioning Redis and the worker, verifying backups and email delivery, and completing the release gates below.
-- The API accepts Railway's standard `postgresql://` URL and normalizes it to the async SQLAlchemy driver internally.
-- Production refresh cookies use `Secure`, `HttpOnly`, and `SameSite=None` so Vercel can refresh sessions through the Railway API.
-- Keep Railway PostgreSQL and Redis private to the project. `REDIS_URL` is required for API rate limits; the API readiness endpoint checks both PostgreSQL and Redis.
-- Enable automated PostgreSQL backups and perform a restore rehearsal before real user data is stored. Confirm the backup retention and recovery process in Railway.
-- Configure a production SMTP provider if users need password reset email. Keep SMTP credentials only in Railway variables.
+- Add owner email addresses to the backend `ADMIN_EMAILS` variable in the active provider. Allowlisted accounts receive the persisted `admin` role when they register or next authenticate.
+- Database backups should be enabled and restore-tested before relying on stored resumes.
+- Resume uploads and persisted job workflows are implemented in the application. Broader production readiness still depends on dependable hosting, backups, monitoring, email delivery, a separately managed worker, and the release gates below.
+- The API accepts a standard `postgresql://` URL and normalizes it to the async SQLAlchemy driver internally.
+- Production refresh cookies use `Secure`, `HttpOnly`, and `SameSite=None` so Vercel can refresh sessions through the API.
+- Keep PostgreSQL and Redis private to the project. `REDIS_URL` is required for API rate limits; the API readiness endpoint checks both PostgreSQL and Redis.
+- Enable automated PostgreSQL backups and perform a restore rehearsal before real user data is stored. Confirm the backup retention and recovery process with the selected provider.
+- Configure a production SMTP provider if users need password reset email. Keep SMTP credentials only in provider variables.
 - Configure GitHub branch protection and required CI checks for `main`, `STAGE`, and `QA`; the repository release guide describes the promotion order but cannot enforce these settings by itself.
-- The currently configured production Railway hostname returned `404 Application not found` during the October 20, 2026 audit. Restore that service or use the selected Render demo path, then update Vercel's production `NEXT_PUBLIC_API_URL` to the working HTTPS URL ending in `/api/v1` and redeploy.
+- The old Railway hostname returned `404 Application not found` during the October 20, 2026 audit. It was replaced by the Render API for the current deployment; the Vercel Production `NEXT_PUBLIC_API_URL` is `https://apply-wise-api.onrender.com/api/v1`.
 - Payment checkout, subscription billing, and webhook handling are not implemented. Do not advertise paid plans as purchasable until a provider integration is completed.
 
 ## Platform References
