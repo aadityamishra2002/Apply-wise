@@ -4,14 +4,13 @@ Apply Wise is a deployed AI-powered job application copilot for resume-aware job
 
 **Live site:** [https://apply-wise-1.vercel.app](https://apply-wise-1.vercel.app)
 
-**Launch status (October 20, 2026):** the frontend responds, but its configured Railway API host currently returns `404 Application not found`. Account and API-backed workflows are unavailable until the Railway API service is restored and the Vercel `NEXT_PUBLIC_API_URL` value is confirmed.
+**Launch status (October 20, 2026):** the frontend responds, but the configured Railway API host returns `404 Application not found`, so account and API-backed workflows are unavailable. The selected recovery route is Vercel + Render Free + Supabase Free + Upstash Redis Free. It is documented and configured in this checkout, but those services are not provisioned or deployed yet.
 
 ## Product Status
 
-The maintained product guide is available in two formats:
+The maintained, current product guide is:
 
 - [Product status source](docs/PRODUCT_STATUS.md)
-- [Product status PDF](docs/APPLY_WISE_PRODUCT_STATUS.pdf)
 
 For day-to-day usage steps, see the [Apply Wise user guide](docs/USER_GUIDE.md).
 
@@ -41,7 +40,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
 - Authenticated password change plus password-reset token flow with optional SMTP email delivery in production and support fallback when SMTP is not configured
 - Password reset token flow with dev-mode reset link and session revocation
-- Owner admin allowlist support through Railway environment variables
+- Owner admin allowlist support through backend environment variables
 - Owner-only admin summary for users, jobs, applications, generated materials, and subscriptions
 - PDF and DOCX master-resume upload with persisted text extraction; DOCX master resumes can become the active export layout
 - Resume section, skill, structured experience, education, certification, and project extraction
@@ -108,7 +107,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Manual career-page job capture with resume-aware scoring and tracker integration
 - Unpacked Chrome extension MVP with one-time pairing and review-before-send job capture
 - Extension API URL setting so the browser helper can be repointed when the backend domain changes
-- Extension host permissions scoped to Railway subdomains for backend URL changes
+- Extension host permissions requested only for the configured backend hostname
 - Local extension form inspector and review-gated autofill for common employer application fields, including approved-field audit logging
 - Conservative autofill handling for select/dropdown fields while skipping hidden, disabled, read-only, checkbox, radio, and empty-value controls
 - Extension tailored-resume PDF/DOCX download and manual-upload-required status for employer resume upload fields
@@ -130,17 +129,14 @@ Before closing any development task, verify that the feature is implemented, tes
 Vercel: Next.js web app
     |
     v
-Railway API: FastAPI
-    |-- PostgreSQL (product data and durable job queue)
-    |-- Redis (shared rate limits)
+Render Free web service: FastAPI API + in-process preparation worker (selected demo target)
+    |-- Supabase PostgreSQL (product data and durable job queue)
+    |-- Upstash Redis (shared rate limits)
     |-- Adzuna Jobs API
     |-- Remotive Remote Jobs API
-    |
-Railway worker: queued application preparation
-    |-- PostgreSQL
 ```
 
-The backend follows clean-architecture boundaries with domain entities, application services, provider adapters, SQLAlchemy persistence, and FastAPI presentation routes.
+The backend follows clean-architecture boundaries with domain entities, application services, provider adapters, SQLAlchemy persistence, and FastAPI presentation routes. The Railway API and separate worker remain the fuller production topology documented in [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Local Development
 
@@ -167,7 +163,7 @@ Open `http://localhost:3000`. API documentation is available at `http://localhos
 
 ## Deployment
 
-Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Vercel, Railway API, Redis, and worker configuration. Keep secrets in Railway variables, never in Git.
+Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the selected free demo setup and the fuller Railway production topology. Keep secrets in provider environment variables, never in Git.
 
 ## Release Process
 
@@ -187,7 +183,7 @@ Load the unpacked extension from [`apps/extension`](apps/extension) and follow i
 
 All endpoints require the normal bearer access token.
 
-Set `API_URL` to the active backend base URL ending in `/api/v1` before using these examples. The previous Railway hostname is no longer valid.
+Set `API_URL` to the active backend base URL ending in `/api/v1` before using these examples. The currently configured Railway hostname is unavailable; see the deployment guide for the selected Render setup.
 
 ```bash
 export API_URL=https://<active-api-host>/api/v1

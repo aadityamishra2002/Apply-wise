@@ -4,7 +4,7 @@
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
-**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable until the Railway service is restored or Vercel is pointed at a working API. The source changes in this checkout still need review, deployment, and live verification.
+**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable. The selected recovery route is a Vercel frontend with a Render Free API, Supabase Free PostgreSQL, and Upstash Redis Free; the services have not been provisioned or deployed yet. This checkout includes the Render blueprint and in-process worker option for that demo route.
 
 ## What Apply Wise Does
 
@@ -15,10 +15,13 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 | Layer | Technology | Current role |
 |---|---|---|
 | Web app | Next.js 15, TypeScript, Tailwind CSS | Responsive SaaS interface deployed on Vercel |
-| API | FastAPI, Python | Authenticated application API deployed on Railway |
-| Database | PostgreSQL, SQLAlchemy, Alembic | Users, resumes, jobs, scores, drafts, applications, analytics |
+| API | FastAPI, Python | Render Free is the selected demo target; previous Railway hostname is inactive |
+| Database | PostgreSQL, SQLAlchemy, Alembic | Supabase Free is the selected demo target for users, resumes, jobs, scores, drafts, applications, and analytics |
+| Rate limits and queue support | Redis plus PostgreSQL-backed job queue | Upstash Redis Free is the selected demo target; Render demo runs the queue worker inside the API process |
 | Job source | Adzuna API, Remotive API | Live India listings and remote-job listings with attribution |
 | Authentication | JWT access tokens and refresh-token rotation | Protected user workspaces |
+
+The selected free setup is for a demo and limited feedback, not dependable production use. Render can sleep and restart, Supabase Free can pause after low activity and has no automatic backups, and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). No provider service or API URL has been switched yet.
 
 ## Implemented User Journey
 
@@ -86,8 +89,8 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 62. Harden extension autofill for modern forms by skipping disabled/read-only/hidden/manual controls and matching select options conservatively.
 63. Add a user-visible dashboard activity log for resume upload/parsing, job scoring, and captured-job audit events.
 64. Add in-app Settings privacy guidance with a clear support path for account/data deletion requests.
-65. Add a configurable extension API URL so the browser helper can be repointed when the Railway backend domain changes.
-66. Scope extension host permissions to Railway subdomains so saved backend URL changes continue to work.
+65. Add a configurable extension API URL so the browser helper can be repointed when the backend domain changes.
+66. Scope extension host permissions to the configured backend hostname so saved API URL changes continue to work.
 67. Add authenticated account data export from Settings while excluding password hashes, tokens, and payment credentials.
 68. Add active and archived application views so rejected or withdrawn roles stay out of the working pipeline without deleting history.
 69. Add resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application.
@@ -228,8 +231,8 @@ Completed:
 
 Highest-impact remaining production work:
 
-1. Restore the Railway API or update Vercel to a working API domain; deploy and configure the separate worker plus Redis-backed rate limiting from this checkout.
-2. Verify PostgreSQL backups with a restore rehearsal, configure production SMTP, and ensure separate QA/STAGE data stores.
+1. Provision the selected demo services, set their secrets, deploy the Render blueprint, update Vercel `NEXT_PUBLIC_API_URL`, and complete live account and job-preparation smoke checks.
+2. Before real-user use, move to dependable hosting with database backups and recovery rehearsal, a separately managed worker, monitoring, production email delivery, and separate QA/STAGE data stores.
 3. Enforce GitHub branch protection and required checks for the documented QA -> STAGE -> main release flow.
 4. Continue hardening extension extraction with real-world samples; configure payment checkout only after business approval if paid plans are needed.
 
@@ -324,8 +327,8 @@ Generated application drafts use stored resume evidence only. The current implem
 - Refresh cookies are HTTP-only.
 - Logged-in password changes verify the current password and revoke existing refresh sessions.
 - Owner admin access is configured through an environment-variable allowlist.
-- Production secrets remain in Railway variables and are not committed to Git.
-- Railway exposes health and database-readiness probes.
+- Production secrets belong in provider environment variables and are not committed to Git.
+- The API exposes health and database/Redis readiness probes.
 - PostgreSQL schema changes use Alembic migrations.
 
 ## Current Limitations
@@ -335,6 +338,7 @@ Generated application drafts use stored resume evidence only. The current implem
 - Gemini tailoring uses strict evidence-grounding instructions and falls back safely when API quota is unavailable.
 - Payment checkout, webhook processing, and paid-plan activation are not connected and are intentionally out of scope for the current product work.
 - Assisted autofill is beta-safe and review-gated; direct resume-file upload into external sites and real Playwright browser control remain future work.
+- The selected free hosting stack is a demo route; cold starts, free-tier pauses/restarts, limited quotas, and lack of automatic free-tier backups are not suitable reliability guarantees for real users.
 
 ## Pending Work Status
 
@@ -348,7 +352,7 @@ Generated application drafts use stored resume evidence only. The current implem
 | Add assisted autofill for application forms | Done for MVP | Extension loads an API-generated autofill plan only after Review Application confirmation, maps common profile/resume fields, shows confidence/source/sensitive warnings, skips risky/manual controls, logs approved fields, and fills only user-approved fields. |
 | Add resume-file upload support during assisted applications | Done for MVP | Extension detects resume upload fields, downloads the latest prepared tailored resume for manual attachment, shows manual-upload-required status, and logs upload attempted/failed-manual-required events. Direct file assignment is not supported because browsers block extensions from setting local file paths. |
 | Add Playwright automation adapters for selected job sites | Partially done | Dry-run/manual-submit adapter capabilities, application plans, and tracked assisted-run records exist for LinkedIn, Naukri, Indeed, Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Jobvite, iCIMS, BambooHR, Workable, and generic career pages. Real browser-control execution is still deferred. |
-| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Implemented in this checkout; deployment pending | Duplicate prevention, audit events, and retries are implemented. Shared rate limiting now uses Redis, and a PostgreSQL-backed worker claims queued application-preparation jobs. Configure Redis and deploy the API and worker services in each environment. |
+| Add duplicate-application prevention, audit logs, retry handling, and rate limits | Implemented in this checkout; deployment pending | Duplicate prevention, audit events, and retries are implemented. Shared rate limiting uses Redis, and a PostgreSQL-backed worker claims queued application-preparation jobs. The Render demo runs that worker in-process; production should use a separately managed worker. |
 | Keep final submission manual initially; introduce optional automated submission only after real-world testing and explicit user consent | Current policy | Final submission remains manual. |
 | Add Razorpay checkout after account verification | Deferred | Payment work is paused until account verification is complete. |
 
@@ -404,4 +408,4 @@ Additional extractor checks:
 
 ## Deployment Note
 
-The public frontend is reachable, but API-backed registration and user workflows are currently blocked by the Railway API host returning `404 Application not found` (checked October 20, 2026). Deploy through `QA -> STAGE -> main` after configuring required GitHub branch protections. Railway service provisioning, secret values, backup policy, and the final Vercel API URL must be confirmed in the provider dashboards.
+The public frontend is reachable, but API-backed registration and user workflows are blocked because the configured Railway API host returned `404 Application not found` (checked October 20, 2026). The chosen recovery route is Render Free + Supabase Free + Upstash Redis Free, with the frontend kept on Vercel. `render.yaml` and the setup guide are ready, but the services, provider secrets, exact Render hostname, Vercel `NEXT_PUBLIC_API_URL`, and live workflow checks still need to be completed in their dashboards. Follow `QA -> STAGE -> main` for release after configuring the documented GitHub protections; the free demo route should not be treated as production-ready for real-user data.

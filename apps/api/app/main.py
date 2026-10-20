@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from time import perf_counter
@@ -12,6 +13,7 @@ from starlette.requests import Request
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.rate_limit import is_sensitive_path, rate_limiter
+from app.infrastructure.db.session import engine
 from app.presentation.api_v1.router import router
 from redis.exceptions import RedisError
 
@@ -22,13 +24,27 @@ logger = logging.getLogger("app.http")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if settings.app_env != "test" and settings.rate_limit_enabled:
-        try:
-            await rate_limiter.ping()
-        except RedisError as error:
-            raise RuntimeError("Redis must be available for API rate limiting.") from error
-    yield
-    await rate_limiter.close()
+    worker_task = None
+    try:
+        if settings.app_env != "test" and settings.rate_limit_enabled:
+            try:
+                await rate_limiter.ping()
+            except RedisError as error:
+                raise RuntimeError("Redis must be available for API rate limiting.") from error
+        if settings.app_env != "test" and settings.run_in_process_worker:
+            from app.worker import work_forever
+
+            worker_task = asyncio.create_task(work_forever(), name="apply-wise-in-process-worker")
+        yield
+    finally:
+        if worker_task:
+            worker_task.cancel()
+            try:
+                await worker_task
+            except asyncio.CancelledError:
+                pass
+        await rate_limiter.close()
+        await engine.dispose()
 
 app = FastAPI(
     title=settings.app_name,
