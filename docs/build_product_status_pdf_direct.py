@@ -68,20 +68,19 @@ story = [
     para("APPLY WISE", title),
     para("AI Job Application Copilot", subtitle),
     para("Product status and delivery roadmap", small),
-    para("Updated October 20, 2026  |  Live: https://apply-wise-1.vercel.app", small),
-    para("Launch status: blocked. The frontend responds, but its configured Railway API hostname returned 404 Application not found during the October 20 audit. Restore the API or update Vercel to a working HTTPS API URL before reopening registration and account workflows. Historical live smoke results below are from June and do not establish current health.", callout),
+    para("Updated October 21, 2026  |  Live: https://apply-wise-1.vercel.app", small),
+    para("Launch status: limited free beta deployed. Vercel Production is Ready on merged commit 35065fd. The Render API readiness check returned ready with the database and rate limiter ok; the public homepage, sign-in, and registration pages load. No authenticated user workflow was completed in this check, so feature code and service health do not prove every user journey. Use this setup for limited beta feedback only.", callout),
     Spacer(1, 4),
     para("What is live", heading),
-    para("Apply Wise provides resume-aware job discovery, truthful application preparation, and pipeline tracking. The web frontend is reachable; API-backed user workflows are currently unavailable until the production API is restored."),
+    para("Apply Wise provides resume-aware job discovery, application preparation, and pipeline tracking. The public pages and API readiness check are live. Registration, resume upload, job search, material generation, export, and tracking still need one complete authenticated smoke journey after the hosting change."),
     para("Live architecture", heading),
     table(
         ["Layer", "Technology", "Current role"],
         [
             ("Web app", "Next.js 15 / Vercel", "Responsive SaaS interface"),
-            ("API", "FastAPI / Railway", "Authenticated application API"),
-            ("Worker", "Railway worker", "Durable application-preparation jobs"),
-            ("Database and cache", "PostgreSQL / Redis", "Persistent product records, queued jobs, and shared rate limits"),
-            ("Job source", "Adzuna + Remotive APIs", "Live India and remote listings with attribution"),
+            ("API and worker", "FastAPI / Render Free", "Authenticated application API; the beta worker runs inside the API process and may sleep when idle"),
+            ("Database and rate limits", "Supabase PostgreSQL / Upstash Redis", "Persistent product records, queued jobs, and shared rate limits; free-tier limits apply"),
+            ("Job source", "Adzuna + Remotive APIs", "Remotive is listed as configured; Adzuna is not listed and India listings are unconfirmed"),
             ("Security", "JWT + refresh rotation", "Protected user workspaces"),
         ],
         [1.15 * inch, 1.8 * inch, 4.05 * inch],
@@ -91,7 +90,7 @@ story = [
 for item in [
     "Register, log in, log out, and refresh an authenticated session.",
     "Upload a PDF or DOCX master resume and review extracted skills, experience, education, and certifications.",
-    "Search live Adzuna and Remotive listings and rank jobs against stored resume skills.",
+    "Search configured job providers and rank jobs against stored resume skills; provider health currently lists Remotive only.",
     "Save roles, update statuses, and monitor dashboard and analytics metrics.",
     "Prepare Gemini-enhanced grounded drafts with deterministic fallback.",
     "Set role keywords, location, and remote-only discovery preferences.",
@@ -169,19 +168,19 @@ for item in [
     "Add extraction regression coverage for LinkedIn, Naukri, Workday, one generic company career page, and noisy/missing-field validation.",
     "Generate stored tailored resumes and cover letters directly from captured jobs on the Jobs page with previews, copy/download actions, ATS suggestions, and model metadata.",
     "Keep persisted manual and extension-captured jobs visible on the Jobs page after refresh by appending stored scored jobs to fresh provider search results.",
-    "Historical June smoke verified production API health, database readiness, generated artifacts, downloads, owner-scoped access, and extension capture; the October 20 live check found the configured API hostname unavailable.",
-    "Confirm post-deployment on Railway that captured jobs remain visible from the Jobs page after refresh with saved state and application ID preserved.",
+    "October 21 smoke confirmed the public pages and API/database/rate-limiter readiness. It did not create an account or exercise authenticated workflows. Provider health lists Remotive as configured; Adzuna is not listed.",
+    "Recheck in the live Render deployment that captured jobs remain visible from the Jobs page after refresh with saved state and application ID preserved.",
     "Show a first-time beta checklist for upload resume, pair extension, capture first job, generate materials, apply manually, and mark as applied.",
     "Improve empty and error states for missing resume, no captured jobs, expired extension tokens, generation failures, missing company on generic job pages, and no applications yet.",
     "Historically, bump the unpacked extension to version 0.3.3 with clearer token-expiry recovery and company-name manual fallback guidance.",
     "Verify the live beta flow from resume upload through extension capture, stored job visibility, generated materials, downloads, manual-submission confirmation, Applied persistence, owner-scoped access, and missing-resume structured errors.",
-    "Confirm Railway serves the beta dashboard-summary fields and Vercel client chunks include the updated dashboard, Jobs, and Applications guidance.",
+    "Historical Railway and Vercel deployment checks confirmed beta dashboard-summary fields and updated dashboard, Jobs, and Applications guidance.",
     "Add source-of-truth developer documentation with maintenance rules, feature ownership map, troubleshooting guide, 30-minute onboarding path, and GitHub PR documentation checklist.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
     para("Truthfulness rule", heading),
-    Table([[para("Application drafts use stored resume evidence only. They do not invent employers, skills, projects, responsibilities, or achievements. Every draft remains review-required.", callout)]], colWidths=[7 * inch], style=TableStyle([
+    Table([[para("Draft generation is designed to use resume evidence, but generated content can still contain errors. Review every claim, warning, and export before using it. Every draft remains review-required.", callout)]], colWidths=[7 * inch], style=TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), LIGHT_GREEN),
         ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#B8D4CC")),
         ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
@@ -193,20 +192,21 @@ for item in [
     "Argon2id password hashing and HTTP-only refresh cookies.",
     "Refresh-token rotation with replay detection and token-family revocation.",
     "Logged-in password changes verify the current password and revoke existing refresh sessions.",
-    "Owner admin allowlist configured through Railway environment variables.",
-    "Production secrets stored in Railway variables, not committed to Git.",
-    "Railway health and PostgreSQL readiness probes.",
+    "Owner admin allowlist configured through backend environment variables.",
+    "Production secrets stored in provider variables, not committed to Git.",
+    "The Render readiness probe checks PostgreSQL and Redis.",
     "Schema changes managed with Alembic migrations.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story.append(para("Current limitations", heading))
 for item in [
-    "Adzuna and Remotive are connected; deeper direct company-career-page provider integrations remain future work.",
+    "The live provider-health endpoint lists Remotive as configured; Adzuna is not listed. A live job-search results query has not been run after deployment.",
     "Resume parsing is deterministic and requires user review.",
     "Gemini enhancement depends on API quota; grounded fallback drafts remain available.",
     "Payment checkout, webhooks, and paid-plan activation are not connected.",
     "Assisted autofill is review-gated behind Review Application confirmation; direct file upload and real Playwright browser control remain future work.",
     "Real authenticated LinkedIn extension capture still needs manual verification in the user's Brave or Chrome profile after each unpacked extension reload.",
+    "Render Free may sleep between requests; Supabase Free has limited backup/recovery guarantees; provider quotas and pauses can interrupt service.",
 ]:
     story.append(Paragraph(item, bullet, bulletText="•"))
 story += [
@@ -214,7 +214,7 @@ story += [
     table(
         ["Order", "Slice", "Outcome"],
         [
-            ("1", "Reliability hardening", "Continue retries, graceful failures, and safety controls for assisted actions"),
+            ("1", "Live beta verification", "Complete registration, resume upload, job search, draft export, and application tracking with a test account"),
             ("2", "Site-specific selectors", "Add more employer-site-specific field selectors as real users report gaps"),
             ("3", "Extension UX", "Polish extension flows after live usage feedback"),
         ],
@@ -223,8 +223,8 @@ story += [
     para("Production requirements", heading),
 ]
 for item in [
-    "Restore the API service or update Vercel NEXT_PUBLIC_API_URL, then redeploy and verify health and readiness.",
-    "Provision Redis for API rate limits and a separate Railway worker with database, secret, and generation-provider settings; do not give the worker a public domain.",
+    "Complete the live beta journey from registration through saved application tracking and record any failures.",
+    "Before broader use, move to dependable hosting, enable and rehearse database backups, add monitoring, and use a separately managed worker.",
     "Enable and rehearse PostgreSQL backups, configure SMTP for self-service password reset, and verify isolated QA and STAGE data stores.",
     "Enable GitHub branch protection and required CI checks for QA, STAGE, and main. Payment checkout and webhooks are not implemented.",
 ]:
@@ -232,7 +232,6 @@ for item in [
 story += [
     para("Repository practice", heading),
     para("README.md, docs/PRODUCT_STATUS.md, and this PDF snapshot are updated as product slices ship. Promote releases through QA -> STAGE -> main after each environment's checks pass. Branch protection and required checks must be confirmed in GitHub. Secrets remain outside the repository."),
-    para("Repository: https://github.com/aadityamishra2002/Apply-wise", small),
 ]
 doc.build(story)
 print(OUTPUT)
