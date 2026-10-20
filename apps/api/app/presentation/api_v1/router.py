@@ -2684,7 +2684,7 @@ def validate_public_job_url(raw_url: str) -> str:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The job URL has an invalid port.") from error
     expected_port = 443 if parsed.scheme == "https" else 80
     if port is not None and port != expected_port:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only standard HTTP and HTTPS ports can be imported.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only public job URLs using standard HTTP and HTTPS ports can be imported.")
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
