@@ -4,7 +4,7 @@
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
-**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable. The selected recovery route is a Vercel frontend with a Render Free API, Supabase Free PostgreSQL, and Upstash Redis Free; the services have not been provisioned or deployed yet. This checkout includes the Render blueprint and in-process worker option for that demo route.
+**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable. The selected recovery route is a Vercel frontend with a Render Free API, Supabase Free PostgreSQL, and Upstash Redis Free. Upstash `apply-wise-demo` is provisioned in Singapore; the Apply Wise Supabase project is not yet created, and the Render account still needs email verification. No API service has been deployed. This checkout includes the Render blueprint and in-process worker option for that demo route.
 
 ## What Apply Wise Does
 
@@ -21,7 +21,7 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 | Job source | Adzuna API, Remotive API | Live India listings and remote-job listings with attribution |
 | Authentication | JWT access tokens and refresh-token rotation | Protected user workspaces |
 
-The selected free setup is for a personal, non-commercial demo and limited feedback, not dependable production use. Vercel Hobby restricts use to personal, non-commercial projects; Render can sleep and restart; Supabase Free can pause after low activity and has no automatic backups; and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). No provider service or API URL has been switched yet.
+The selected free setup is for a personal, non-commercial demo and limited feedback, not dependable production use. Vercel Hobby restricts use to personal, non-commercial projects; Render can sleep and restart; Supabase Free can pause after low activity and has no automatic backups; and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). Upstash is provisioned, but the API service and its API URL are not configured yet.
 
 ## Implemented User Journey
 
@@ -408,4 +408,4 @@ Additional extractor checks:
 
 ## Deployment Note
 
-The public frontend is reachable, but API-backed registration and user workflows are blocked because the configured Railway API host returned `404 Application not found` (checked October 20, 2026). The chosen recovery route is Render Free + Supabase Free + Upstash Redis Free, with the frontend kept on Vercel. `render.yaml` and the setup guide are ready, but the services, provider secrets, exact Render hostname, Vercel `NEXT_PUBLIC_API_URL`, and live workflow checks still need to be completed in their dashboards. Follow `QA -> STAGE -> main` for release after configuring the documented GitHub protections; the free demo route should not be treated as production-ready for real-user data.
+The public frontend is reachable, but API-backed registration and user workflows are blocked because the configured Railway API host returned `404 Application not found` (checked October 20, 2026). The chosen recovery route is Render Free + Supabase Free + Upstash Redis Free, with the frontend kept on Vercel. `render.yaml` and the setup guide are ready. Upstash `apply-wise-demo` is provisioned in Singapore. The Supabase `Datascience-Gpt` project is paused, freeing a Free slot; the Apply Wise project form is prepared in the `Lovely professional university` organization, but the user must enter the database password and submit project creation. The Render account still needs email verification. After those steps, create the Render service, configure its database and Redis credentials, set Vercel `NEXT_PUBLIC_API_URL`, and run live workflow checks. Follow `QA -> STAGE -> main` for release after configuring the documented GitHub protections; the free demo route should not be treated as production-ready for real-user data.
