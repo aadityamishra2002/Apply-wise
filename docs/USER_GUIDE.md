@@ -1,12 +1,29 @@
 # Apply Wise User Guide
 
-Last updated: 2026-06-22
+Last updated: 2026-10-21
 
 Use this guide when you want the fastest, most useful workflow from Apply Wise and the browser extension.
 
+## Current Live Beta And Feature Status
+
+Live site: https://apply-wise-1.vercel.app
+
+The limited free beta runs on Vercel, Render, Supabase, and Upstash. The latest deployment is live, and the API readiness endpoint has reported the database and rate limiter ready. The public homepage, sign-in, and registration pages load. The feature code and API workflows below are present, but a complete authenticated user journey has not yet been verified after the hosting change. This is a status distinction: a working page or health check alone does not prove every account workflow.
+
+| Feature advertised on the public site | Available in the product | Current verification and limits |
+|---|---|---|
+| Resume upload and parsing | PDF and DOCX upload, extracted profile fields, and profile editing are implemented. | Not end-to-end tested after the latest deployment. Review and correct extracted details. |
+| Job discovery and fit matching | Provider search plus manual paste/URL import and resume-aware match explanations are implemented. | Live provider health lists Remotive as configured; Adzuna is not listed. A live job search/results query was not run, so India-specific Adzuna listings are not confirmed and Remotive results still need a live check. |
+| ATS insights and tailored drafts | ATS readiness scoring, tailored resume and cover-letter drafts, and export flows are implemented. A deterministic fallback is available when AI enhancement is unavailable. | Scores are guidance, not a hiring-system guarantee. Check every generated claim and file before use. |
+| Application tracking | Saved roles, statuses, notes, activity, and interview rounds are implemented. | Persistent user workflows were not exercised after this deployment. |
+| Review before applying | The workflow requires user review; final employer submission stays manual. | The extension is optional, browser-specific, and not verified as part of the current live smoke check. |
+| Free beta and paid plans | Free beta access is shown. | Paid checkout and subscriptions are not enabled; paid tiers shown as planned are not purchasable. |
+
+The free hosting setup may sleep, pause, restart, or hit provider quotas; the first API request after inactivity can be slow. Keep your own copy of important files. Do not rely on this beta for guaranteed uptime, backups, or recovery of user data.
+
 ## Best Workflow
 
-1. Log in to Apply Wise: https://apply-wise-1.vercel.app
+1. Open Apply Wise at https://apply-wise-1.vercel.app and create a free beta account, or log in if you already have one.
 2. Upload your latest master resume from the **Resume** page. DOCX works best and can also become your active resume layout.
 3. Review the extracted profile and fix anything important before applying.
 4. Optional: open **Resume Templates** from the Resume page and select the DOCX layout you want future tailored resumes to use.

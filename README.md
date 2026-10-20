@@ -4,7 +4,7 @@ Apply Wise is a deployed AI-powered job application copilot for resume-aware job
 
 **Live site:** [https://apply-wise-1.vercel.app](https://apply-wise-1.vercel.app)
 
-**Launch status (October 20, 2026):** the frontend responds, but the configured Railway API host returns `404 Application not found`, so account and API-backed workflows are unavailable. The selected recovery route is Vercel + Render Free + Supabase Free + Upstash Redis Free. It is documented and configured in this checkout, but those services are not provisioned or deployed yet.
+**Launch status (October 21, 2026):** a limited free beta is deployed at [apply-wise-1.vercel.app](https://apply-wise-1.vercel.app). The Production deployment is on Vercel, the API is on Render, PostgreSQL is on Supabase, and shared rate limits use Upstash Redis. The live readiness endpoint has reported the database and rate limiter ready; the public homepage, sign-in, and registration pages load. Authenticated feature workflows have not yet had a full end-to-end check after this deployment. Render Free can sleep between requests, and this setup is for a limited beta rather than an uptime or backup guarantee. See [product status](docs/PRODUCT_STATUS.md), [deployment notes](docs/DEPLOYMENT.md), and the [user guide](docs/USER_GUIDE.md).
 
 ## Product Status
 
@@ -35,7 +35,7 @@ Before closing any development task, verify that the feature is implemented, tes
 ## Implemented
 
 - Responsive Next.js 15 SaaS interface deployed on Vercel
-- FastAPI backend with PostgreSQL readiness checks and a separate durable preparation-job worker
+- FastAPI backend with PostgreSQL readiness checks and a durable preparation queue; the Render beta runs its worker in the API process, while a fuller deployment can use a separate worker
 - Redis-backed shared API rate limits; production API instances require the configured Redis service
 - Registration, login, logout, protected workspaces, JWT access tokens, and refresh-token rotation
 - Authenticated password change plus password-reset token flow with optional SMTP email delivery in production and support fallback when SMTP is not configured
@@ -47,7 +47,7 @@ Before closing any development task, verify that the feature is implemented, tes
 - Resume profile update and re-parse APIs with a web editor for structured skills, experience, education, certifications, and projects
 - Resume page next-step guidance from parsed resume to job matches, saved roles, and Review Application
 - Resume template workspace for uploading DOCX templates, selecting the active layout, renaming/deleting templates, previewing placeholder or inferred section mapping, and tracking which template generated each resume version
-- Live Adzuna job discovery for India with keyword search and attribution
+- Adzuna job discovery for India when provider credentials are configured, with keyword search and attribution
 - Live Remotive remote-job discovery with respectful short-lived caching and attribution
 - Direct role and location search on the Jobs page
 - Public job URL import with safe server-side extraction, persistence, ATS scoring, and manual paste fallback
@@ -171,9 +171,9 @@ Release through `QA -> STAGE -> main`; configure required checks and branch prot
 
 ## Next Changes
 
-1. Continue reliability and safety hardening for assisted application actions
-2. Add more employer-site-specific field selectors as real users report gaps
-3. Add deeper extension UX polish after live usage feedback
+1. Complete and document one controlled live beta journey from registration through resume upload, job review, draft export, and application tracking
+2. Improve reliability and safety for assisted application actions and free-tier operations
+3. Add employer-site-specific field selectors and extension UX improvements from real user feedback
 
 ## Chrome Extension MVP
 
@@ -183,10 +183,10 @@ Load the unpacked extension from [`apps/extension`](apps/extension) and follow i
 
 All endpoints require the normal bearer access token.
 
-Set `API_URL` to the active backend base URL ending in `/api/v1` before using these examples. The currently configured Railway hostname is unavailable; see the deployment guide for the selected Render setup.
+Set `API_URL` to the active backend base URL ending in `/api/v1` before using these examples. The current API base is `https://apply-wise-api.onrender.com/api/v1`; see the deployment guide before changing providers.
 
 ```bash
-export API_URL=https://<active-api-host>/api/v1
+export API_URL=https://apply-wise-api.onrender.com/api/v1
 curl -H "Authorization: Bearer <token>" "$API_URL/resume-templates"
 ```
 

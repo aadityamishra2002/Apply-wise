@@ -1,10 +1,10 @@
 # Apply Wise Product Status
 
-**Last updated:** October 20, 2026
+**Last updated:** October 21, 2026
 **Live site:** https://apply-wise-1.vercel.app
 **Repository:** https://github.com/aadityamishra2002/Apply-wise
 
-**Current launch status:** blocked. The Vercel frontend returned HTTP 200, but its configured Railway API hostname returned `404 Application not found` on October 20, 2026. The API-dependent account flows are unavailable. The selected recovery route is a Vercel frontend with a Render Free API, Supabase Free PostgreSQL, and Upstash Redis Free. Upstash `apply-wise-demo` is provisioned in Singapore. The Apply Wise Supabase project form is waiting for the user to submit project creation. The Render account is verified and its Free API service form is staged, but the service and its credentials have not been saved or deployed. This checkout includes the Render blueprint and in-process worker option for that demo route.
+**Current launch status:** limited free beta deployed. Production is served from Vercel at [apply-wise-1.vercel.app](https://apply-wise-1.vercel.app); the API is `https://apply-wise-api.onrender.com`; PostgreSQL is on Supabase and shared rate limits use Upstash Redis. The Production deployment from merged commit `35065fd` is Ready. The API readiness check returned `ready` with database and rate limiter `ok`; the public homepage, sign-in, and registration pages loaded. No account was created and no authenticated resume-to-application workflow was exercised during this verification, so implementation and deployment health do not establish that every user journey has passed an end-to-end check.
 
 ## What Apply Wise Does
 
@@ -15,13 +15,13 @@ Apply Wise helps a job seeker upload a master resume, discover relevant live job
 | Layer | Technology | Current role |
 |---|---|---|
 | Web app | Next.js 15, TypeScript, Tailwind CSS | Responsive SaaS interface deployed on Vercel |
-| API | FastAPI, Python | Render Free is the selected demo target; previous Railway hostname is inactive |
-| Database | PostgreSQL, SQLAlchemy, Alembic | Supabase Free is the selected demo target for users, resumes, jobs, scores, drafts, applications, and analytics |
-| Rate limits and queue support | Redis plus PostgreSQL-backed job queue | Upstash Redis Free is the selected demo target; Render demo runs the queue worker inside the API process |
-| Job source | Adzuna API, Remotive API | Live India listings and remote-job listings with attribution |
+| API | FastAPI, Python | Live on Render Free; the service can sleep and restart |
+| Database | PostgreSQL, SQLAlchemy, Alembic | Supabase Free stores user and product data; free-tier backup/recovery guarantees are limited |
+| Rate limits and queue support | Redis plus PostgreSQL-backed job queue | Upstash Redis Free provides shared rate limits; the Render beta runs the queue worker inside the API process |
+| Job source | Adzuna API, Remotive API | Remotive is currently listed as configured by the live provider-health endpoint; Adzuna is not listed, so India-specific listings are unconfirmed until its provider credentials are configured and a live search succeeds |
 | Authentication | JWT access tokens and refresh-token rotation | Protected user workspaces |
 
-The selected free setup is for a personal, non-commercial demo and limited feedback, not dependable production use. Vercel Hobby restricts use to personal, non-commercial projects; Render can sleep and restart; Supabase Free can pause after low activity and has no automatic backups; and Upstash Redis Free has monthly command and storage limits. See the setup steps and current provider limits in [DEPLOYMENT.md](DEPLOYMENT.md). Upstash is provisioned, but the API service and its API URL are not configured yet.
+This free setup is suitable only for a limited beta and feedback, not dependable production service. Render can sleep and restart; Supabase Free can pause after low activity and does not provide automatic backups; Upstash Redis Free has monthly command and storage limits; and Vercel Hobby has usage restrictions. See [DEPLOYMENT.md](DEPLOYMENT.md) for provider references and recovery notes. The current live status is not a promise of uptime, backups, or complete end-to-end validation.
 
 ## Implemented User Journey
 
@@ -157,11 +157,11 @@ Manual verification still recommended after deployment:
 - Download DOCX and confirm fonts, margins, headings, spacing, bullet styles, and section order match the template closely.
 - Download PDF and confirm all supported sections are present.
 
-## Production Verification Update
+## Historical Production Verification (June 2026)
 
-Latest live smoke result:
+The detailed checks below describe an earlier Railway deployment and do not prove current feature workflows:
 
-- Historical checks below passed on June 20, 2026; they do not establish current production health. The October 20, 2026 check found the configured API host unavailable as noted above.
+- The October 20, 2026 Railway hostname failure was resolved by switching the frontend to the Render API and deploying the merged `main` commit on October 21, 2026. The current verification is summarized at the top of this document; the June checks below remain historical.
 
 - June 20 beta-readiness smoke used a disposable production account and passed the main API-backed user flow.
 - Railway API health returned `ok`.
@@ -201,7 +201,7 @@ Remaining production manual checks:
 
 ## Beta Readiness Status
 
-Current status: **not ready for live user onboarding until the production API is restored.** After recovery, the product still needs the manual beta checks below and the production environment checklist in `docs/DEPLOYMENT.md`.
+Current status: **limited beta deployment is live, but full user onboarding is not yet end-to-end verified.** The public entry pages and backend readiness were checked; the manual workflows below still need a real beta user journey. This free hosting configuration also does not provide production-grade uptime, backup, or recovery guarantees.
 
 What is ready for beta:
 
@@ -231,7 +231,7 @@ Completed:
 
 Highest-impact remaining production work:
 
-1. Provision the selected demo services, set their secrets, deploy the Render blueprint, update Vercel `NEXT_PUBLIC_API_URL`, and complete live account and job-preparation smoke checks.
+1. Complete a controlled live beta journey: registration, resume upload/profile review, job discovery or manual capture, draft generation/export, and persistent application tracking.
 2. Before real-user use, move to dependable hosting with database backups and recovery rehearsal, a separately managed worker, monitoring, production email delivery, and separate QA/STAGE data stores.
 3. Enforce GitHub branch protection and required checks for the documented QA -> STAGE -> main release flow.
 4. Continue hardening extension extraction with real-world samples; configure payment checkout only after business approval if paid plans are needed.
@@ -408,4 +408,4 @@ Additional extractor checks:
 
 ## Deployment Note
 
-The public frontend is reachable, but API-backed registration and user workflows are blocked because the configured Railway API host returned `404 Application not found` (checked October 20, 2026). The chosen recovery route is Render Free + Supabase Free + Upstash Redis Free, with the frontend kept on Vercel. Upstash `apply-wise-demo` is provisioned in Singapore. The Supabase `Apply Wise` project has been created in the `Lovely professional university` organization and reported Healthy in Singapore; no application migrations have run yet. The Supabase `Datascience-Gpt` project remains paused. Render Blueprint `applywise` created the `apply-wise-api` service on `codex/production-readiness`. Its first image build succeeded, but startup failed because Render parsed the overridden Docker command incorrectly (`sh: ...: not found`). The Dockerfile now runs migrations before Uvicorn by default, and the Blueprint no longer overrides that command; this fix must be pushed and synced before checking health. Then set Vercel `NEXT_PUBLIC_API_URL` and run live workflow checks. Follow `QA -> STAGE -> main` for release after configuring the documented GitHub protections; the free demo route should not be treated as production-ready for real-user data.
+The October 20 Railway failure and initial Render startup failure are resolved for the current deployment. The merged `main` commit `35065fd` is live on Vercel; Render is serving the API, and `/api/v1/health/ready` reported the database and Redis ready on October 21, 2026. The Vercel Production variable points at the Render API. The user guide and deployment notes distinguish this basic deployment check from unverified authenticated workflows. Keep the free stack limited to beta use; follow `QA -> STAGE -> main` after configuring GitHub protections, and arrange dependable backups, monitoring, email delivery, and a separate worker before broader reliance.
